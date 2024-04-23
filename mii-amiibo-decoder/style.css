@@ -24,6 +24,13 @@ pre {
   max-width: 80vw;
 }
 
+/* mobile */
+@media (width > 40em) {
+    pre {
+        max-width: 30em;
+    }
+}
+
 li.load-error {
   color: red;
   border: 1px solid red !important;

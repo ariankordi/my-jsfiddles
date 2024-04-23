@@ -34,7 +34,7 @@ function u8Mii2Map(u8) {
     (u8[0x34] & 0x01) + (u8[0x35] >> 0x06),
     // eye rotation
     u8[0x36] & 0x07,
-    // eye scale (!)
+    // eye scale
     (0x0e & u8[0x35]) >> 0x01,
     // eye type
     u8[0x34] & 0x3f,
@@ -45,12 +45,12 @@ function u8Mii2Map(u8) {
     // eyebrow thickness
     (0x0e & u8[0x3a]) >> 0x01,
     // eyebrow color
-    (u8[0x38] >> 0x05) - 1,
+    u8[0x38] >> 0x05,
     // eyebrow rotation
     u8[0x3a] & 0x07,
     // eyebrow scale
     u8[0x39] & 0x07,
-    // eyebrow type (!)
+    // eyebrow type
     u8[0x38] & 0x05,
     // eyebrow distance
     (u8[0x3b] & 0x01) + (u8[0x3a] >> 0x05),
@@ -60,7 +60,7 @@ function u8Mii2Map(u8) {
     u8[0x30] >> 0x05,
     // blush type (0 for none)
     u8[0x30] >> 0x04,
-    // face type (!!)
+    // face type
     (0x0e & u8[0x30]) >> 0x01,
     // face style (wrinkles) (0 for none)
     u8[0x31] & 0x0f,
@@ -78,7 +78,7 @@ function u8Mii2Map(u8) {
     10,
     // hair color (!)
     u8[0x33] & 0x06,
-    // hair flipped (!)
+    // hair flipped
     u8[0x33] >> 0x03,
     // hair style
     u8[0x32],
@@ -136,6 +136,6 @@ function b642u8(str) {
 const newMiiMap = u8Mii2Map(b642u8('AwEAQOiHu+XgBGBQ1wSZbRghyJwF/wAAWRhQAEYAMgBHAAAAUABGADIATQAAAH8uCAAMBrtqQhThI2UOYRIIRA4AIEEAUhAdAABhAG4AZQAAAAAAAAAAAAAAAAAAAKz5'));
 const newMiiStudioValue = miiMap2Studio(newMiiMap);
 // here is the actual mii studio image url
-const miiStudioURL = 'https://studio.mii.nintendo.com/miis/image.png?type=all_body&width=270&data=' + newMiiStudioValue;
+const miiStudioURL = 'https://studio.mii.nintendo.com/miis/image.png?type=all_body&width=512&data=' + newMiiStudioValue;
 // update img
 document.getElementById('mii-preview').setAttribute('src', miiStudioURL);

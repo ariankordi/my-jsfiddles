@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Password Hash Calculator</title>
+    <script>
+        // Function to generate a light color
+        function getRandomLightColor() {
+            var letters = 'BCDEF'; // Higher hex digits for lighter colors
+            var color = '#';
+            for (var i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * letters.length)];
+            }
+            return color;
+        }
+    </script>
+    <style>
+        .hash-output { ; }
+        body {
+          background-image: url('https://i.pinimg.com/originals/8f/25/4b/8f254bfce4dcdcdf49872ea3664530e6.jpg');
+    background-size: 90px;
+    text-align: center;
+        }
+        form, ul, h1 {
+          text-wrap:wrap;
+    color: #fff;
+    background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <h1>
+    SEX AND PORN!!!!!!!
+    </h1>
+    <form id="hashForm">
+        <label for="pid">Principal ID:</label>
+        <input type="number" id="pid" required><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" required><br>
+        <button type="submit">Calculate Hash</button>
+    </form>
+    <ul id="hashList"></ul>
+
+    <script>
+        document.getElementById('hashForm').onsubmit = function(event) {
+            event.preventDefault();
+            var pid = document.getElementById('pid').value;
+            var password = document.getElementById('password').value;
+            calcPasswordHash(parseInt(pid), password).then(hash => {
+                var hashElement = document.createElement('li');
+                hashElement.innerHTML = password + ': ' + hash;
+                hashElement.style.color = getRandomLightColor();
+                var hashList = document.getElementById('hashList');
+                hashList.insertBefore(hashElement, hashList.firstChild);
+            });
+        };
+    </script>
+<script src="script.js"></script>
+</body>
+</html>

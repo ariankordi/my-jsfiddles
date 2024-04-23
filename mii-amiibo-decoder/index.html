@@ -1,10 +1,27 @@
-<input type="file"><br>
-<img id="mii">
+<link rel="stylesheet" href="style.css">
+<label for="file">
+  <h3>upload a 540/532 byte amiibo</h3>
+  encrypted or decrypted we don&#39;t care<br>
+</label>
+<input id="file" type="file">
+<br>
+<ul id="results" class="results">
+  <li id="mii-template" style="display: none;">
+    <img class="mii">
+    <ul>
+      <li>Mii Name: <span class="mii-name"></span></li>
+      <li>Figure Name: <span class="figure-name"></span></li>
+    </ul>
+  </li>
+  <li class="load-error" style="display: none;">
+  </li>
+</ul>
 <script src="
 https://cdn.jsdelivr.net/npm/kaitai-struct@0.10.0/KaitaiStream.min.js
 "></script>
 <script>
-// Gen2Wiiu3dsMiitomo.js:
+//! kaitai structs compiled from ksy files in: https://github.com/HEYimHeroic/mii2studio
+//! Gen2Wiiu3dsMiitomo.js:
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
 (function (root, factory) {
@@ -413,7 +430,7 @@ var Gen2Wiiu3dsMiitomo = (function() {
 })();
 return Gen2Wiiu3dsMiitomo;
 }));
-// Gen3Studio.js:
+//! Gen3Studio.js:
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
 (function (root, factory) {

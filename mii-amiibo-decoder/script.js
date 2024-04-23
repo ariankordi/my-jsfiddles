@@ -10,22 +10,38 @@ const AMIIBO_STOREDATA_SIZE = 0x60;
 const AMIIBO_NFPSTOREDATAEXTENTIONRAW_OFFSET = 0xBC;
 const AMIIBO_NFPSTOREDATAEXTENTIONRAW_SIZE = 0x8;
 const AMIIBO_COUNTRY_CODE_OFFSET = 0x2D;
+const AMIIBO_NAME_OFFSET = 0x38;
+const AMIIBO_MII_NAME_OFFSET = 0x66;
+
+// html stuff
+const resultList = document.getElementById('results');
+const miiTemplate = document.getElementById('mii-template');
 
 const parseMiiFromDecryptedAmiibo = unpacked => {
+  const firstLi = miiTemplate.cloneNode(true);
+  firstLi.id = '';
+  // Append the cloned <li> to the top of the <ul>
+  resultList.insertBefore(firstLi, resultList.firstChild);
+  const newLi = resultList.children[0];
+  // show it
+  newLi.style.display = '';
+
+	const amiiboName = extractUTF16FromU8(unpacked, AMIIBO_NAME_OFFSET, false);
+  newLi.getElementsByClassName('figure-name')[0].textContent = amiiboName;
+  const miiName = extractUTF16FromU8(unpacked, AMIIBO_MII_NAME_OFFSET, true);
+  newLi.getElementsByClassName('mii-name')[0].textContent = miiName;
+
   const storeData = unpacked.slice(AMIIBO_STOREDATA_OFFSET, AMIIBO_STOREDATA_OFFSET+AMIIBO_STOREDATA_SIZE);
 
   const storeDataArrayBuffer = new Uint8Array(storeData).buffer;
   const origMii = new Gen2Wiiu3dsMiitomo(new KaitaiStream(storeDataArrayBuffer));
 
-	// TODO: VERIFY CRC16
-  // TODO: CATCH ALL ERRORS IN JS, PRESENT THEM
-  // TODO: NICE UI WITH <UL>s
-	// TODO: PARSE MII & AMIIBO NAME (VALID AMIIBO ?)
+  // TODO: VERIFY CRC16 OF FFLSTOREDATA STRUCT
   // TODO: SUPPORT DECRYPTED AMIIBO? (DETECT BY CRC16?)
-  // TODO: USE KAITAI STRUCT FOR STUDIO?
+  // TODO: VERIFY NfpStoreDataExtentionRaw::IsValid 
+  // TODO: CATCH ALL ERRORS IN JS, PRESENT THEM
 
-	const studioMii = map3DSMiiToStudio(origMii);
-  //var studio = new Gen3Studio(new KaitaiStream(new Uint8Array(Object.values(studioMii)).buffer)); Object.values(studio)
+	const studioMii = map3DSMiiToStudio(origMii);  
   
   // determine whether this amiibo data was registered on a switch
   // and judge if NFPStoreDataExtentionRaw should be used
@@ -53,6 +69,8 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
 
   if(useStoreDataExtension) {
     const storeDataExtension = unpacked.slice(AMIIBO_NFPSTOREDATAEXTENTIONRAW_OFFSET, AMIIBO_NFPSTOREDATAEXTENTIONRAW_OFFSET+AMIIBO_NFPSTOREDATAEXTENTIONRAW_SIZE);
+    // nn::mii::detail::NFPStoreDataExtentionRaw (sic)
+    // this struct should also be defined in Citra or Yuzu, forgot which at this point
     studioMii.faceColor = storeDataExtension[0];
     studioMii.hairColor = storeDataExtension[1];
     studioMii.eyeColor = storeDataExtension[2];
@@ -61,25 +79,43 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
     studioMii.facialHairColor = storeDataExtension[5];
     studioMii.glassesColor = storeDataExtension[6];
     studioMii.glassesType = storeDataExtension[7];
+  } else {
+  	// use mii-unsecure api lmao???
+    const storeDataB64 = btoa(String.fromCharCode.apply(null, storeData));
+    newLi.getElementsByClassName('mii')[0].src = `https://mii-unsecure.ariankordi.net/render.png?width=270&data=${storeDataB64}`;
+	  return;
   }
 
 	const urlMii = miiMap2Studio(Object.values(studioMii));
-	document.getElementById('mii').src = `https://studio.mii.nintendo.com/miis/image.png?type=face&expression=normal&width=270&instanceRotationMode=model&data=${urlMii}`;
+	newLi.getElementsByClassName('mii')[0].src = `https://studio.mii.nintendo.com/miis/image.png?type=face&expression=normal&width=270&instanceRotationMode=model&data=${urlMii}`;
+  
 };
 
-const unpackCallback = unpackResult => {
-  //console.log(unpackResult)
-  // If decrypt is successful
-  if(!unpackResult.result) {
-    console.log('AAAAAAAAAAAAAAAAAAAAAAAAAAAAA unpackResult.result FAILED');
-    return;
-  }
-  // The plain data is available through unpackResult.unpacked
-  const unpacked = unpackResult.unpacked;
-  // console log the hex
-  console.log([...new Uint8Array(unpacked)].map(x => x.toString(16).padStart(2, '0')).join(''));
+const unpackCallback = function(originalBuffer) {
+  return unpackResult => {
+    //console.log(unpackResult)
+    // If decrypt is successful
+    if(!unpackResult.result) {
+      // TODO: REMOVE THIS HACK:
+      // IDEALLY we should check if this is a decrypted amiibo by verifying the mii CRC16.
+      // however a quicker solution is...
+      // ... making sure the "0xA5" constant is in the same place as the decrypted format
+      const originalU8 = new Uint8Array(originalBuffer);
+      if(originalU8[0x28] === 0xA5) {
+      	console.log('assuming this amiibo is decrypted and parsing it');
+        return parseMiiFromDecryptedAmiibo(originalU8);
+      }
+      console.warn('AAAAAAAAAAAAAAAAAAAAAAAAAAAAA unpackResult.result FAILED');
+      throw new Error('motherfucker this is not an amiibo');
+      return;
+    }
+    // The plain data is available through unpackResult.unpacked
+    const unpacked = unpackResult.unpacked;
+    // console log the hex
+    console.log([...new Uint8Array(unpacked)].map(x => x.toString(16).padStart(2, '0')).join(''));
 
-  parseMiiFromDecryptedAmiibo(unpacked);
+    parseMiiFromDecryptedAmiibo(unpacked);
+  }
 }
 
 // NOTE: wait for everything in maboii at the bottom to be loaded before calling into it
@@ -90,75 +126,90 @@ window.onload = () => {
   // Tom Nook Blue Jasmine.bin
   let dumpFileBuffer = b64ToBuffer('BCbAasqESYGGSA/g8RD/7qUABwB4RnhRWQWtTDJYrDlFrEpv9iS9mKQGGbgDJdEQRHpgSVnVkq49JRiXwSZw0hQI8yX62jAzfvS+p0pqJ2h512GvAYMAAAJCBQINEoUWZeSTaBI+3L7GincbCFZHCpsFl60nl/qThgnrhon7ynYWrimYkYCkJ7H/nS9vVvMm9RTse1Ujffr0ZNG2AAAD8fwnLC2OODIwQZquvY1rSBj/XWhFhQvJXU2JOBautFDl3Iry5ZXD78B2hNWCTrYU85Ehzzpr49RDsEK3ifrqzK0/21SJbmKCAshL8/4Mh1naUz1hsZT6oVd0xwrKmMLH3QflkCUwRxuc0Ym/RZezPqlfdhyZ2ANzWQ9oq70iqSFQin2ogmtVjyhnXcGF0ng1oho+wr5xzzxFnmZfsw1G4+/6RSotoYAvRC4W6Ch8ve4ke4iDDyYqIjStmNiOPXVmSd2/Vlzt+gyEqfR3ObNxNDkaWTeyMzDUH1yh7qWM8Kb+Ak1OVwpEu4T6wI6LY8kqwj9LmcjjqKRo8+fVngxz0tmqyvuwv21/nQAKbbX1yl9iuzETMOryBh58pIYYcjDU8ZWSOwzBv+pKDWmVDv1ZCOBhDqO3s2XWjh8I72dhC71XQZcb1TZUE7X0nPl6i4Et1vyK1IQvA6WtPiPH4uwvsDE1KH328xoeGwEAD70AAAAEXwAAAA==');
 
-  maboii.unpack(keys, [...dumpFileBuffer]).then(unpackCallback);
+  maboii.unpack(keys, [...dumpFileBuffer]).then(unpackCallback(dumpFileBuffer));
 
 }
+
+window.onerror = msg => {
+  // Handle image loading error
+  var errorLiOriginal = document.getElementsByClassName('load-error');
+  // get last error li, the original
+  var errorLi = errorLiOriginal[errorLiOriginal.length - 1].cloneNode(true);
+  errorLi.style.display = '';
+  errorLi.textContent = msg.reason ? msg.reason : msg;
+  resultList.insertBefore(errorLi, resultList.firstChild); // Insert at the top
+}
+window.onunhandledrejection = window.onerror;
 
 document.querySelector('input').addEventListener('change', event => {
   const reader = new FileReader();
   reader.onload = () => {
   	const arrayBuffer = reader.result;
-    maboii.unpack(keys, [...new Uint8Array(arrayBuffer)]).then(unpackCallback);
+    maboii.unpack(keys, [...new Uint8Array(arrayBuffer)]).then(unpackCallback(arrayBuffer));
   }
   reader.readAsArrayBuffer(event.target.files[0]);
 });
 
-function map3DSMiiToStudio(origMii) {
-  return {
-    facialHairColor: origMii.facialHairColor === 0 ? 8 : origMii.facialHairColor,
-    beardGoatee: origMii.facialHairBeard,
-    bodyWeight: origMii.bodyWeight,
-    eyeStretch: origMii.eyeStretch,
-    eyeColor: origMii.eyeColor + 8,
-    eyeRotation: origMii.eyeRotation,
-    eyeSize: origMii.eyeSize,
-    eyeType: origMii.eyeType,
-    eyeHorizontal: origMii.eyeHorizontal,
-    eyeVertical: origMii.eyeVertical,
-    eyebrowStretch: origMii.eyebrowStretch,
-    eyebrowColor: origMii.eyebrowColor === 0 ? 8 : origMii.eyebrowColor,
-    eyebrowRotation: origMii.eyebrowRotation,
-    eyebrowSize: origMii.eyebrowSize,
-    eyebrowType: origMii.eyebrowType,
-    eyebrowHorizontal: origMii.eyebrowHorizontal,
-    eyebrowVertical: origMii.eyebrowVertical,
-    faceColor: origMii.faceColor,
-    faceMakeup: origMii.faceMakeup,
-    faceType: origMii.faceType,
-    faceWrinkles: origMii.faceWrinkles,
-    favoriteColor: origMii.favoriteColor,
-    gender: origMii.gender,
-    glassesColor: origMii.glassesColor === 0 ? 8 : (origMii.glassesColor < 6 ? origMii.glassesColor + 13 : 0),
-    glassesSize: origMii.glassesSize,
-    glassesType: origMii.glassesType,
-    glassesVertical: origMii.glassesVertical,
-    hairColor: origMii.hairColor === 0 ? 8 : origMii.hairColor,
-    hairFlip: origMii.hairFlip,
-    hairType: origMii.hairType,
-    bodyHeight: origMii.bodyHeight,
-    moleSize: origMii.moleSize,
-    moleEnable: origMii.moleEnable,
-    moleHorizontal: origMii.moleHorizontal,
-    moleVertical: origMii.moleVertical,
-    mouthStretch: origMii.mouthStretch,
-    mouthColor: origMii.mouthColor < 4 ? origMii.mouthColor + 19 : 0,
-    mouthSize: origMii.mouthSize,
-    mouthType: origMii.mouthType,
-    mouthVertical: origMii.mouthVertical,
-    beardSize: origMii.facialHairSize,
-    beardMustache: origMii.facialHairMustache,
-    beardVertical: origMii.facialHairVertical,
-    noseSize: origMii.noseSize,
-    noseType: origMii.noseType,
-    noseVertical: origMii.noseVertical
-	}
+// NOTE: NOTE: WARNING: WARNING: TODO: TODO: THIS CAN CREATE AN INFINITELY LONG STRING
+function extractUTF16FromU8(buffer, startOffset, isLittleEndian) {
+  // Find the position of the null terminator (0x00 0x00)
+  let endPosition = startOffset;
+  while(endPosition < buffer.length - 1) {
+    if(buffer[endPosition] === 0x00 && buffer[endPosition + 1] === 0x00) {
+      break;
+    }
+    endPosition += 2; // Move in 2-byte increments (UTF-16 LE)
+  }
+	const utf16leBytes = buffer.slice(startOffset, endPosition);
+  // input is usually an array so we need to make it a Uint8Array
+  const utf16leU8Array = new Uint8Array(utf16leBytes);
+  const endian = isLittleEndian ? 'utf-16le' : 'utf-16be'
+  return new TextDecoder(endian).decode(utf16leU8Array);
 }
+
+function map3DSMiiToStudio(origMii) {
+  // instances from origMii named differently than Gen3Studio
+	origMii.beardGoatee = origMii.facialHairBeard;
+  origMii.beardSize = origMii.facialHairSize;
+  origMii.beardMustache = origMii.facialHairMustache;
+  origMii.beardVertical = origMii.facialHairVertical;
+  // convert fields in origMii (3DS) to be compatible with gen 3 format
+  origMii.facialHairColor = origMii.facialHairColor === 0 ? 8 : origMii.facialHairColor;
+  origMii.eyeColor = origMii.eyeColor + 8;
+  origMii.eyebrowColor = origMii.eyebrowColor === 0 ? 8 : origMii.eyebrowColor;
+  origMii.glassesColor = origMii.glassesColor === 0 ? 8 : (origMii.glassesColor < 6 ? origMii.glassesColor + 13 : 0);
+  origMii.hairColor = origMii.hairColor === 0 ? 8 : origMii.hairColor;
+  origMii.mouthColor = origMii.mouthColor < 4 ? origMii.mouthColor + 19 : 0;
+
+  // create new blank Gen3Studio
+  const studioMii = new Gen3Studio(new KaitaiStream(new ArrayBuffer(46)));
+
+  for(const key in studioMii) {
+      if(key.startsWith('_')) {
+ 		    // remove kaitai keys...
+        // ... so that the only fields left
+        // will literally map directly to studio format
+        delete studioMii[key];
+        continue;
+      }
+      // Check if the property exists in Gen2 and map it, otherwise log it
+      if(origMii[key] !== undefined) {
+        studioMii[key] = origMii[key];
+      } else {
+        console.warn(key + ' does not exist on origMii');
+      }
+      // excludes: beardGoatee, beardSize, beardMustache, beardVertical
+    }
+  // now it is ready
+  return studioMii;
+}
+// NOTE: taken from jsfiddle from 2018. probably not the most efficient way to do this?
 // miiMap2Studio converts a mii "map" array with mii traits to a value that can be rendered by studio.mii.nintendo.com.
 function miiMap2Studio(map) {
 	// map will be modified
 	const len = map.length;
   // make some random int
-  const random = 0;
+  const random = 0//Math.floor(256 * Math.random());
   // randomCopy will be modified
   let randomCopy = random;
   for(let i = 0; i < len; i++) {

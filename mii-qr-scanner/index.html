@@ -1,0 +1,24 @@
+<link rel="stylesheet" href="style.css">
+<h2>Scan QR Code</h2>
+<button id="start-camera">From camera</button>
+<button id="stop-button">Cancel</button>
+<div>
+    <label for="cam-list">Select camera:</label>
+    <select id="cam-list">
+        <option value="environment" selected>Back Camera (default)</option>
+        <option value="user">User/Front Facing Camera</option>
+        <option class="device-camera" disabled>(Open the camera for more options)</option>
+    </select>
+</div>
+<input type="file" id="file-input" accept="image/*">
+<video id="qr-video" style="max-width: 100%"></video>
+<ul id="result-list"></ul>
+
+<script src="https://cdn.jsdelivr.net/npm/sjcl@1.0.8/sjcl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sjcl@1.0.8/core/codecBytes.js"></script>
+
+<!--<script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>-->
+<!-- custom FORK!!!!!! of qr-scanner that supports binary data
+https://github.com/nimiq/qr-scanner/pull/191
+-->
+<script src="https://cdn.jsdelivr.net/gh/criteo-forks/qr-scanner/qr-scanner.umd.min.js"></script><script src="script.js"></script>

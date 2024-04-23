@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+        body {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 100%;
+          max-width: 720px;
+          margin: 0;
+
+          text-align: center;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        }
+        h1 {
+          font-size: 36px;
+          margin-bottom: 10px; 
+        }
+        ul {
+          list-style-type: none;
+          margin-top: 5px;
+          padding: 0;
+        }
+        #submit {
+          font-size: 36px;
+        }
+        #upload-button {
+          margin-left: 10px;
+          margin-right: 10px;
+          border-radius: 20px;
+          cursor: pointer;
+          background-color: #95e1f9;
+        }
+        #upload-button:hover {
+          background-color: #89cfe5;
+        }
+        #upload-button:active {
+          background-color: #6aa3b5;
+        }
+        #upload-button > span {
+          display: block;
+          font-size: 48px;
+          padding: 20px;
+        }
+        #upload-button-container {
+          display: block;
+          padding-bottom: 10px;
+        }
+        #upload, #submit {
+          display: none;
+        }
+        .success {
+          color: green;
+        }
+        .error {
+          color: red;
+        }
+
+
+        /*.spinner {
+          animation: rotate 1.4s linear infinite;
+        }
+        @keyframes rotate {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(270deg); }
+        }
+        .path {
+          stroke-dasharray: 187;
+          stroke-dashoffset: 0;
+          transform-origin: center;
+          animation: dash 1.4s ease-in-out infinite;
+          stroke: #16c7ff;
+        }
+        @keyframes dash {
+         0% { stroke-dashoffset: 187; }
+         50% {
+           stroke-dashoffset: 46.75;
+           transform: rotate(135deg);
+         }
+         100% {
+           stroke-dashoffset: 187;
+           transform: rotate(450deg);
+         }
+        }*/
+    </style>
+    <!--<noscript>-->
+      <style>
+        #upload, #submit {
+          display: inline-block;
+        }
+      </style>
+    <!--</noscript>-->
+    <title>neet.host</title>
+</head>
+<body>
+    <h1>neet.host</h1>
+    <form method="post" enctype="multipart/form-data">
+        <label id="upload-button-container">
+          <div id="upload-button">
+            <span>upload</span>
+          </div>
+          <input id="upload" type="file" name="upload" accept="image/*">
+        </label>
+        <div class="success">
+        Uploaded
+        </div>
+        <!--<svg class="spinner" width="45px" height="45px" viewBox="0 0 66 66" xmlns="http://www.w3.org/2000/svg">
+          <circle class="path" fill="none" stroke-width="6" stroke-linecap="round" cx="33" cy="33" r="30"></circle>
+        </svg>
+        uploading-->
+        <ul>
+          <li><input type="checkbox" name="auto_jpeg" value="1" checked> Convert image to JPEG if there is no transparency (overrides WebP option)</li>
+          <li><input type="checkbox" name="use_webp" value="1" checked> Upload image as WebP</li>
+          <li>Set image quality, lower means a smaller size: <input type="range" name="quality" value="70" min="0" max="100"></li>
+          <li><input type="checkbox" name="resize" value="1" checked> Scale image with width: <input type="number" name="width" value="1280" min="100" max="4000"> and height: <input type="number" name="height" value="720" min="100" max="4000"></li>
+        </ul>
+        <input id="submit" type="submit" value="submit">
+    </form>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<h3>upload EITHER a 96-byte ffsd file OR base64 mii data</h3>
+<form onsubmit="processData(event)">
+  <input type="file" id="fileInput">
+  <br>
+  <input type="text" id="miiDataInput" placeholder="Base64 Mii Data">
+  <br>
+  <button>Generate Mii QR Code</button>
+</form>
+<ul id="qrList"></ul>
+
+
+<script src="https://cdn.jsdelivr.net/npm/sjcl@1.0.8/sjcl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sjcl@1.0.8/core/codecBytes.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrjs@0.2.0/qr.min.js"></script><script src="script.js"></script>

@@ -1,0 +1,25 @@
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("https://ariankordi.net/cors-proxy/https://web.archive.org/web/20210302232752id_/https://www.apple.com/wss/fonts/SF-Pro-Display/v2/sf-pro-display_semibold.woff2");
+}
+
+.e {
+  border-radius: 20%; height: 87.225px; width: 87.225px;
+  /*background-color: #8eff87;
+  */background-image: linear-gradient(to bottom, #8eff87, #3eff87);
+  text-align: center;
+}
+
+.e img {
+  height: 87.225px;
+}
+
+.smd {
+  position: absolute;
+  margin-left: 94px;
+  font-family: "SF Pro Display";
+  font-size: 72px;
+}
+.smd span {
+  padding-left: 4px;
+}

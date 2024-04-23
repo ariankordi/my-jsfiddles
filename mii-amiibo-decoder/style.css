@@ -17,6 +17,13 @@ ul#results > li {
   display: table;
 }
 
+pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  max-width: 80vw;
+}
+
 li.load-error {
   color: red;
   border: 1px solid red !important;

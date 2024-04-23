@@ -32,6 +32,9 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
   newLi.getElementsByClassName('mii-name')[0].textContent = miiName;
 
   const storeData = unpacked.slice(AMIIBO_STOREDATA_OFFSET, AMIIBO_STOREDATA_OFFSET+AMIIBO_STOREDATA_SIZE);
+  
+  const storeDataB64 = btoa(String.fromCharCode.apply(null, storeData));
+  newLi.getElementsByClassName('base64-mii')[0].textContent = storeDataB64;
 
   const storeDataArrayBuffer = new Uint8Array(storeData).buffer;
   const origMii = new Gen2Wiiu3dsMiitomo(new KaitaiStream(storeDataArrayBuffer));
@@ -81,14 +84,15 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
     studioMii.glassesType = storeDataExtension[7];
   } else {
   	// use mii-unsecure api lmao???
-    const storeDataB64 = btoa(String.fromCharCode.apply(null, storeData));
+    const studioURLCode = miiMap2Studio(Object.values(studioMii));
+    newLi.getElementsByClassName('studio-url-code')[0].textContent = studioURLCode;
     newLi.getElementsByClassName('mii')[0].src = `https://mii-unsecure.ariankordi.net/render.png?width=270&data=${storeDataB64}`;
 	  return;
   }
 
-	const urlMii = miiMap2Studio(Object.values(studioMii));
-	newLi.getElementsByClassName('mii')[0].src = `https://studio.mii.nintendo.com/miis/image.png?type=face&expression=normal&width=270&instanceRotationMode=model&data=${urlMii}`;
-  
+	const studioURLCode = miiMap2Studio(Object.values(studioMii));
+  newLi.getElementsByClassName('studio-url-code')[0].textContent = studioURLCode;
+	newLi.getElementsByClassName('mii')[0].src = `https://studio.mii.nintendo.com/miis/image.png?type=face&width=270&data=${studioURLCode}`;  
 };
 
 const unpackCallback = function(originalBuffer) {

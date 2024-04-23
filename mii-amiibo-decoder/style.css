@@ -2,16 +2,17 @@ ul {
   list-style-position: inside;
   padding: 0;
 }
+
 ul#results {
-  text-align: center;
   list-style-type: none;
 }
-ul#results > li {
+
+ul#results>li {
   border-radius: 5px;
   border: 1px solid #808080;
   display: inline-block;
   padding: 5px;
-  
+
   margin: 0 auto 5px;
   /* least problematic display method i found */
   display: table;
@@ -26,9 +27,9 @@ pre {
 
 /* mobile */
 @media (width > 40em) {
-    pre {
-        max-width: 30em;
-    }
+  pre {
+    max-width: 30em;
+  }
 }
 
 li.load-error {
@@ -38,15 +39,16 @@ li.load-error {
 
 /* automatic dark mode */
 @media (prefers-color-scheme: dark) {
-    body {
-        color: white;
-        background-color: black;
-    }
-}
-/* manual dark mode */
-.dark {
+  body {
     color: white;
     background-color: black;
+  }
+}
+
+/* manual dark mode */
+.dark {
+  color: white;
+  background-color: black;
 }
 
 body {
@@ -58,6 +60,8 @@ body {
     Helvetica,
     Arial,
     sans-serif;
+
+  text-align: center;
 }
 
 h3 {

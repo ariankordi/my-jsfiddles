@@ -3,8 +3,12 @@ body {
   font-family: sans-serif;
 }
 h1 {
-  text-shadow: 0px 10px;
+  text-shadow:10px 10px 0px rgba(0,0,0,0.2);
+  letter-spacing:15px
 }
 .a {
- font-size: 80%; 
+  font-size: 80%; 
+}
+ul {
+  list-style-type: none;
 }

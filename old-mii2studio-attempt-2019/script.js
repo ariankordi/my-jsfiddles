@@ -45,7 +45,7 @@ function u8Mii2Map(u8) {
     // eyebrow thickness
     (0x0e & u8[0x3a]) >> 0x01,
     // eyebrow color
-    u8[0x38] >> 0x05,
+    (u8[0x38] >> 0x05) - 1,
     // eyebrow rotation
     u8[0x3a] & 0x07,
     // eyebrow scale
@@ -93,15 +93,15 @@ function u8Mii2Map(u8) {
     // mole y
     20,
     // mouth thickness
-    3,
+    u8[0x3f] >> 5,
     // unknown?
     19,
     // mouth size
-    3,
+    (0x0e & u8[0x3f]) >> 0x01,
     // mouth type
-    25,
+    u8[0x3e] & 0x3f,
     // mouth height
-    13,
+    u8[0x40] & 0x1f,
     // unknown?
     4,
     // moustache type (0 for none)
@@ -109,7 +109,7 @@ function u8Mii2Map(u8) {
     // moustache height
     10,
     // nose scale
-    1,
+    (u8[0x3b] & 0x01) + (u8[0x3c] >> 0x05),
     // nose type
     0x1f & u8[0x3c],
     // nose height
@@ -131,9 +131,9 @@ function b642u8(str) {
 // do stuff
 // convert base64 to u8
 //const newMiiMap = u8Mii2Map(b642u8('AwAAMKtmz7kOsnHolemSncz7ZfBbsAAAAWBUAGEAbgB1AGsAaQBEAGUAZQAAADcjAABpAa1oYxggNEYWgRJPaA0AACkgYkhQAAAAAAAAAAAAAAAAAAAAAAAAAAAAABnp'));
-const newMiiMap = u8Mii2Map(b642u8('AwAAMLYhkwbv2enqkdzbyFi9o+5zsgAAk2qGMAAAWDAxAGsAMQAyAGQAVTCTMFFDEhBlBhJkpBzAYGYWAgrCBAYAAClAABAAhjBEMAAAAAAAAAAAAAAAAAAAAAAAAAnv'));
+//const newMiiMap = u8Mii2Map(b642u8('AwAAMLYhkwbv2enqkdzbyFi9o+5zsgAAk2qGMAAAWDAxAGsAMQAyAGQAVTCTMFFDEhBlBhJkpBzAYGYWAgrCBAYAAClAABAAhjBEMAAAAAAAAAAAAAAAAAAAAAAAAAnv'));
 //const newMiiMap = u8Mii2Map(b642u8('AwEAMIAhWGSARACgkc32dOAMf+R8aQAAWFhQAEYAMgBNAAAAUABGADIATQAAAH8uCAAzBqUoQxLhI2UOgRIVZg4AIEEAUhAdTABhAG4AZQAAAAAAAAAAAAAAAAAAAPln'));
-//const newMiiMap = u8Mii2Map(b642u8('AwEAQOiHu+XgBGBQ1wSZbRghyJwF/wAAWRhQAEYAMgBHAAAAUABGADIATQAAAH8uCAAMBrtqQhThI2UOYRIIRA4AIEEAUhAdAABhAG4AZQAAAAAAAAAAAAAAAAAAAKz5'));
+const newMiiMap = u8Mii2Map(b642u8('AwEAQOiHu+XgBGBQ1wSZbRghyJwF/wAAWRhQAEYAMgBHAAAAUABGADIATQAAAH8uCAAMBrtqQhThI2UOYRIIRA4AIEEAUhAdAABhAG4AZQAAAAAAAAAAAAAAAAAAAKz5'));
 const newMiiStudioValue = miiMap2Studio(newMiiMap);
 // here is the actual mii studio image url
 const miiStudioURL = 'https://studio.mii.nintendo.com/miis/image.png?type=all_body&width=270&data=' + newMiiStudioValue;

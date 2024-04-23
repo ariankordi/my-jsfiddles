@@ -1,0 +1,65 @@
+<link rel="stylesheet" href="style.css">
+<body class="dark">
+<h1>SEX AND PORN!!!!!!!</h1>
+<form>
+<!--<label>Mii Type: <select name="version">
+    <option>Base64 (FFLStoreData)</option>
+    <option>3DS / Wii U File</option>
+    <option>Studio Code</option>
+  </select></label><br>
+<label>Input File: <input id="image-file" type="file" onchange="var dat = Upload(this, 'mii')" name="mii"></label><br>
+<span class="small">(Mii binary file or QR Code)</span><br>
+<label>Nintendo Account ID / <a href="https://miicontest.wii.rc24.xyz/">CMOC</a> Entry Number <input type="text" name="id" id="mii-id" onchange="Entry()" value="3e5328d61bd4860d"><input type="submit" value="Submit" onclick="Entry()"></label><br>-->
+<label>Mii data (Base64)<br> <!--<input type="text" name="data" value="3e5328d61bd4860d">-->
+<input type="text" name="data" placeholder="Base64 Mii data, like from account.nintendo.net"><br>
+</label>
+<!--<div class="parameters">-->
+  <label>Type: <select class="parameter" name="type">
+      <option value="face">Face</option>
+      <option value="face_only">Face Only</option>
+      <!--<option value="all_body">Body </option>-->
+    </select></label><br>
+  <label>Expression: <select class="parameter" name="expression">
+      <option value="normal">Normal</option>
+      <option value="smile">Smile</option>
+      <option value="anger">Anger</option>
+      <option value="sorrow">Sorrow</option>
+      <option value="surprise">Surprise</option>
+      <option value="blink">Blink</option>
+      <option value="normal_open_mouth">Normal (open mouth)</option>
+      <option value="smile_open_mouth">Smile (open mouth)</option>
+      <option value="anger_open_mouth">Anger (open mouth)</option>
+      <option value="surprise_open_mouth">Surprise (open mouth)</option>
+      <option value="sorrow_open_mouth">Sorrow (open mouth)</option>
+      <option value="blink_open_mouth">Blink (open mouth)</option>
+      <option value="wink_left">Wink (left eye open)</option>
+      <option value="wink_right">Wink (right eye open)</option>
+      <option value="wink_left_open_mouth">Wink (left eye and mouth open)</option>
+      <option value="wink_right_open_mouth">Wink (right eye and mouth open)</option>
+      <option value="like_wink_left">Wink (left eye open, Miiverse-style)</option>
+      <option value="like_wink_right">Wink (right eye open, Miiverse-style)</option>
+      <option value="frustrated">Frustrated</option>
+    </select></label><br>
+  <label>Resolution:
+    <input name="width" type="range" min="96" max="1080" step="8" value="256">
+  </label><label>
+    <input id="resolution-number" class="short-number" type="number" step="4" value="256"><span>px</span>
+  </label><br>
+  <label>Upscale/antialiasing, 2x/3x is fine:
+    <input type="number" name="scale" min="1" max="4" value="2"><span>x</span>
+  </label><br>
+  <label>Background color: <input name="bgColor" type="color" value="#00ff00">
+    </label>
+    <label>Transparent? <input id="transparent-checkbox" type="checkbox" checked disabled><br>
+    <input type="submit" value-disabled="Please wait..."></label><br>
+</form>
+<hr>
+<h3>Outputs</h3>
+<ul id="results">
+
+  <li><img class="mii" align="center" src="https://cdn-mii.accounts.nintendo.com/2.0.0/miis/3e5328d61bd4860d/image/68747470733a2f2f-7066326d2e636f6d.png?type=face&amp;expression=normal&amp;width=96&amp;bgColor=FFFFFF00&amp;clothesColor=default&amp;cameraXRotate=0&amp;cameraYRotate=0&amp;cameraZRotate=0&amp;characterXRotate=0&amp;characterYRotate=0&amp;characterZRotate=0&amp;lightDirectionMode=none&amp;splitDepthOffset=0&amp;splitMode=front&amp;instanceCount=1&amp;instanceRotationMode=model"></li>
+
+</ul>
+
+<script src="script.js"></script>
+</body>

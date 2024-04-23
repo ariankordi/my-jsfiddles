@@ -1,0 +1,33 @@
+/* automatic dark mode */
+@media (prefers-color-scheme: dark) {
+  body {
+    color: white;
+    background-color: black;
+  }
+}
+
+/* manual dark mode */
+.dark {
+  color: white;
+  background-color: black;
+}
+
+body {
+  font-family: sans-serif;
+  line-height: 150%;
+  text-align: center;
+}
+.small {
+  font-size: 12px;
+}
+.results img {
+  border-radius: 5px;
+  max-width: calc(100vw - 32px);
+  border: 1px solid #808080;
+}
+.short-number {
+  width: 45px;
+}
+input[name=data] {
+  width: 30em;
+}

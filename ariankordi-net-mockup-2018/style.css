@@ -2,8 +2,8 @@ body {
   text-align: center;
   font-family: sans-serif;
 }
-h1 {
-  text-shadow:10px 10px 0px rgba(0,0,0,0.2);
+.b {
+  text-shadow: 10px 10px 0px rgba(0, 0, 0, 0.2);
   letter-spacing:15px
 }
 .a {

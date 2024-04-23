@@ -3,15 +3,17 @@ function miiMap2Studio(map) {
 	// map will be modified
 	const len = map.length;
   // make some random int
-  const random = Math.floor(256 * Math.random());
+  const random = 0;
   // randomCopy will be modified
   var randomCopy = random;
   for(let i = 0; i < len; i++) {
   	map[i] = (7 + (map[i] ^ randomCopy)) % 256;
     randomCopy = map[i];
   }
+  // add the random value to the front of the map
   return [random].concat(map).map(i => {
   	for(var byte = (i % 256).toString(16); byte.length < 2;) {
+    	// pad hex with zero
     	byte = '0' + byte;
     }
     return byte;

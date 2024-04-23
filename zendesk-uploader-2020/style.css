@@ -1,0 +1,10 @@
+body {
+  background-color: #23272a;
+  color: white;
+}
+a:link {
+  color: #4bccff;
+}
+a:active {
+  color: #ff4b4b;
+}

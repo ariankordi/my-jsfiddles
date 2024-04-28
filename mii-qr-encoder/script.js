@@ -91,9 +91,10 @@ function processAndDisplayQR(data) {
 
   // Extract UTF-16 LE Mii name starting at 0x1A
 	const startOffset = 0x1A;
+  const nameLength = 0x14;
   // Find the position of the null terminator (0x00 0x00)
   let endPosition = startOffset;
-  while (endPosition < data.length - 1) {
+  while (endPosition < startOffset + nameLength) {
     if (data[endPosition] === 0x00 && data[endPosition + 1] === 0x00) {
       break;
     }

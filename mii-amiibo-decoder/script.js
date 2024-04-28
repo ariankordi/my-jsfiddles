@@ -86,7 +86,7 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
   	// use mii-unsecure api lmao???
     const studioURLCode = miiMap2Studio(Object.values(studioMii));
     newLi.getElementsByClassName('studio-url-code')[0].textContent = studioURLCode;
-    newLi.getElementsByClassName('mii')[0].src = `https://mii-unsecure.ariankordi.net/render.png?width=270&data=${storeDataB64}`;
+    newLi.getElementsByClassName('mii')[0].src = `https://mii-unsecure.ariankordi.net/render.png?width=270&data=${encodeURIComponent(storeDataB64)}`;
 	  return;
   }
 

@@ -158,7 +158,9 @@ document.querySelector('input').addEventListener('change', event => {
 function extractUTF16FromU8(buffer, startOffset, isLittleEndian) {
   // Find the position of the null terminator (0x00 0x00)
   let endPosition = startOffset;
-  while(endPosition < buffer.length - 1) {
+  // names on both amiibos and miis are 10 characters - 20 (0x14) bytes
+  const nameLength = 0x14;
+  while(endPosition < startOffset + nameLength) {
     if(buffer[endPosition] === 0x00 && buffer[endPosition + 1] === 0x00) {
       break;
     }

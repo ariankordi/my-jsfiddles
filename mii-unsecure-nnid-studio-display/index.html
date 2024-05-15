@@ -1,14 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <input type="text" id="miiInput" placeholder="Enter Mii ID...">
+
+  <body>
+    <form id="miiForm" action="https://mii-unsecure.ariankordi.net/mii_data/">
+      <input type="text" id="nnidInput" placeholder="Enter NNID..." maxlength="16" pattern="^[0-9a-zA-Z\-_.]+$">
+      <div class="checkboxContainer">
+        <input type="checkbox" id="api_id" name="api_id" value="1"><label for="api_id"> Pretendo</label>
+      </div>
+    </form>
     <div id="status">Status: Waiting for input...</div>
-    <div id="imageContainer"></div>
-<script src="script.js"></script>
+    <div id="error" class="hidden">Error: <span id="errorDetails"></span></div>
+    <div id="loaded" class="hidden">Loaded: <span id="loadedName"></span> / <span id="loadedUserId"></span></div>
+    <div id="imageContainer">
+      <img id="miiImage" data-src="https://studio.mii.nintendo.com/miis/image.png?type=face&expression=normal&width=270&data=" class="hidden">
+    </div>
+  <script src="script.js"></script>
 </body>
+
 </html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mii Data Fetcher</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        input {
+            padding: 10px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            border: none;
+            border-radius: 5px;
+        }
+        #status {
+            font-size: 18px;
+            margin-top: 10px;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+        img {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <input type="text" id="miiInput" placeholder="Enter Mii ID...">
+    <div id="status">Status: Waiting for input...</div>
+    <div id="imageContainer"></div>
+
+    <script>
+        let timeout = null;
+
+        document.getElementById('miiInput').addEventListener('keydown', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                const inputValue = document.getElementById('miiInput').value;
+                fetch(`http://localhost:8080/mii_data/${inputValue}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            document.getElementById('status').textContent = `Error: ${data.error}`;
+                            document.getElementById('status').classList.add('error');
+                            document.getElementById('status').classList.remove('success');
+                            document.getElementById('imageContainer').innerHTML = '';
+                        } else {
+                            document.getElementById('status').textContent = `Loaded: ${data.name} / ${data.user_id}`;
+                            document.getElementById('status').classList.add('success');
+                            document.getElementById('status').classList.remove('error');
+                            const imageUrl = `https://studio.mii.nintendo.com/miis/image.png?type=face&expression=normal&width=270&data=${data.studio_url_data}`;
+                            document.getElementById('imageContainer').innerHTML = `<img src="${imageUrl}" alt="${data.name}">`;
+                        }
+                    })
+                    .catch(error => {
+                        document.getElementById('status').textContent = `Error: ${error.message}`;
+                        document.getElementById('status').classList.add('error');
+                        document.getElementById('status').classList.remove('success');
+                        document.getElementById('imageContainer').innerHTML = '';
+                    });
+            }, 200);
+        });
+    </script>
+</body>
+</html>

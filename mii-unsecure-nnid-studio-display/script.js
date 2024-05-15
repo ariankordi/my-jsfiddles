@@ -4,7 +4,7 @@ document.getElementById('miiInput').addEventListener('keydown', () => {
   clearTimeout(timeout);
   timeout = setTimeout(() => {
     const inputValue = document.getElementById('miiInput').value;
-    fetch(`http://localhost:8080/mii_data/${inputValue}`)
+    fetch(`https://mii-unsecure.ariankordi.net/mii_data/${inputValue}`)
       .then(response => response.json())
       .then(data => {
       if (data.error) {

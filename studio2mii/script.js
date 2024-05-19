@@ -190,7 +190,17 @@ function studioTob64Gen2StoreDataDisplay(event) {
   // setting system id and client id here are NOT necessary, but they can be randomized
   //origMii.systemId = [0, 0, 0, 0, 0, 0, 0, 0];
   // mii id on the other hand cannot be null
-  origMii.avatarId = [128, 0, 0, 0];
+  // if you scan two miis with the same id (or potentially other ids)
+  // then the system will think they are the same and not overwrite
+  //origMii.avatarId = [128, 0, 0, 0];
+  // TODO: make ALL RANDOM AVATAR IDS
+  // TODO: ALL NUMBERS and ALSO RANDOM SYSTEM ID. MAYBE RANDOM (NINTENDO) MAC???
+  origMii.avatarId = [128,
+  	// should not exceed 256?
+  	Math.floor(Math.random() * 257),
+    Math.floor(Math.random() * 257),
+		Math.floor(Math.random() * 257),
+  ];
   //origMii.clientId = [0, 0, 0, 0, 0, 0];
 	// TODO: tried to mark enable copying here but did not work???
 

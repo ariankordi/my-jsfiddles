@@ -1,26 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
-
-  <head>
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="style.css">
+    <title>Mii Data Fetcher</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        input, button, label {
+            padding: 10px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+        }
+        #status, #error, #loaded {
+            font-size: 18px;
+            margin-top: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+        img {
+            margin-top: 20px;
+        }
+    </style>
+<link rel="stylesheet" href="style.css">
 </head>
-
-  <body>
+<body>
     <form id="miiForm" action="https://mii-unsecure.ariankordi.net/mii_data/">
-      <input type="text" id="nnidInput" placeholder="Enter NNID..." maxlength="16" pattern="^[0-9a-zA-Z\-_.]+$">
-      <div class="checkboxContainer">
-        <input type="checkbox" id="api_id" name="api_id" value="1"><label for="api_id"> Pretendo</label>
-      </div>
+        <input type="text" id="nnidInput" name="nnid" placeholder="Enter NNID..." maxlength="16" pattern="[a-zA-Z0-9._-]+">
+        <label for="pretendoToggle">Enable Pretendo</label>
+        <input type="checkbox" id="pretendoToggle" name="api_id" value="1">
+        <button type="submit">Fetch Data</button>
     </form>
-    <div id="status">Status: Waiting for input...</div>
+    <button id="randomFetch">Fetch Random Data</button>
+    <div id="status" class="hidden">Status: Waiting for input...</div>
     <div id="error" class="hidden">Error: <span id="errorDetails"></span></div>
     <div id="loaded" class="hidden">Loaded: <span id="loadedName"></span> / <span id="loadedUserId"></span></div>
     <div id="imageContainer">
-      <img id="miiImage" data-src="https://studio.mii.nintendo.com/miis/image.png?type=face&expression=normal&width=270&data=" class="hidden">
+        <img id="miiImage" src="https://studio.mii.nintendo.com/miis/image.png?type=all_body&expression=normal&width=270&data=" alt="" class="hidden">
     </div>
-  <script src="script.js"></script>
-</body>
 
+    <script>
+
+    </script>
+<script src="script.js"></script>
+</body>
 </html>

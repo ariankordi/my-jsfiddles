@@ -12,6 +12,7 @@ const AMIIBO_NFPSTOREDATAEXTENTIONRAW_SIZE = 0x8;
 const AMIIBO_COUNTRY_CODE_OFFSET = 0x2D;
 const AMIIBO_NAME_OFFSET = 0x38;
 const AMIIBO_MII_NAME_OFFSET = 0x66;
+const AMIIBO_AND_MII_NAME_LENGTH = 0x14;
 
 // html stuff
 const resultList = document.getElementById('results');
@@ -26,9 +27,9 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
   // show it
   newLi.style.display = '';
 
-	const amiiboName = extractUTF16FromU8(unpacked, AMIIBO_NAME_OFFSET, false);
+	const amiiboName = extractUTF16FromU8(unpacked, AMIIBO_NAME_OFFSET, AMIIBO_AND_MII_NAME_LENGTH, false);
   newLi.getElementsByClassName('figure-name')[0].textContent = amiiboName;
-  const miiName = extractUTF16FromU8(unpacked, AMIIBO_MII_NAME_OFFSET, true);
+  const miiName = extractUTF16FromU8(unpacked, AMIIBO_MII_NAME_OFFSET, AMIIBO_AND_MII_NAME_LENGTH, true);
   newLi.getElementsByClassName('mii-name')[0].textContent = miiName;
 
   const storeData = unpacked.slice(AMIIBO_STOREDATA_OFFSET, AMIIBO_STOREDATA_OFFSET+AMIIBO_STOREDATA_SIZE);
@@ -86,7 +87,7 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
   	// use mii-unsecure api lmao???
     const studioURLCode = miiMap2Studio(Object.values(studioMii));
     newLi.getElementsByClassName('studio-url-code')[0].textContent = studioURLCode;
-    newLi.getElementsByClassName('mii')[0].src = `https://mii-unsecure.ariankordi.net/render.png?width=270&data=${encodeURIComponent(storeDataB64)}`;
+    newLi.getElementsByClassName('mii')[0].src = `https://mii-unsecure.ariankordi.net/render.png?width=270&data=${storeDataB64}`;
 	  return;
   }
 
@@ -155,11 +156,9 @@ document.querySelector('input').addEventListener('change', event => {
 });
 
 // NOTE: NOTE: WARNING: WARNING: TODO: TODO: THIS CAN CREATE AN INFINITELY LONG STRING
-function extractUTF16FromU8(buffer, startOffset, isLittleEndian) {
+function extractUTF16FromU8(buffer, startOffset, nameLength, isLittleEndian) {
   // Find the position of the null terminator (0x00 0x00)
   let endPosition = startOffset;
-  // names on both amiibos and miis are 10 characters - 20 (0x14) bytes
-  const nameLength = 0x14;
   while(endPosition < startOffset + nameLength) {
     if(buffer[endPosition] === 0x00 && buffer[endPosition + 1] === 0x00) {
       break;
@@ -207,6 +206,7 @@ function map3DSMiiToStudio(origMii) {
       // excludes: beardGoatee, beardSize, beardMustache, beardVertical
     }
   // now it is ready
+  debugger
   return studioMii;
 }
 // NOTE: taken from jsfiddle from 2018. probably not the most efficient way to do this?

@@ -206,7 +206,6 @@ function map3DSMiiToStudio(origMii) {
       // excludes: beardGoatee, beardSize, beardMustache, beardVertical
     }
   // now it is ready
-  debugger
   return studioMii;
 }
 // NOTE: taken from jsfiddle from 2018. probably not the most efficient way to do this?

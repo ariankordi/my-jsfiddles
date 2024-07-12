@@ -12,7 +12,6 @@ const AMIIBO_NFPSTOREDATAEXTENTIONRAW_SIZE = 0x8;
 const AMIIBO_COUNTRY_CODE_OFFSET = 0x2D;
 const AMIIBO_NAME_OFFSET = 0x38;
 const AMIIBO_MII_NAME_OFFSET = 0x66;
-const AMIIBO_AND_MII_NAME_LENGTH = 0x14;
 
 // html stuff
 const resultList = document.getElementById('results');
@@ -27,9 +26,9 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
   // show it
   newLi.style.display = '';
 
-	const amiiboName = extractUTF16FromU8(unpacked, AMIIBO_NAME_OFFSET, AMIIBO_AND_MII_NAME_LENGTH, false);
+	const amiiboName = extractUTF16FromU8(unpacked, AMIIBO_NAME_OFFSET, false);
   newLi.getElementsByClassName('figure-name')[0].textContent = amiiboName;
-  const miiName = extractUTF16FromU8(unpacked, AMIIBO_MII_NAME_OFFSET, AMIIBO_AND_MII_NAME_LENGTH, true);
+  const miiName = extractUTF16FromU8(unpacked, AMIIBO_MII_NAME_OFFSET, true);
   newLi.getElementsByClassName('mii-name')[0].textContent = miiName;
 
   const storeData = unpacked.slice(AMIIBO_STOREDATA_OFFSET, AMIIBO_STOREDATA_OFFSET+AMIIBO_STOREDATA_SIZE);
@@ -86,13 +85,15 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
   } else {
   	// use mii-unsecure api lmao???
     const studioURLCode = miiMap2Studio(Object.values(studioMii));
-    newLi.getElementsByClassName('studio-url-code')[0].textContent = studioURLCode;
-    newLi.getElementsByClassName('mii')[0].src = `https://mii-unsecure.ariankordi.net/render.png?width=270&data=${storeDataB64}`;
+    newLi.getElementsByClassName('studio-url-data')[0].textContent = studioURLCode;
+    newLi.getElementsByClassName('studio-code')[0].textContent = [...new Uint8Array(Object.values(studioMii))].map(x => x.toString(16).padStart(2, '0')).join('');
+    newLi.getElementsByClassName('mii')[0].src = `https://mii-unsecure.ariankordi.net/miis/image.png?width=270&data=${storeDataB64}`;
 	  return;
   }
 
 	const studioURLCode = miiMap2Studio(Object.values(studioMii));
-  newLi.getElementsByClassName('studio-url-code')[0].textContent = studioURLCode;
+  newLi.getElementsByClassName('studio-url-data')[0].textContent = studioURLCode;
+  newLi.getElementsByClassName('studio-code')[0].textContent = [...new Uint8Array(Object.values(studioMii))].map(x => x.toString(16).padStart(2, '0')).join('');
 	newLi.getElementsByClassName('mii')[0].src = `https://studio.mii.nintendo.com/miis/image.png?type=face&width=270&data=${studioURLCode}`;  
 };
 
@@ -156,10 +157,10 @@ document.querySelector('input').addEventListener('change', event => {
 });
 
 // NOTE: NOTE: WARNING: WARNING: TODO: TODO: THIS CAN CREATE AN INFINITELY LONG STRING
-function extractUTF16FromU8(buffer, startOffset, nameLength, isLittleEndian) {
+function extractUTF16FromU8(buffer, startOffset, isLittleEndian) {
   // Find the position of the null terminator (0x00 0x00)
   let endPosition = startOffset;
-  while(endPosition < startOffset + nameLength) {
+  while(endPosition < buffer.length - 1) {
     if(buffer[endPosition] === 0x00 && buffer[endPosition + 1] === 0x00) {
       break;
     }

@@ -667,6 +667,6 @@ const commonColorTable = [{
 // Create a 10x10 table
 createColorTable(commonColorTable, 10, 10, "Common Colors");
 
-createColorTable(facelineColorTable, 2, 6, "Faceline Colors");
+createColorTable(facelineColorTable, 2, 5, "Faceline Colors");
 
 createColorTable(favoriteColorTable, 2, 5, "Favorite Colors");

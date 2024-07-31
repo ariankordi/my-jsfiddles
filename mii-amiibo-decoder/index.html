@@ -373,7 +373,7 @@ var Gen2Wiiu3dsMiitomo = (function() {
     get: function() {
       if (this._m_moleEnable !== undefined)
         return this._m_moleEnable;
-      this._m_moleEnable = (this.mole >>> 15);
+      this._m_moleEnable = ((this.mole >>> 0) & 1);
       return this._m_moleEnable;
     }
   });
@@ -434,6 +434,7 @@ var Gen2Wiiu3dsMiitomo = (function() {
 })();
 return Gen2Wiiu3dsMiitomo;
 }));
+
 //! Gen3Studio.js:
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 

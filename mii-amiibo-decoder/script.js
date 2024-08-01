@@ -12,6 +12,7 @@ const AMIIBO_NFPSTOREDATAEXTENTIONRAW_SIZE = 0x8;
 const AMIIBO_COUNTRY_CODE_OFFSET = 0x2D;
 const AMIIBO_NAME_OFFSET = 0x38;
 const AMIIBO_MII_NAME_OFFSET = 0x66;
+const AMIIBO_AND_MII_NAME_LENGTH = 0x14;
 
 // html stuff
 const resultList = document.getElementById('results');
@@ -26,9 +27,9 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
   // show it
   newLi.style.display = '';
 
-	const amiiboName = extractUTF16FromU8(unpacked, AMIIBO_NAME_OFFSET, false);
+	const amiiboName = extractUTF16FromU8(unpacked, AMIIBO_NAME_OFFSET, AMIIBO_AND_MII_NAME_LENGTH, false);
   newLi.getElementsByClassName('figure-name')[0].textContent = amiiboName;
-  const miiName = extractUTF16FromU8(unpacked, AMIIBO_MII_NAME_OFFSET, true);
+  const miiName = extractUTF16FromU8(unpacked, AMIIBO_MII_NAME_OFFSET, AMIIBO_AND_MII_NAME_LENGTH, true);
   newLi.getElementsByClassName('mii-name')[0].textContent = miiName;
 
   const storeData = unpacked.slice(AMIIBO_STOREDATA_OFFSET, AMIIBO_STOREDATA_OFFSET+AMIIBO_STOREDATA_SIZE);
@@ -157,10 +158,10 @@ document.querySelector('input').addEventListener('change', event => {
 });
 
 // NOTE: NOTE: WARNING: WARNING: TODO: TODO: THIS CAN CREATE AN INFINITELY LONG STRING
-function extractUTF16FromU8(buffer, startOffset, isLittleEndian) {
+function extractUTF16FromU8(buffer, startOffset, nameLength, isLittleEndian) {
   // Find the position of the null terminator (0x00 0x00)
   let endPosition = startOffset;
-  while(endPosition < buffer.length - 1) {
+  while(endPosition < startOffset + nameLength) {
     if(buffer[endPosition] === 0x00 && buffer[endPosition + 1] === 0x00) {
       break;
     }

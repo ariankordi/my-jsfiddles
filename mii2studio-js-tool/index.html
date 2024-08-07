@@ -12,7 +12,7 @@
       <h1>mii2studio in js ai slop attempt</h1>
       <form id="dataForm" onsubmit="handleSubmit(event)">
         <label for="dataFile">Input Data (file):</label>
-        <input type="file" id="dataFile" onchange="highlightBorder('file')">
+        <input type="file" id="dataFile" onchange="highlightBorder('file'); handleSubmit()">
 
         <label for="dataText">or Input Data (text):</label>
         <input type="text" id="dataText" placeholder="Paste hex or base64 data here" oninput="highlightBorder('text')" value="AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAABvAHMAaQBnAG8AbgBhAGwAAAAAAJA6">

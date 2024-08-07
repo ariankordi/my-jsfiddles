@@ -97,6 +97,31 @@ function mapStructFields(src, dest) {
   return dest;
 }
 
+// Function to decode the obfuscated studio URL data
+function studioURLObfuscationDecode(data) {
+    const decodedData = new Uint8Array(data);
+    const random = decodedData[0];
+    let previous = random;
+
+    for (let i = 1; i < 48; i++) {
+        const encodedByte = decodedData[i];
+        const original = (encodedByte - 7 + 256) % 256;
+        decodedData[i - 1] = original ^ previous;
+        previous = encodedByte;
+    }
+
+    return decodedData.slice(0, 46); // Return the first 46 bytes
+}
+
+function useStudioStruct(origData) {
+  for (const key in origData) {
+    if (key.startsWith('_')) {
+      delete origData[key];
+    }
+  }
+	return origData;
+}
+
 // Function to convert to Studio format
 function convertToStudio(origData) {
   const studioData = new Gen3Studio(new KaitaiStream(new ArrayBuffer(46)));
@@ -121,7 +146,7 @@ function miiMap2Studio(map) {
 
 // Form submit handler
 function handleSubmit(event) {
-  event.preventDefault();
+  if (event !== undefined) event.preventDefault();
   try {
     const fileInput = document.getElementById('dataFile');
     const textInput = document.getElementById('dataText');
@@ -169,6 +194,12 @@ function processData(data, selectedType) {
     if (!KaitaiStructClass) {
       throw new Error(`Kaitai struct class ${format.className} not found.`);
     }
+
+		// Special case for Studio data that's 47 bytes/obfuscated.
+    if (format.className === 'Gen3Studio' && data.length === 47) {
+      data = studioURLObfuscationDecode(data);
+    }
+
     let origData = new KaitaiStructClass(new KaitaiStream(data));
     if (format.preprocess) {
       origData = window[format.preprocess](origData);

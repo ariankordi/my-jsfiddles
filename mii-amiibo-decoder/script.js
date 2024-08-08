@@ -88,7 +88,7 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
     const studioURLCode = miiMap2Studio(Object.values(studioMii));
     newLi.getElementsByClassName('studio-url-data')[0].textContent = studioURLCode;
     newLi.getElementsByClassName('studio-code')[0].textContent = [...new Uint8Array(Object.values(studioMii))].map(x => x.toString(16).padStart(2, '0')).join('');
-    newLi.getElementsByClassName('mii')[0].src = `https://mii-unsecure.ariankordi.net/miis/image.png?width=270&data=${storeDataB64}`;
+    newLi.getElementsByClassName('mii')[0].src = `https://mii-unsecure.ariankordi.net/miis/image.png?width=270&data=${encodeURIComponent(storeDataB64)}`;
 	  return;
   }
 

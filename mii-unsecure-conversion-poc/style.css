@@ -1,0 +1,37 @@
+body {
+  /*font-family: sans-serif;
+  */
+  font-family:
+    nintendo_NTLG,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+
+  line-height: 180%;
+  text-align: center;
+}
+
+.results {
+  list-style-type: none;
+  padding: 0;
+}
+
+ul {
+  list-style-position: inside;
+}
+
+.results > li {
+  margin: 0 auto 5px;
+  padding: 5px;
+}
+
+.results img {
+  border-radius: 5px;
+
+  max-width: 100%;
+  border: 1px solid #808080;
+}

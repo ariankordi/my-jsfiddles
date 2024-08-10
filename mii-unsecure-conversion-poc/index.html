@@ -1,10 +1,34 @@
 <link rel="stylesheet" href="style.css">
-    <div id="error-container" style="display: none;">
-        <h3>😭 JavaScript Error!! 😭</h3>
-        <p id="error-message" style="color: red;"></p>
-        <pre id="error-stacktrace" style="display: none;"></pre>
-        <pre id="error-at">At <span></span></pre>
-    </div>
+<div id="error-container" style="display: none;">
+  <h3>😭 JavaScript Error!! 😭</h3>
+  <p id="error-message" style="color: red;"></p>
+  <pre id="error-stacktrace" style="display: none;"></pre>
+  <pre id="error-at">At <span></span></pre>
+</div>
+<!-- add error handling js before anything else is loaded
+         also have somewhat tried to make it backwards compatible -->
+<script>
+  // handle all errors and show them at the top of the page
+  window.addEventListener('error', function(event) {
+    var errorContainer = document.getElementById('error-container');
+    var errorMessage = document.getElementById('error-message');
+    var errorStacktrace = document.getElementById('error-stacktrace');
+    var errorAt = document.getElementById('error-at');
+    errorMessage.textContent = event.message;
+    // show stack trace if it has one
+    if(event.error) {
+      errorStacktrace.textContent = event.error.stack;
+      errorStacktrace.style.display = '';
+    } else {
+      // otherwise just use error's line number
+      errorAt.textContent = (event.source + ':' + event.lineno + ':' + event.colno);
+      errorAt.style.display = '';
+    }
+
+    // un-hide the error container
+    errorContainer.style.display = '';
+  });
+</script>
 
     <h3>Outputs</h3>
 

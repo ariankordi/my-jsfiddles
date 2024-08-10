@@ -13,12 +13,14 @@
         {
           className: 'CoreDataSwitch',
           sizes: [48, 68],
-          version: 4
+          version: 4,
+          toVer3Function: 'convertVer4FieldsToVer3'
         },
         {
           className: 'CharInfoSwitch',
           sizes: [88],
-          version: 4
+          version: 4,
+          toVer3Function: 'convertVer4FieldsToVer3'
         },
         {
           className: 'CoreData3ds',
@@ -33,7 +35,7 @@
           version: 4,
           // TODO: replace with a function that
           // downgrades the fields AND removes underscores
-          toVer3Function: 'removeUnderscoreKeysFromObject',
+          toVer3Function: 'convertStudioToVer3',
           // needs to be run every time before using
           toVer4Function: 'removeUnderscoreKeysFromObject'
         },
@@ -74,7 +76,39 @@ conversionMethods.convertVer3FieldsToVer4 = data => {
   // ver4 also has new glass types, and...
   // ... faceline/skin color is not mapped (ver3 ones work on ver4)
   return data;
-}
+};
+
+// converting fields from ver4 to ver3, like vice versa,
+// involves reassigning colors, from CommonColor to the respective ver3 types
+// one of the differences is that this is also reassigning glass type as ver4 has more
+// NOTE: this is currently making use of tables from MiiPort:
+// https://github.com/Genwald/MiiPort/blob/4ee38bbb8aa68a2365e9c48d59d7709f760f9b5d/include/convert_mii.h#L18
+conversionMethods.convertVer4FieldsToVer3 = data => {
+  // // these SHOULD be extracted from nn::mii, however, AFAIK these are located...
+  // ... in the CommonColorTable as four uint8s after the two Color3s
+  const ToVer3GlassTypeTable = [0, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 1, 3, 7, 7, 6, 7, 8, 7, 7];
+  const ToVer3HairColorTable = [0, 1, 2, 3, 4, 5, 6, 7, 0, 4, 3, 5, 4, 4, 6, 2, 0, 6, 4, 3, 2, 2, 7, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4, 4, 4, 4, 4, 4, 0, 0, 0, 4, 4, 4, 4, 4, 4, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 5, 7, 5, 7, 7, 7, 7, 7, 6, 7, 7, 7, 7, 7, 3, 7, 7, 7, 7, 7, 0, 4, 4, 4, 4];
+  const ToVer3EyeColorTable = [0, 2, 2, 2, 1, 3, 2, 3, 0, 1, 2, 3, 4, 5, 2, 2, 4, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 4, 4, 4, 4, 4, 4, 4, 1, 0, 4, 4, 4, 4, 4, 4, 4, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1];
+  const ToVer3MouthColorTable = [4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 0, 1, 2, 3, 4, 4, 2, 3, 3, 4, 4, 4, 4, 1, 4, 4, 2, 3, 3, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 4, 4, 4, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 3, 3, 3, 3, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 4, 4, 3, 3, 3, 3, 3, 3, 4, 3, 3, 3, 3, 3, 4, 0, 3, 3, 3, 3, 4, 3, 3, 3, 3];
+  const ToVer3GlassColorTable = [0, 1, 1, 1, 5, 1, 1, 4, 0, 5, 1, 1, 3, 5, 1, 2, 3, 4, 5, 4, 2, 2, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 5, 5, 5, 5, 5, 5, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5];
+  const ToVer3FacelineColorTable = [0, 1, 2, 3, 4, 5, 0, 1, 5, 5];
+
+  data.glassesType = ToVer3GlassTypeTable[data.glassesType];
+  data.hairColor = ToVer3HairColorTable[data.hairColor];
+  // NOTE: even though the rest of the beard fields are named differently
+  // in Gen3Studio, this one for beard color is the same there and in all
+  data.facialHairColor = ToVer3HairColorTable[data.facialHairColor];
+  data.eyeColor = ToVer3EyeColorTable[data.eyeColor];
+  data.mouthColor = ToVer3MouthColorTable[data.mouthColor];
+  data.glassesColor = ToVer3GlassColorTable[data.glassesColor];
+  data.faceColor = ToVer3FacelineColorTable[data.faceColor];
+  return data;
+};
+// this function just calls the method above and also removes underscore keys
+conversionMethods.convertStudioToVer3 = data => {
+	data = conversionMethods.convertVer4FieldsToVer3(data);
+  return removeUnderscoreKeysFromObject(data);
+};
 
 
 const handleConvertDetailsToggle = event => {
@@ -129,41 +163,20 @@ const handleConvertDetailsToggle = event => {
 
 	// mark as revealed at the end, i.e. do NOT RUN THE HANDLER ANYMORE
   event.target.setAttribute('data-revealed', '1');
-}
+};
 
-// TODO: please.
-const convertToVer3StoreDataWithoutChecksumPleaseRewrite = (data, format) => {
-  if(data && data.length === STUDIO_OBFUSCATED_LENGTH)
-    data = studioURLObfuscationDecode(data);
-  const dataStruct = createNewInstanceOfKaitaiStructFormat(format, data);
-  if(format.className === 'Gen3Studio') {
-    // TODO: TODO: MOVE THIS LOGIC AND LOGIC ABOVE ELSEWHERRRRRREEEEE
-    dataStruct.facialHairBeard = dataStruct.beardGoatee;
-    dataStruct.facialHairSize = dataStruct.beardSize;
-    dataStruct.facialHairMustache = dataStruct.beardMustache;
-    dataStruct.facialHairVertical = dataStruct.beardVertical;
-  }
-  if(format.version === 4) {
-    // convert fieldsssSSAAAAA
-    const ToVer3GlassTypeTable = [0, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 1, 3, 7, 7, 6, 7, 8, 7, 7];
-    const ToVer3HairColorTable = [0, 1, 2, 3, 4, 5, 6, 7, 0, 4, 3, 5, 4, 4, 6, 2, 0, 6, 4, 3, 2, 2, 7, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4, 4, 4, 4, 4, 4, 0, 0, 0, 4, 4, 4, 4, 4, 4, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 5, 7, 5, 7, 7, 7, 7, 7, 6, 7, 7, 7, 7, 7, 3, 7, 7, 7, 7, 7, 0, 4, 4, 4, 4];
-    const ToVer3EyeColorTable = [0, 2, 2, 2, 1, 3, 2, 3, 0, 1, 2, 3, 4, 5, 2, 2, 4, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 4, 4, 4, 4, 4, 4, 4, 1, 0, 4, 4, 4, 4, 4, 4, 4, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1];
-    const ToVer3MouthColorTable = [4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 0, 1, 2, 3, 4, 4, 2, 3, 3, 4, 4, 4, 4, 1, 4, 4, 2, 3, 3, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 4, 4, 4, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 3, 3, 3, 3, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 4, 4, 3, 3, 3, 3, 3, 3, 4, 3, 3, 3, 3, 3, 4, 0, 3, 3, 3, 3, 4, 3, 3, 3, 3];
-    const ToVer3GlassColorTable = [0, 1, 1, 1, 5, 1, 1, 4, 0, 5, 1, 1, 3, 5, 1, 2, 3, 4, 5, 4, 2, 2, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 5, 5, 5, 5, 5, 5, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5];
-    const ToVer3FacelineColorTable = [0, 1, 2, 3, 4, 5, 0, 1, 5, 5];
-
-    dataStruct.glassesType = ToVer3GlassTypeTable[dataStruct.glassesType];
-    dataStruct.hairColor = ToVer3HairColorTable[dataStruct.hairColor];
-    dataStruct.facialHairColor = ToVer3HairColorTable[dataStruct.facialHairColor];
-    dataStruct.eyeColor = ToVer3EyeColorTable[dataStruct.eyeColor];
-    dataStruct.mouthColor = ToVer3MouthColorTable[dataStruct.mouthColor];
-    dataStruct.glassesColor = ToVer3GlassColorTable[dataStruct.glassesColor];
-    dataStruct.faceColor = ToVer3FacelineColorTable[dataStruct.faceColor];
-  }
+// encodes a compatible struct to Ver3StoreData
+/* NOTE: CURRENTLY DOES THESE ADDITIONAL (potentially undesirable) THINGS:
+ * FORCE ENABLES COPYING
+ * sets MiiVersion to 0x03, and birth platform to 3DS
+   - both needed to scan as a qr code
+ * DOES NOT SET CHECKSUM...
+ */
+const encodeVer3StoreDataFromStruct = dataStruct => {
   // set unmarked fields
   dataStruct.unknown1 = 0x03;
   // 3ds version mii, will scan as a qr code on 3ds and wii u
-  // may already be marked so using defineProperty on it
+  // may already be set so using defineProperty on it
   Object.defineProperty(dataStruct, 'version', {
     value: 3
   });
@@ -200,28 +213,25 @@ const convertToVer3StoreDataWithoutChecksumPleaseRewrite = (data, format) => {
 
   //origMii.clientId = [0, 0, 0, 0, 0, 0];
   return encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode(dataStruct);
-}
+};
 
-// handle all errors and show them at the top of the page
-const errorContainer = document.getElementById('error-container');
-const errorMessage = document.getElementById('error-message');
-const errorStacktrace = document.getElementById('error-stacktrace');
-const errorAt = document.getElementById('error-at');
-window.addEventListener('error', event => {
-  errorMessage.textContent = event.message;
-  // show stack trace if it has one
-  if(event.error) {
-    errorStacktrace.textContent = event.error.stack;
-    errorStacktrace.style.display = '';
-  } else {
-    // otherwise just use error's line number
-  	errorAt.textContent = (event.source + ':' + event.lineno + ':' + event.colno);
-    errorAt.style.display = '';
+// TODO: please.
+const convertToVer3StoreDataWithoutChecksumPleaseRewrite = (data, format) => {
+  if(data && data.length === STUDIO_OBFUSCATED_LENGTH)
+    data = studioURLObfuscationDecode(data);
+  let dataStruct = createNewInstanceOfKaitaiStructFormat(format, data);
+  if(format.className === 'Gen3Studio') {
+    // TODO: TODO: MOVE THIS LOGIC AND LOGIC ABOVE ELSEWHERRRRRREEEEE
+    dataStruct.facialHairBeard = dataStruct.beardGoatee;
+    dataStruct.facialHairSize = dataStruct.beardSize;
+    dataStruct.facialHairMustache = dataStruct.beardMustache;
+    dataStruct.facialHairVertical = dataStruct.beardVertical;
   }
+  if(format.toVer3Function !== undefined)
+  	dataStruct = conversionMethods[format.toVer3Function](dataStruct);
 
-  // un-hide the error container
-  errorContainer.style.display = '';
-});
+	return encodeVer3StoreDataFromStruct(dataStruct);
+}
 
 // iterate through format list, assumed to be called supportedFormats
 // to find that input format and throw an error if it is not supported
@@ -297,8 +307,8 @@ const removeUnderscoreKeysFromObject = obj => {
   }
   return obj;
 }
+// converting studio data needs this
 conversionMethods.removeUnderscoreKeysFromObject = removeUnderscoreKeysFromObject;
-
 
 // third arugment, inupt format name, is optional
 // if not provided then the size is used to auto detect
@@ -511,399 +521,184 @@ conversionMethods.convertWiiFieldsToVer3 = data => {
   return data;
 }
 
-// courtesy of gpt4o
-const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = kaitaiStruct => {
-
-  // Centralized error handling function
-  const handleError = e => {
-    console.error("Error encoding struct:", e.message);
-  };
-  
-  //debugger
-
-	// Buffer for storing encoded data
+// NOTE: customized for the kaitai by GPT-4o...
+// ... and adapted from MiiInfoEditorCTR: https://github.com/kazuki-4ys/kazuki-4ys.github.io/blob/148dc339974f8b7515bfdc1395ec1fc9becb68ab/web_apps/MiiInfoEditorCTR/mii.js#L348
+// 2024-08-10: tested to be accurate with: blanco, bro-mole-high, jasmine
+const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = data => {
+  // Create buffer to store the encoded data
   let buf = new Uint8Array(0x48 + 20 + 2 + 2);  // 0x48 bytes + 20 bytes for creatorName + 2 bytes padding + 2 bytes checksum
 
-  try {
-    buf[0x00] = kaitaiStruct.unknown1 || 0;
-  } catch (e) {
-    handleError(e);
-  }
+  // unknown1 byte
+  buf[0x00] = data.unknown1 || 0;
 
-  try {
-    buf[0x01] = ((kaitaiStruct.characterSet || 0) << 4) | 
-                (((kaitaiStruct.regionLock || 0) & 0x03) << 2) | 
-                ((kaitaiStruct.profanityFlag ? 1 : 0) << 1) | 
-                (kaitaiStruct.copying ? 1 : 0);
-  } catch (e) {
-    handleError(e);
-  }
+  // characterSet, regionLock, profanityFlag, and copying all packed into one byte
+  buf[0x01] = ((data.characterSet || 0) << 4) |  // character set (2 bits), typically 0=JPN+USA+EUR, 1=CHN, 2=KOR, 3=TWN
+              (((data.regionLock || 0) & 0x03) << 2) |  // region lock (2 bits), 0=no lock, 1=JPN, 2=USA, 3=EUR
+              ((data.profanityFlag ? 1 : 0) << 1) |  // profanity flag (1 bit), 1 = contains profanity
+              (data.copying ? 1 : 0);  // copying allowed (1 bit), 1 = copying allowed
 
-	try {
-    buf[0x02] = ((kaitaiStruct.miiPositionPageIndex || 0) & 0x0F) | 
-                (((kaitaiStruct.miiPositionSlotIndex || 0) & 0x0F) << 4);
-  } catch (e) {
-    handleError(e);
-  }
+  // mii position page index and slot index
+  buf[0x02] = (data.miiPositionPageIndex & 0x0F) |  // page index (4 bits)
+              ((data.miiPositionSlotIndex & 0x0F) << 4);  // slot index (4 bits)
 
-  try {
-    buf[0x03] = (kaitaiStruct.version << 4) | 
-                (kaitaiStruct.unknown3 || 0);
-  } catch (e) {
-    handleError(e);
-  }
+  // version and unknown3 packed together
+  buf[0x03] = (data.version << 4) |  // version (4 bits)
+              (data.unknown3 & 0x0F);  // unknown, typically 0 (4 bits)
 
-  try {
+  // systemId: unique ID associated with the console, 8 bytes
+  if(data.systemId !== undefined) {
     for (let i = 0; i < 8; i++) {
-      buf[0x04 + i] = kaitaiStruct.systemId[i] || 0;
+      buf[0x04 + i] = data.systemId[i] || 0;
     }
-  } catch (e) {
-    handleError(e);
   }
 
-  try {
-    for (let i = 0; i < 4; i++) {
-      buf[0x0C + i] = kaitaiStruct.avatarId[i] || 0;
-    }
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    for (let i = 0; i < 6; i++) {
-      buf[0x10 + i] = kaitaiStruct.clientId[i] || 0;
-    }
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    buf[0x16] = kaitaiStruct.padding & 0xFF;
-    buf[0x17] = (kaitaiStruct.padding >> 8) & 0xFF;
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    buf[0x18] = (kaitaiStruct.gender & 0x01) |
-                ((kaitaiStruct.birthMonth & 0x0F) << 1) |
-                ((kaitaiStruct.birthDay & 0x1F) << 5);
-    buf[0x19] = ((kaitaiStruct.birthDay >> 3) & 0x03) |
-                ((kaitaiStruct.favoriteColor & 0x0F) << 2) |
-                ((kaitaiStruct.favorite ? 1 : 0) << 6);
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    let miiNameBytes = new Uint8Array(new ArrayBuffer(20));
-    new DataView(miiNameBytes.buffer).setUint16(0, 0, true);
-    for (let i = 0; i < kaitaiStruct.miiName.length; i++) {
-      new DataView(miiNameBytes.buffer).setUint16(i * 2, kaitaiStruct.miiName.charCodeAt(i), true);
-    }
-    buf.set(miiNameBytes, 0x1A);
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    buf[0x2E] = kaitaiStruct.bodyHeight || 0;
-    buf[0x2F] = kaitaiStruct.bodyWeight || 0;
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    buf[0x30] = ((kaitaiStruct.faceColor & 0x07) << 5) | 
-                ((kaitaiStruct.faceType & 0x0F) << 1) | 
-                (kaitaiStruct.mingle ? 1 : 0);
-    buf[0x31] = (kaitaiStruct.faceWrinkles & 0x0F) | 
-                ((kaitaiStruct.faceMakeup & 0x0F) << 4);
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    buf[0x32] = kaitaiStruct.hairType || 0;
-    buf[0x33] = ((kaitaiStruct.hairColor & 0x07) | 
-                ((kaitaiStruct.hairFlip ? 1 : 0) << 3) |
-                ((kaitaiStruct.unknown5 & 0x0F) << 4));
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    let eyeDetails = (kaitaiStruct.eyeType || 0) |
-                    ((kaitaiStruct.eyeColor || 0) << 6) |
-                    ((kaitaiStruct.eyeSize || 0) << 9) |
-                    ((kaitaiStruct.eyeStretch || 0) << 13) |
-                    ((kaitaiStruct.eyeRotation || 0) << 16) |
-                    ((kaitaiStruct.eyeHorizontal || 0) << 21) |
-                    ((kaitaiStruct.eyeVertical || 0) << 25);
-    buf[0x34] = eyeDetails & 0xFF;
-    buf[0x35] = (eyeDetails >> 8) & 0xFF;
-    buf[0x36] = (eyeDetails >> 16) & 0xFF;
-    buf[0x37] = (eyeDetails >> 24) & 0xFF;
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    let eyebrowDetails = (kaitaiStruct.eyebrowType || 0) |
-                         ((kaitaiStruct.eyebrowColor || 0) << 5) |
-                         ((kaitaiStruct.eyebrowSize || 0) << 8) |
-                         ((kaitaiStruct.eyebrowStretch || 0) << 12) |
-                         ((kaitaiStruct.eyebrowRotation || 0) << 16) |
-                         ((kaitaiStruct.eyebrowHorizontal || 0) << 21) |
-                         ((kaitaiStruct.eyebrowVertical || 0) << 25);
-    buf[0x38] = eyebrowDetails & 0xFF;
-    buf[0x39] = (eyebrowDetails >> 8) & 0xFF;
-    buf[0x3A] = (eyebrowDetails >> 16) & 0xFF;
-    buf[0x3B] = (eyebrowDetails >> 24) & 0xFF;
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    let noseDetails = (kaitaiStruct.noseType || 0) |
-                      ((kaitaiStruct.noseSize || 0) << 5) |
-                      ((kaitaiStruct.noseVertical || 0) << 9);
-    buf[0x3C] = noseDetails & 0xFF;
-    buf[0x3D] = (noseDetails >> 8) & 0xFF;
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    let mouthDetails = (kaitaiStruct.mouthType || 0) |
-                       ((kaitaiStruct.mouthColor || 0) << 6) |
-                       ((kaitaiStruct.mouthSize || 0) << 9) |
-                       ((kaitaiStruct.mouthStretch || 0) << 13);
-    buf[0x3E] = mouthDetails & 0xFF;
-    buf[0x3F] = (mouthDetails >> 8) & 0xFF;
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    let mouth2Details = (kaitaiStruct.mouthVertical || 0) |
-                        ((kaitaiStruct.facialHairMustache || 0) << 5);
-    buf[0x40] = mouth2Details & 0xFF;
-    buf[0x41] = (mouth2Details >> 8) & 0xFF;
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    let beardDetails = (kaitaiStruct.facialHairBeard || 0) |
-                       ((kaitaiStruct.facialHairColor || 0) << 3) |
-                       ((kaitaiStruct.facialHairSize || 0) << 6) |
-                       ((kaitaiStruct.facialHairVertical || 0) << 10);
-    buf[0x42] = beardDetails & 0xFF;
-    buf[0x43] = (beardDetails >> 8) & 0xFF;
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    let glassesDetails = (kaitaiStruct.glassesType || 0) |
-                         ((kaitaiStruct.glassesColor || 0) << 4) |
-                         ((kaitaiStruct.glassesSize || 0) << 7) |
-                         ((kaitaiStruct.glassesVertical || 0) << 11);
-    buf[0x44] = glassesDetails & 0xFF;
-    buf[0x45] = (glassesDetails >> 8) & 0xFF;
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    let moleDetails = (kaitaiStruct.moleEnable ? 1 : 0) |
-                      ((kaitaiStruct.moleSize || 0) << 1) |
-                      ((kaitaiStruct.moleHorizontal || 0) << 5) |
-                      ((kaitaiStruct.moleVertical || 0) << 10);
-    buf[0x46] = moleDetails & 0xFF;
-    buf[0x47] = (moleDetails >> 8) & 0xFF;
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    let creatorNameBytes = new Uint8Array(new ArrayBuffer(20));
-    new DataView(creatorNameBytes.buffer).setUint16(0, 0, true);
-    for (let i = 0; i < kaitaiStruct.creatorName.length; i++) {
-      new DataView(creatorNameBytes.buffer).setUint16(i * 2, kaitaiStruct.creatorName.charCodeAt(i), true);
-    }
-    buf.set(creatorNameBytes, 0x48);
-  } catch (e) {
-    handleError(e);
-  }
-
-  try {
-    buf[0x5C] = kaitaiStruct.padding2 & 0xFF;
-    buf[0x5D] = (kaitaiStruct.padding2 >> 8) & 0xFF;
-    buf[0x5E] = kaitaiStruct.checksum & 0xFF;
-    buf[0x5F] = (kaitaiStruct.checksum >> 8) & 0xFF;
-  } catch (e) {
-    handleError(e);
-  }
-
-  return buf;
-};
-
-/*const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = kaitaiStruct => {
-  let buf = new Uint8Array(0x48 + 20 + 2 + 2);  // 0x48 bytes + 20 bytes for creatorName + 2 bytes padding + 2 bytes checksum
-
-  // Encoding the fields into the buffer, mirroring the Kaitai struct deserialization
-  buf[0x00] = kaitaiStruct.unknown1;
-  buf[0x01] = (kaitaiStruct.characterSet & 0x03) | 
-    ((kaitaiStruct.regionLock & 0x03) << 2) | 
-    ((kaitaiStruct.profanityFlag ? 1 : 0) << 4) | 
-    ((kaitaiStruct.copying ? 1 : 0) << 5) | 
-    ((kaitaiStruct.unknown2 & 0x03) << 6);
-
-  buf[0x02] = (kaitaiStruct.miiPositionPageIndex & 0x0F) |  // Page Index in bits 0-3
-              ((kaitaiStruct.miiPositionSlotIndex & 0x0F) << 4);  // Slot Index in bits 4-7
-
-  buf[0x03] = (kaitaiStruct.version << 4) |  // Version in bits 0-3
-              kaitaiStruct.unknown3;  // Unknown in bits 4-7
-
-
-  for (let i = 0; i < 8; i++) {
-    buf[0x04 + i] = kaitaiStruct.systemId[i];
-  }
-
+  // avatarId: unique Mii ID, 4 bytes (REQUIRED)
   for (let i = 0; i < 4; i++) {
-    buf[0x0C + i] = kaitaiStruct.avatarId[i];
+    buf[0x0C + i] = data.avatarId[i] || 0;
   }
 
-  for (let i = 0; i < 6; i++) {
-    buf[0x10 + i] = kaitaiStruct.clientId[i];
+  // clientId: MAC address of the creator's console, 6 bytes
+  if(data.clientId !== undefined) {
+    for (let i = 0; i < 6; i++) {
+      buf[0x10 + i] = data.clientId[i] || 0;
+    }
   }
 
-  // Padding
-  buf[0x16] = kaitaiStruct.padding & 0xFF;
-  buf[0x17] = (kaitaiStruct.padding >> 8) & 0xFF;
+  // padding, 2 bytes (usually 0)
+  buf[0x16] = data.padding & 0xFF;
+  buf[0x17] = (data.padding >> 8) & 0xFF;
 
-  // Data1 field
-  buf[0x18] = (kaitaiStruct.gender & 0x01) |
-    ((kaitaiStruct.birthMonth & 0x0F) << 1) |
-    ((kaitaiStruct.birthDay & 0x1F) << 5);
-  buf[0x19] = ((kaitaiStruct.birthDay >> 3) & 0x03) |
-    ((kaitaiStruct.favoriteColor & 0x0F) << 2) |
-    ((kaitaiStruct.favorite ? 1 : 0) << 6);
+  // data1: gender, birth month, birth day, favorite color, favorite flag
+  buf[0x18] = (data.gender & 0x01) |  // gender (1 bit), 0 = male, 1 = female
+              ((data.birthMonth & 0x0F) << 1) |  // birth month (4 bits)
+              ((data.birthDay & 0x1F) << 5);  // birth day (5 bits)
 
-  // Mii name (UTF-16LE encoding)
-  let miiNameBytes = new Uint8Array(new ArrayBuffer(20));
-  new DataView(miiNameBytes.buffer).setUint16(0, 0, true);  // Ensure little-endian UTF-16
-  for (let i = 0; i < kaitaiStruct.miiName.length; i++) {
-      new DataView(miiNameBytes.buffer).setUint16(i * 2, kaitaiStruct.miiName.charCodeAt(i), true);
+  buf[0x19] = ((data.birthDay >> 3) & 0x03) |  // continuation of birth day (2 bits)
+              ((data.favoriteColor & 0x0F) << 2) |  // favorite color (4 bits)
+              ((data.favorite ? 1 : 0) << 6);  // favorite flag (1 bit)
+
+  // mii name (REQUIRED), UTF-16LE encoded
+  let nameBytes = new Uint8Array(new ArrayBuffer(20));
+  for (let i = 0; i < data.miiName.length; i++) {
+    new DataView(nameBytes.buffer).setUint16(i * 2, data.miiName.charCodeAt(i), true);  // little-endian UTF-16
   }
-  buf.set(miiNameBytes, 0x1A);
+  buf.set(nameBytes, 0x1A);
 
+  // height and weight
+  buf[0x2E] = data.bodyHeight || 0;  // height (1 byte)
+  buf[0x2F] = data.bodyWeight || 0;  // weight (1 byte)
 
-  buf[0x2E] = kaitaiStruct.bodyHeight;
-  buf[0x2F] = kaitaiStruct.bodyWeight;
+  // face type (shape), skin color, and mingle settings
+  buf[0x30] = ((data.faceColor & 0x07) << 5) |  // skin color (3 bits)
+              ((data.faceType & 0x0F) << 1) |  // face shape (4 bits)
+              (data.mingle ? 1 : 0);  // mingle (1 bit)
 
-	buf[0x30] = ((kaitaiStruct.faceColor & 0x07) << 5) | // Skin Color occupies bits 5-7 (3 bits)
-            ((kaitaiStruct.faceType & 0x0F) << 1) |  // Face Shape occupies bits 1-4 (4 bits)
-            (kaitaiStruct.mingle ? 1 : 0);           // Mingle occupies bit 0 (1 bit)
+  // face makeup and wrinkles
+  buf[0x31] = (data.faceWrinkles & 0x0F) |  // face wrinkles (4 bits)
+              ((data.faceMakeup & 0x0F) << 4);  // face makeup (4 bits)
 
-  buf[0x31] = (kaitaiStruct.faceWrinkles & 0x0F) | 
-    ((kaitaiStruct.faceMakeup & 0x0F) << 4);
+  // hair type, color, and flip
+  buf[0x32] = data.hairType || 0;  // hair type (1 byte)
+  buf[0x33] = (data.hairColor & 0x07) |  // hair color (3 bits)
+              ((data.hairFlip ? 1 : 0) << 3) |  // hair flip (1 bit)
+              ((data.unknown5 & 0x0F) << 4);  // unknown (4 bits)
 
-  buf[0x32] = kaitaiStruct.hairType;
-  buf[0x33] = (kaitaiStruct.hairColor & 0x07) |
-    ((kaitaiStruct.hairFlip ? 1 : 0) << 3) |
-    ((kaitaiStruct.unknown5 & 0x0F) << 4);
+  // eye details: type, color, size, stretch, rotation, horizontal spacing, vertical position
+  let eyeDetails = (data.eyeType & 0x3F) |  // eye type (6 bits)
+                   ((data.eyeColor & 0x07) << 6) |  // eye color (3 bits)
+                   ((data.eyeSize & 0x07) << 9) |  // eye size (3 bits)
+                   ((data.eyeStretch & 0x07) << 13) |  // eye stretch (3 bits)
+                   ((data.eyeRotation & 0x1F) << 16) |  // eye rotation (5 bits)
+                   ((data.eyeHorizontal & 0x0F) << 21) |  // eye horizontal spacing (4 bits)
+                   ((data.eyeVertical & 0x1F) << 25);  // eye vertical position (5 bits)
 
-  // Eye details (U4LE)
-  let eyeDetails = kaitaiStruct.eyeType |
-      (kaitaiStruct.eyeColor << 6) |
-      (kaitaiStruct.eyeSize << 9) |
-      (kaitaiStruct.eyeStretch << 13) |
-      (kaitaiStruct.eyeRotation << 16) |
-      (kaitaiStruct.eyeHorizontal << 21) |
-      (kaitaiStruct.eyeVertical << 25);
   buf[0x34] = eyeDetails & 0xFF;
   buf[0x35] = (eyeDetails >> 8) & 0xFF;
   buf[0x36] = (eyeDetails >> 16) & 0xFF;
   buf[0x37] = (eyeDetails >> 24) & 0xFF;
 
-  // Eyebrow details (U4LE)
-  let eyebrowDetails = kaitaiStruct.eyebrowType |
-      (kaitaiStruct.eyebrowColor << 5) |
-      (kaitaiStruct.eyebrowSize << 8) |
-      (kaitaiStruct.eyebrowStretch << 12) |
-      (kaitaiStruct.eyebrowRotation << 16) |
-      (kaitaiStruct.eyebrowHorizontal << 21) |
-      (kaitaiStruct.eyebrowVertical << 25);
+  // eyebrow details: type, color, size, stretch, rotation, horizontal spacing, vertical position
+  let eyebrowDetails = (data.eyebrowType & 0x1F) |  // eyebrow type (5 bits)
+                       ((data.eyebrowColor & 0x07) << 5) |  // eyebrow color (3 bits)
+                       ((data.eyebrowSize & 0x0F) << 8) |  // eyebrow size (4 bits)
+                       ((data.eyebrowStretch & 0x07) << 12) |  // eyebrow stretch (3 bits)
+                       ((data.eyebrowRotation & 0x0F) << 16) |  // eyebrow rotation (4 bits)
+                       ((data.eyebrowHorizontal & 0x0F) << 21) |  // eyebrow horizontal spacing (4 bits)
+                       ((data.eyebrowVertical & 0x1F) << 25);  // eyebrow vertical position (5 bits)
+
   buf[0x38] = eyebrowDetails & 0xFF;
   buf[0x39] = (eyebrowDetails >> 8) & 0xFF;
   buf[0x3A] = (eyebrowDetails >> 16) & 0xFF;
   buf[0x3B] = (eyebrowDetails >> 24) & 0xFF;
 
-  // Nose details (U2LE)
-  let noseDetails = kaitaiStruct.noseType |
-      (kaitaiStruct.noseSize << 5) |
-      (kaitaiStruct.noseVertical << 9);
+  // nose details: type, size, vertical position
+  let noseDetails = (data.noseType & 0x1F) |  // nose type (5 bits)
+                    ((data.noseSize & 0x0F) << 5) |  // nose size (4 bits)
+                    ((data.noseVertical & 0x1F) << 9);  // nose vertical position (5 bits)
+
   buf[0x3C] = noseDetails & 0xFF;
   buf[0x3D] = (noseDetails >> 8) & 0xFF;
 
-  // Mouth details (U2LE)
-  let mouthDetails = kaitaiStruct.mouthType |
-      (kaitaiStruct.mouthColor << 6) |
-      (kaitaiStruct.mouthSize << 9) |
-      (kaitaiStruct.mouthStretch << 13);
+  // mouth details: type, color, size, stretch
+  let mouthDetails = (data.mouthType & 0x3F) |  // mouth type (6 bits)
+                     ((data.mouthColor & 0x07) << 6) |  // mouth color (3 bits)
+                     ((data.mouthSize & 0x0F) << 9) |  // mouth size (4 bits)
+                     ((data.mouthStretch & 0x07) << 13);  // mouth stretch (3 bits)
+
   buf[0x3E] = mouthDetails & 0xFF;
   buf[0x3F] = (mouthDetails >> 8) & 0xFF;
 
-  // Mouth2 details (U2LE)
-  let mouth2Details = kaitaiStruct.mouthVertical |
-      (kaitaiStruct.facialHairMustache << 5);
+  // mouth2 details: vertical position, mustache type
+  let mouth2Details = (data.mouthVertical & 0x1F) |  // mouth vertical position (5 bits)
+                      ((data.facialHairMustache & 0x07) << 5);  // mustache type (3 bits)
+
   buf[0x40] = mouth2Details & 0xFF;
   buf[0x41] = (mouth2Details >> 8) & 0xFF;
 
-  // Beard details (U2LE)
-  let beardDetails = kaitaiStruct.facialHairBeard |
-      (kaitaiStruct.facialHairColor << 3) |
-      (kaitaiStruct.facialHairSize << 6) |
-      (kaitaiStruct.facialHairVertical << 10);
+  // beard details: type, color, size, vertical position
+  let beardDetails = (data.facialHairBeard & 0x07) |  // beard type (3 bits)
+                     ((data.facialHairColor & 0x07) << 3) |  // beard color (3 bits)
+                     ((data.facialHairSize & 0x0F) << 6) |  // beard size (4 bits)
+                     ((data.facialHairVertical & 0x1F) << 10);  // beard vertical position (5 bits)
+
   buf[0x42] = beardDetails & 0xFF;
   buf[0x43] = (beardDetails >> 8) & 0xFF;
 
-  // Glasses details (U2LE)
-  let glassesDetails = kaitaiStruct.glassesType |
-      (kaitaiStruct.glassesColor << 4) |
-      (kaitaiStruct.glassesSize << 7) |
-      (kaitaiStruct.glassesVertical << 11);
+  // glasses details: type, color, size, vertical position
+  let glassesDetails = (data.glassesType & 0x0F) |  // glasses type (4 bits)
+                       ((data.glassesColor & 0x07) << 4) |  // glasses color (3 bits)
+                       ((data.glassesSize & 0x0F) << 7) |  // glasses size (4 bits)
+                       ((data.glassesVertical & 0x0F) << 11);  // glasses vertical position (4 bits)
+
   buf[0x44] = glassesDetails & 0xFF;
   buf[0x45] = (glassesDetails >> 8) & 0xFF;
 
-  // Mole details (U2LE)
-  let moleDetails = kaitaiStruct.moleEnable |
-      (kaitaiStruct.moleSize << 1) |
-      (kaitaiStruct.moleHorizontal << 5) |
-      (kaitaiStruct.moleVertical << 10);
+  // mole details: enable, size, horizontal position, vertical position
+  let moleDetails = (data.moleEnable & 0x01) |  // mole enabled (1 bit)
+                    ((data.moleSize & 0x0F) << 1) |  // mole size (4 bits)
+                    ((data.moleHorizontal & 0x1F) << 5) |  // mole horizontal position (5 bits)
+                    ((data.moleVertical & 0x1F) << 10);  // mole vertical position (5 bits)
+
   buf[0x46] = moleDetails & 0xFF;
   buf[0x47] = (moleDetails >> 8) & 0xFF;
 
-  // Creator name (UTF-16LE encoding)
-  let creatorNameBytes = new Uint8Array(new ArrayBuffer(20));
-  new DataView(creatorNameBytes.buffer).setUint16(0, 0, true);  // Ensure little-endian UTF-16
-  for (let i = 0; i < kaitaiStruct.creatorName.length; i++) {
-      new DataView(creatorNameBytes.buffer).setUint16(i * 2, kaitaiStruct.creatorName.charCodeAt(i), true);
+  // creator name (optional), UTF-16LE encoded
+  if(data.creatorName !== undefined) {
+    let creatorNameBytes = new Uint8Array(new ArrayBuffer(20));
+    for (let i = 0; i < data.creatorName.length; i++) {
+      new DataView(creatorNameBytes.buffer).setUint16(i * 2, data.creatorName.charCodeAt(i), true);  // little-endian UTF-16
+    }
+    buf.set(creatorNameBytes, 0x48);
   }
-  buf.set(creatorNameBytes, 0x48);
 
-  // Padding and checksum
-  buf[0x5C] = kaitaiStruct.padding2 & 0xFF;
-  buf[0x5D] = (kaitaiStruct.padding2 >> 8) & 0xFF;
-  buf[0x5E] = kaitaiStruct.checksum & 0xFF;
-  buf[0x5F] = (kaitaiStruct.checksum >> 8) & 0xFF;
+  // padding2 and checksum (usually 0, depends on implementation)
+  buf[0x5C] = data.padding2 & 0xFF;
+  buf[0x5D] = (data.padding2 >> 8) & 0xFF;
+  buf[0x5E] = data.checksum & 0xFF;
+  buf[0x5F] = (data.checksum >> 8) & 0xFF;
 
-  return buf;
+  return buf;  // return the buffer containing the encoded StoreData
 }
-*/
 
 // deobfuscate the obfuscated studio url format
 // from, and to, a Uint8Array (so requires converting from/to hex)

@@ -1,6 +1,6 @@
 // NOTE: 3DS/Wii U compatible data is referred to officially in the Switch nn::mii library as "Ver3": "nn::mii::Ver3StoreData", functions and tables using "ToVer3" and "FromVer3", mii_Ver3Common.cpp, mii_Ver3StoreDataTable.cpp, etc.
-// Switch data is not commonly referred to as Ver4, however, in Pikmin Bloom's global-metadata.dat, there are references to "CharInfoConverter.dll" and "CoreDataConverter.dll", and there are many strings referring to Ver3, many directly from nn::mii, even a string that looks like a const or macro in the file: "NN_MII_CHAR_INFO_SIZE". And finally, there is one string in there reading "FromVer4CoreData".
-// Now, even though Pikmin Bloom is in Unity and not developed by Nintendo, there's still one other reference to the name. The Coral API endpoint "me.json" has a child in a "mii" object called "storeData", containing another child named simply "3" with 96-byte long Base64 data. However, there is another element called "coreData" containing a child named "4" with 48-byte long Base64 data. SO, there you go: ver3 storedata, and ver4 coredata.
+// Switch data is not commonly referred to as Ver4, however, in Pikmin Bloom's global-metadata.dat, there are many strings referring to Ver3, many being symbols directly from nn::mii, even a string that looks like a const or macro in the file: "NN_MII_CHAR_INFO_SIZE". And finally, there is a string in there reading "FromVer4CoreData".
+// Now, even though Pikmin Bloom is in Unity and not developed by Nintendo, there's still one other reference to the name. The Coral API endpoint "me.json" has a child in a "mii" object called "storeData", containing another child named simply "3" with 96-byte long Base64 data. However, there is another element called "coreData" containing a child named "4" with 48-byte long Base64 data. SO, there you go: Ver3StoreData, and Ver4CoreData.
 // that's why for simplicity, 3DS/Wii U format will be reffered to as "Ver3" and Switch/Studio as "Ver4". idk what wii is but it will be 1
 
 // NOTE: "to" functions need to be defined in conersionMethods
@@ -12,7 +12,8 @@
         },
         {
           className: 'CoreDataSwitch',
-          sizes: [48, 68]
+          sizes: [48, 68],
+          version: 4
         },
         {
           className: 'CharInfoSwitch',
@@ -119,19 +120,86 @@ const handleConvertDetailsToggle = event => {
   const studioURLData = encodeStudioToObfuscatedHex(studioData);
   studioURLDataElement.textContent = studioURLData;
 
+
 	// do this at the end bc it is most likely to fail
   const ver3StoreDataElement = event.target.getElementsByClassName('ver3storedata')[0];
   const inputFormat = findInputFormatFromSize(inputData.length);
-  // TODO: REMOVE THIS WHEN I STOP USING THIS STRUCT
- 	//if(inputFormat.className == 'CoreData3ds') {
-  	ver3StoreDataElement.parentElement.style.display = ''
-  	const dataStruct = createNewInstanceOfKaitaiStructFormat(inputFormat, inputData);
-    const newStoreDataLolMaybe = encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode(dataStruct)
-  	ver3StoreDataElement.textContent = [...newStoreDataLolMaybe].map(byteToHex).join('')
-  //}
+  const newStoreDataLolMaybe = convertToVer3StoreDataWithoutChecksumPleaseRewrite(inputData, inputFormat);
+  ver3StoreDataElement.textContent = uint8ArrayToBase64(newStoreDataLolMaybe);
 
 	// mark as revealed at the end, i.e. do NOT RUN THE HANDLER ANYMORE
   event.target.setAttribute('data-revealed', '1');
+}
+
+// TODO: please.
+const convertToVer3StoreDataWithoutChecksumPleaseRewrite = (data, format) => {
+  if(data && data.length === STUDIO_OBFUSCATED_LENGTH)
+    data = studioURLObfuscationDecode(data);
+  const dataStruct = createNewInstanceOfKaitaiStructFormat(format, data);
+  if(format.className === 'Gen3Studio') {
+    // TODO: TODO: MOVE THIS LOGIC AND LOGIC ABOVE ELSEWHERRRRRREEEEE
+    dataStruct.facialHairBeard = dataStruct.beardGoatee;
+    dataStruct.facialHairSize = dataStruct.beardSize;
+    dataStruct.facialHairMustache = dataStruct.beardMustache;
+    dataStruct.facialHairVertical = dataStruct.beardVertical;
+  }
+  if(format.version === 4) {
+    // convert fieldsssSSAAAAA
+    const ToVer3GlassTypeTable = [0, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 1, 3, 7, 7, 6, 7, 8, 7, 7];
+    const ToVer3HairColorTable = [0, 1, 2, 3, 4, 5, 6, 7, 0, 4, 3, 5, 4, 4, 6, 2, 0, 6, 4, 3, 2, 2, 7, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4, 4, 4, 4, 4, 4, 0, 0, 0, 4, 4, 4, 4, 4, 4, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 5, 7, 5, 7, 7, 7, 7, 7, 6, 7, 7, 7, 7, 7, 3, 7, 7, 7, 7, 7, 0, 4, 4, 4, 4];
+    const ToVer3EyeColorTable = [0, 2, 2, 2, 1, 3, 2, 3, 0, 1, 2, 3, 4, 5, 2, 2, 4, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 4, 4, 4, 4, 4, 4, 4, 1, 0, 4, 4, 4, 4, 4, 4, 4, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1];
+    const ToVer3MouthColorTable = [4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 0, 1, 2, 3, 4, 4, 2, 3, 3, 4, 4, 4, 4, 1, 4, 4, 2, 3, 3, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 4, 4, 4, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 3, 3, 3, 3, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 4, 4, 3, 3, 3, 3, 3, 3, 4, 3, 3, 3, 3, 3, 4, 0, 3, 3, 3, 3, 4, 3, 3, 3, 3];
+    const ToVer3GlassColorTable = [0, 1, 1, 1, 5, 1, 1, 4, 0, 5, 1, 1, 3, 5, 1, 2, 3, 4, 5, 4, 2, 2, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 5, 5, 5, 5, 5, 5, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5];
+    const ToVer3FacelineColorTable = [0, 1, 2, 3, 4, 5, 0, 1, 5, 5];
+
+    dataStruct.glassesType = ToVer3GlassTypeTable[dataStruct.glassesType];
+    dataStruct.hairColor = ToVer3HairColorTable[dataStruct.hairColor];
+    dataStruct.facialHairColor = ToVer3HairColorTable[dataStruct.facialHairColor];
+    dataStruct.eyeColor = ToVer3EyeColorTable[dataStruct.eyeColor];
+    dataStruct.mouthColor = ToVer3MouthColorTable[dataStruct.mouthColor];
+    dataStruct.glassesColor = ToVer3GlassColorTable[dataStruct.glassesColor];
+    dataStruct.faceColor = ToVer3FacelineColorTable[dataStruct.faceColor];
+  }
+  // set unmarked fields
+  dataStruct.unknown1 = 0x03;
+  // 3ds version mii, will scan as a qr code on 3ds and wii u
+  // may already be marked so using defineProperty on it
+  Object.defineProperty(dataStruct, 'version', {
+    value: 3
+  });
+  // mii needs a non-null name to scan
+  // TODO: you may want to make this part of a hash or encoding or.. something
+  // TODO: you have enough bytes to pack the studio info within all arbitrary data given
+  // NOTE: NOTE: this is what the Coral account API returns
+  // in its Mii data, along with random IDs, I assume they forge it from studio data
+  if(!dataStruct.miiName)
+    dataStruct.miiName = 'Mii';
+  // setting system id and client id here are NOT necessary, but they can be randomized
+  //origMii.systemId = [0, 0, 0, 0, 0, 0, 0, 0];
+  // mii id on the other hand cannot be null
+  // if you scan two miis with the same id (or potentially other ids)
+  // then the system will think they are the same and not overwrite
+  //origMii.avatarId = [128, 0, 0, 0];
+  // TODO: make ALL RANDOM AVATAR IDS
+  // TODO: ALL NUMBERS and ALSO RANDOM SYSTEM ID. MAYBE RANDOM (NINTENDO) MAC???
+
+  // TODO: TODO: TODO: IF YOU ARE READING, ACTUALLY MAKE THIS
+  // A HASH OF THE MII STUDIO DATA OR SOMETHING I THINK MAYBE
+  if(!dataStruct.avatarId)
+    dataStruct.avatarId = [128,
+                           // should not exceed 256?
+                           Math.floor(Math.random() * 257),
+                           Math.floor(Math.random() * 257),
+                           Math.floor(Math.random() * 257),
+                          ];
+  // finally, pwease make this copying 🥺
+  Object.defineProperty(dataStruct, 'copying', {
+    value: true
+  });
+  // mingle, or local only, is already initialized to false tho
+
+  //origMii.clientId = [0, 0, 0, 0, 0, 0];
+  return encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode(dataStruct);
 }
 
 // handle all errors and show them at the top of the page
@@ -364,6 +432,9 @@ const convertDataToStudio = (data, inputFormatName) => {
   // ... apparently, in order to encode to hex it has to be an array anyway
 }
 
+// yes I'm aware that typing this function name is as long as the snippet itself
+const uint8ArrayToBase64 = data => btoa(String.fromCharCode.apply(null, data));
+
 /* !!
  * CODE BELOW IS FROM:
  * https://mii-studio.akamaized.net/static/js/editor.pc.46056ea432a4ef3974af.js
@@ -442,6 +513,244 @@ conversionMethods.convertWiiFieldsToVer3 = data => {
 
 // courtesy of gpt4o
 const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = kaitaiStruct => {
+
+  // Centralized error handling function
+  const handleError = e => {
+    console.error("Error encoding struct:", e.message);
+  };
+  
+  //debugger
+
+	// Buffer for storing encoded data
+  let buf = new Uint8Array(0x48 + 20 + 2 + 2);  // 0x48 bytes + 20 bytes for creatorName + 2 bytes padding + 2 bytes checksum
+
+  try {
+    buf[0x00] = kaitaiStruct.unknown1 || 0;
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    buf[0x01] = ((kaitaiStruct.characterSet || 0) << 4) | 
+                (((kaitaiStruct.regionLock || 0) & 0x03) << 2) | 
+                ((kaitaiStruct.profanityFlag ? 1 : 0) << 1) | 
+                (kaitaiStruct.copying ? 1 : 0);
+  } catch (e) {
+    handleError(e);
+  }
+
+	try {
+    buf[0x02] = ((kaitaiStruct.miiPositionPageIndex || 0) & 0x0F) | 
+                (((kaitaiStruct.miiPositionSlotIndex || 0) & 0x0F) << 4);
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    buf[0x03] = (kaitaiStruct.version << 4) | 
+                (kaitaiStruct.unknown3 || 0);
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    for (let i = 0; i < 8; i++) {
+      buf[0x04 + i] = kaitaiStruct.systemId[i] || 0;
+    }
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    for (let i = 0; i < 4; i++) {
+      buf[0x0C + i] = kaitaiStruct.avatarId[i] || 0;
+    }
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    for (let i = 0; i < 6; i++) {
+      buf[0x10 + i] = kaitaiStruct.clientId[i] || 0;
+    }
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    buf[0x16] = kaitaiStruct.padding & 0xFF;
+    buf[0x17] = (kaitaiStruct.padding >> 8) & 0xFF;
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    buf[0x18] = (kaitaiStruct.gender & 0x01) |
+                ((kaitaiStruct.birthMonth & 0x0F) << 1) |
+                ((kaitaiStruct.birthDay & 0x1F) << 5);
+    buf[0x19] = ((kaitaiStruct.birthDay >> 3) & 0x03) |
+                ((kaitaiStruct.favoriteColor & 0x0F) << 2) |
+                ((kaitaiStruct.favorite ? 1 : 0) << 6);
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    let miiNameBytes = new Uint8Array(new ArrayBuffer(20));
+    new DataView(miiNameBytes.buffer).setUint16(0, 0, true);
+    for (let i = 0; i < kaitaiStruct.miiName.length; i++) {
+      new DataView(miiNameBytes.buffer).setUint16(i * 2, kaitaiStruct.miiName.charCodeAt(i), true);
+    }
+    buf.set(miiNameBytes, 0x1A);
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    buf[0x2E] = kaitaiStruct.bodyHeight || 0;
+    buf[0x2F] = kaitaiStruct.bodyWeight || 0;
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    buf[0x30] = ((kaitaiStruct.faceColor & 0x07) << 5) | 
+                ((kaitaiStruct.faceType & 0x0F) << 1) | 
+                (kaitaiStruct.mingle ? 1 : 0);
+    buf[0x31] = (kaitaiStruct.faceWrinkles & 0x0F) | 
+                ((kaitaiStruct.faceMakeup & 0x0F) << 4);
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    buf[0x32] = kaitaiStruct.hairType || 0;
+    buf[0x33] = ((kaitaiStruct.hairColor & 0x07) | 
+                ((kaitaiStruct.hairFlip ? 1 : 0) << 3) |
+                ((kaitaiStruct.unknown5 & 0x0F) << 4));
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    let eyeDetails = (kaitaiStruct.eyeType || 0) |
+                    ((kaitaiStruct.eyeColor || 0) << 6) |
+                    ((kaitaiStruct.eyeSize || 0) << 9) |
+                    ((kaitaiStruct.eyeStretch || 0) << 13) |
+                    ((kaitaiStruct.eyeRotation || 0) << 16) |
+                    ((kaitaiStruct.eyeHorizontal || 0) << 21) |
+                    ((kaitaiStruct.eyeVertical || 0) << 25);
+    buf[0x34] = eyeDetails & 0xFF;
+    buf[0x35] = (eyeDetails >> 8) & 0xFF;
+    buf[0x36] = (eyeDetails >> 16) & 0xFF;
+    buf[0x37] = (eyeDetails >> 24) & 0xFF;
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    let eyebrowDetails = (kaitaiStruct.eyebrowType || 0) |
+                         ((kaitaiStruct.eyebrowColor || 0) << 5) |
+                         ((kaitaiStruct.eyebrowSize || 0) << 8) |
+                         ((kaitaiStruct.eyebrowStretch || 0) << 12) |
+                         ((kaitaiStruct.eyebrowRotation || 0) << 16) |
+                         ((kaitaiStruct.eyebrowHorizontal || 0) << 21) |
+                         ((kaitaiStruct.eyebrowVertical || 0) << 25);
+    buf[0x38] = eyebrowDetails & 0xFF;
+    buf[0x39] = (eyebrowDetails >> 8) & 0xFF;
+    buf[0x3A] = (eyebrowDetails >> 16) & 0xFF;
+    buf[0x3B] = (eyebrowDetails >> 24) & 0xFF;
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    let noseDetails = (kaitaiStruct.noseType || 0) |
+                      ((kaitaiStruct.noseSize || 0) << 5) |
+                      ((kaitaiStruct.noseVertical || 0) << 9);
+    buf[0x3C] = noseDetails & 0xFF;
+    buf[0x3D] = (noseDetails >> 8) & 0xFF;
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    let mouthDetails = (kaitaiStruct.mouthType || 0) |
+                       ((kaitaiStruct.mouthColor || 0) << 6) |
+                       ((kaitaiStruct.mouthSize || 0) << 9) |
+                       ((kaitaiStruct.mouthStretch || 0) << 13);
+    buf[0x3E] = mouthDetails & 0xFF;
+    buf[0x3F] = (mouthDetails >> 8) & 0xFF;
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    let mouth2Details = (kaitaiStruct.mouthVertical || 0) |
+                        ((kaitaiStruct.facialHairMustache || 0) << 5);
+    buf[0x40] = mouth2Details & 0xFF;
+    buf[0x41] = (mouth2Details >> 8) & 0xFF;
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    let beardDetails = (kaitaiStruct.facialHairBeard || 0) |
+                       ((kaitaiStruct.facialHairColor || 0) << 3) |
+                       ((kaitaiStruct.facialHairSize || 0) << 6) |
+                       ((kaitaiStruct.facialHairVertical || 0) << 10);
+    buf[0x42] = beardDetails & 0xFF;
+    buf[0x43] = (beardDetails >> 8) & 0xFF;
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    let glassesDetails = (kaitaiStruct.glassesType || 0) |
+                         ((kaitaiStruct.glassesColor || 0) << 4) |
+                         ((kaitaiStruct.glassesSize || 0) << 7) |
+                         ((kaitaiStruct.glassesVertical || 0) << 11);
+    buf[0x44] = glassesDetails & 0xFF;
+    buf[0x45] = (glassesDetails >> 8) & 0xFF;
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    let moleDetails = (kaitaiStruct.moleEnable ? 1 : 0) |
+                      ((kaitaiStruct.moleSize || 0) << 1) |
+                      ((kaitaiStruct.moleHorizontal || 0) << 5) |
+                      ((kaitaiStruct.moleVertical || 0) << 10);
+    buf[0x46] = moleDetails & 0xFF;
+    buf[0x47] = (moleDetails >> 8) & 0xFF;
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    let creatorNameBytes = new Uint8Array(new ArrayBuffer(20));
+    new DataView(creatorNameBytes.buffer).setUint16(0, 0, true);
+    for (let i = 0; i < kaitaiStruct.creatorName.length; i++) {
+      new DataView(creatorNameBytes.buffer).setUint16(i * 2, kaitaiStruct.creatorName.charCodeAt(i), true);
+    }
+    buf.set(creatorNameBytes, 0x48);
+  } catch (e) {
+    handleError(e);
+  }
+
+  try {
+    buf[0x5C] = kaitaiStruct.padding2 & 0xFF;
+    buf[0x5D] = (kaitaiStruct.padding2 >> 8) & 0xFF;
+    buf[0x5E] = kaitaiStruct.checksum & 0xFF;
+    buf[0x5F] = (kaitaiStruct.checksum >> 8) & 0xFF;
+  } catch (e) {
+    handleError(e);
+  }
+
+  return buf;
+};
+
+/*const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = kaitaiStruct => {
   let buf = new Uint8Array(0x48 + 20 + 2 + 2);  // 0x48 bytes + 20 bytes for creatorName + 2 bytes padding + 2 bytes checksum
 
   // Encoding the fields into the buffer, mirroring the Kaitai struct deserialization
@@ -594,7 +903,7 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = kaitaiStruct => {
 
   return buf;
 }
-
+*/
 
 // deobfuscate the obfuscated studio url format
 // from, and to, a Uint8Array (so requires converting from/to hex)

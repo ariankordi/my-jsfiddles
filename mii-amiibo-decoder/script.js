@@ -180,13 +180,26 @@ function map3DSMiiToStudio(origMii) {
   origMii.beardSize = origMii.facialHairSize;
   origMii.beardMustache = origMii.facialHairMustache;
   origMii.beardVertical = origMii.facialHairVertical;
-  // convert fields in origMii (3DS) to be compatible with gen 3 format
-  origMii.facialHairColor = origMii.facialHairColor === 0 ? 8 : origMii.facialHairColor;
-  origMii.eyeColor = origMii.eyeColor + 8;
-  origMii.eyebrowColor = origMii.eyebrowColor === 0 ? 8 : origMii.eyebrowColor;
-  origMii.glassesColor = origMii.glassesColor === 0 ? 8 : (origMii.glassesColor < 6 ? origMii.glassesColor + 13 : 0);
-  origMii.hairColor = origMii.hairColor === 0 ? 8 : origMii.hairColor;
-  origMii.mouthColor = origMii.mouthColor < 4 ? origMii.mouthColor + 19 : 0;
+  // convert fields in origMii (3DS) to be compatible with switch/studio format
+  // cannot just set these directly, have to set the properties
+  Object.defineProperty(origMii, 'facialHairColor', {
+    value: origMii.facialHairColor === 0 ? 8 : data.facialHairColor
+  });
+  Object.defineProperty(origMii, 'eyeColor', {
+    value: origMii.eyeColor + 8
+  });
+  Object.defineProperty(origMii, 'eyebrowColor', {
+    value: origMii.eyebrowColor === 0 ? 8 : origMii.eyebrowColor
+  });
+  Object.defineProperty(origMii, 'glassesColor', {
+    value: origMii.glassesColor === 0 ? 8 : (origMii.glassesColor < 6 ? origMii.glassesColor + 13 : 0)
+  });
+  Object.defineProperty(origMii, 'hairColor', {
+    value: origMii.hairColor === 0 ? 8 : origMii.hairColor
+  });
+  Object.defineProperty(origMii, 'mouthColor', {
+    value: origMii.mouthColor < 4 ? origMii.mouthColor + 19 : 0
+  });
 
   // create new blank Gen3Studio
   const studioMii = new Gen3Studio(new KaitaiStream(new ArrayBuffer(46)));

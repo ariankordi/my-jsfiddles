@@ -35,3 +35,30 @@ ul {
   max-width: 100%;
   border: 1px solid #808080;
 }
+
+/* desktop (mobile is default) */
+@media (width > 40em) {
+  body {
+    max-width: 26em;
+    margin: 0 auto;
+  }
+  .load-error {
+    max-width: 40vw;
+  }
+}
+
+pre, code {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.left-justified-compact {
+  padding: 0; text-align: left; font-size: 13px; line-height: 150%;
+}
+
+code {
+  display: block;
+  padding: 5px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}

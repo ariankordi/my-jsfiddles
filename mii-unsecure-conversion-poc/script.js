@@ -105,16 +105,6 @@ const handleConvertDetailsToggle = event => {
   else
     inputData = base64ToUint8Array(textData);
   
-  const ver3StoreDataElement = event.target.getElementsByClassName('ver3storedata')[0];
-  const inputFormat = findInputFormatFromSize(inputData.length);
-  // TODO: REMOVE THIS WHEN I STOP USING THIS STRUCT
- 	//if(inputFormat.className == 'CoreData3ds') {
-  	ver3StoreDataElement.parentElement.style.display = ''
-  	const dataStruct = createNewInstanceOfKaitaiStructFormat(inputFormat, inputData);
-    const newStoreDataLolMaybe = encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode(dataStruct)
-  	ver3StoreDataElement.textContent = [...newStoreDataLolMaybe].map(byteToHex).join('')
-  //}
-  
   const studioURLDataElement = event.target.getElementsByClassName('studio-url-data')[0];
 	const studioCodeElement = event.target.getElementsByClassName('studio-code')[0];  
 
@@ -128,6 +118,17 @@ const handleConvertDetailsToggle = event => {
 
   const studioURLData = encodeStudioToObfuscatedHex(studioData);
   studioURLDataElement.textContent = studioURLData;
+
+	// do this at the end bc it is most likely to fail
+  const ver3StoreDataElement = event.target.getElementsByClassName('ver3storedata')[0];
+  const inputFormat = findInputFormatFromSize(inputData.length);
+  // TODO: REMOVE THIS WHEN I STOP USING THIS STRUCT
+ 	//if(inputFormat.className == 'CoreData3ds') {
+  	ver3StoreDataElement.parentElement.style.display = ''
+  	const dataStruct = createNewInstanceOfKaitaiStructFormat(inputFormat, inputData);
+    const newStoreDataLolMaybe = encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode(dataStruct)
+  	ver3StoreDataElement.textContent = [...newStoreDataLolMaybe].map(byteToHex).join('')
+  //}
 
 	// mark as revealed at the end, i.e. do NOT RUN THE HANDLER ANYMORE
   event.target.setAttribute('data-revealed', '1');
@@ -450,10 +451,13 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = kaitaiStruct => {
     ((kaitaiStruct.profanityFlag ? 1 : 0) << 4) | 
     ((kaitaiStruct.copying ? 1 : 0) << 5) | 
     ((kaitaiStruct.unknown2 & 0x03) << 6);
-  buf[0x02] = (kaitaiStruct.miiPositionSlotIndex & 0x0F) | 
-    ((kaitaiStruct.miiPositionPageIndex & 0x0F) << 4);
-  buf[0x03] = (kaitaiStruct.version & 0x0F) | 
-    ((kaitaiStruct.unknown3 & 0x0F) << 4);
+
+  buf[0x02] = (kaitaiStruct.miiPositionPageIndex & 0x0F) |  // Page Index in bits 0-3
+              ((kaitaiStruct.miiPositionSlotIndex & 0x0F) << 4);  // Slot Index in bits 4-7
+
+  buf[0x03] = (kaitaiStruct.version << 4) |  // Version in bits 0-3
+              kaitaiStruct.unknown3;  // Unknown in bits 4-7
+
 
   for (let i = 0; i < 8; i++) {
     buf[0x04 + i] = kaitaiStruct.systemId[i];
@@ -480,8 +484,13 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = kaitaiStruct => {
     ((kaitaiStruct.favorite ? 1 : 0) << 6);
 
   // Mii name (UTF-16LE encoding)
-  let miiNameBytes = new TextEncoder('utf-16le').encode(kaitaiStruct.miiName.padEnd(10, '\0'));
+  let miiNameBytes = new Uint8Array(new ArrayBuffer(20));
+  new DataView(miiNameBytes.buffer).setUint16(0, 0, true);  // Ensure little-endian UTF-16
+  for (let i = 0; i < kaitaiStruct.miiName.length; i++) {
+      new DataView(miiNameBytes.buffer).setUint16(i * 2, kaitaiStruct.miiName.charCodeAt(i), true);
+  }
   buf.set(miiNameBytes, 0x1A);
+
 
   buf[0x2E] = kaitaiStruct.bodyHeight;
   buf[0x2F] = kaitaiStruct.bodyWeight;
@@ -570,7 +579,11 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = kaitaiStruct => {
   buf[0x47] = (moleDetails >> 8) & 0xFF;
 
   // Creator name (UTF-16LE encoding)
-  let creatorNameBytes = new TextEncoder('utf-16le').encode(kaitaiStruct.creatorName.padEnd(10, '\0'));
+  let creatorNameBytes = new Uint8Array(new ArrayBuffer(20));
+  new DataView(creatorNameBytes.buffer).setUint16(0, 0, true);  // Ensure little-endian UTF-16
+  for (let i = 0; i < kaitaiStruct.creatorName.length; i++) {
+      new DataView(creatorNameBytes.buffer).setUint16(i * 2, kaitaiStruct.creatorName.charCodeAt(i), true);
+  }
   buf.set(creatorNameBytes, 0x48);
 
   // Padding and checksum
@@ -590,7 +603,8 @@ const studioURLObfuscationDecode = data => {
     const random = decodedData[0];
     let previous = random;
 
-    for (let i = 1; i < 48; i++) {
+		// NOTE: THIS MAY GET AWAY WITH BEING 47, IDK
+    for(let i = 1; i < 48; i++) {
         const encodedByte = decodedData[i];
         const original = (encodedByte - 7 + 256) % 256;
         decodedData[i - 1] = original ^ previous;

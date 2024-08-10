@@ -183,7 +183,7 @@ function map3DSMiiToStudio(origMii) {
   // convert fields in origMii (3DS) to be compatible with switch/studio format
   // cannot just set these directly, have to set the properties
   Object.defineProperty(origMii, 'facialHairColor', {
-    value: origMii.facialHairColor === 0 ? 8 : data.facialHairColor
+    value: origMii.facialHairColor === 0 ? 8 : origMii.facialHairColor
   });
   Object.defineProperty(origMii, 'eyeColor', {
     value: origMii.eyeColor + 8

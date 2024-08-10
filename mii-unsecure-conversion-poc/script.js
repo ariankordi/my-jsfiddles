@@ -88,11 +88,15 @@ const errorMessage = document.getElementById('error-message');
 const errorStacktrace = document.getElementById('error-stacktrace');
 window.addEventListener('error', event => {
   errorMessage.textContent = event.message;
-  const error = event.error;
   // show stack trace if it has one
-  errorStacktrace.textContent = error ? error.stack :
-  	// otherwise just use error's line number
-  	`At ${event.source}:${event.lineno}:${event.colno}`;
+  if(event.error) {
+    errorStacktrace.textContent = event.error.stack;
+    errorStacktrace.style.display = '';
+  } else {
+    // otherwise just use error's line number
+  	errorAt.textContent = (event.source + ':' + event.lineno + ':' + event.colno);
+    errorStacktrace.style.display = '';
+  }
 
   // un-hide the error container
   errorContainer.style.display = '';

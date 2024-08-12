@@ -25,6 +25,7 @@ function encryptAesCcm(data) {
   // if this is not set then the code
   // will not scan on 3ds (wiiu sets this)
   data[0x03] = 0x30; //'0'
+  
   // Assuming sjcl.codec.bytes is properly defined
   let nonce = data.slice(12, 20);
   let content = [...data.slice(0, 12), ...data.slice(20)];
@@ -51,7 +52,33 @@ function encryptAesCcm(data) {
   return result;
 }
 
-// happens when form is submitted
+// Function to pad data to 96 bytes
+function padTo96Bytes(data) {
+  const paddedData = new Uint8Array(96);
+  paddedData.set(data.slice(0, 96)); // Truncate or pad as needed
+  return paddedData;
+}
+
+// Function to detect if the string is base64 or hex
+function detectAndDecodeInput(input) {
+  input = input.trim();
+  
+  // Check if it looks like a hex string (only contains valid hex characters)
+  const hexRegex = /^[0-9a-fA-F]+$/;
+  if (hexRegex.test(input)) {
+    const hexArray = input.match(/.{1,2}/g).map(byte => parseInt(byte, 16));
+    return new Uint8Array(hexArray);
+  }
+
+  // Otherwise, assume it's Base64
+  try {
+    return Uint8Array.from(atob(input), c => c.charCodeAt(0));
+  } catch (e) {
+    throw new Error("Invalid input: not a valid Base64 or Hex string.");
+  }
+}
+
+// Happens when the form is submitted
 function processData(event) {
   event.preventDefault();
 
@@ -60,16 +87,24 @@ function processData(event) {
   const reader = new FileReader();
 
   reader.onload = function(e) {
-    processAndDisplayQR(new Uint8Array(e.target.result));
+    const rawData = new Uint8Array(e.target.result);
+    const paddedData = padTo96Bytes(rawData);
+    processAndDisplayQR(paddedData);
   };
 
   if (fileInput.files.length > 0) {
     reader.readAsArrayBuffer(fileInput.files[0]);
   } else if (miiDataInput.value.trim() !== '') {
-    const decodedData = Uint8Array.from(atob(miiDataInput.value), c => c.charCodeAt(0));
-    processAndDisplayQR(decodedData);
+    try {
+      const decodedData = detectAndDecodeInput(miiDataInput.value);
+      const paddedData = padTo96Bytes(decodedData);
+      processAndDisplayQR(paddedData);
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
   } else {
-    alert("Please provide a file or Base64 Mii data.");
+    alert("Please provide a file or Base64/Hex Mii data.");
     return;
   }
 

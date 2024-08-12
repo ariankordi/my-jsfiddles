@@ -509,7 +509,9 @@ const uint8ArrayToBase64 = data => btoa(String.fromCharCode.apply(null, data));
 const byteToHex = num => num.toString(16).padStart(2, '0');
 
 // encode from studio data, apply the studio url obfuscation and hex encode
-const encodeStudioToObfuscatedHex = uint8Array => {
+const encodeStudioToObfuscatedHex = data => {
+	// we actually need to clone input as to not act directly on it
+  const uint8Array = Object.assign([], data);
   // generate a random initial value between 0 and 255
   // NOTE: can make this 0 to disable randomization
   let initialRandomValue = Math.floor(256 * Math.random());

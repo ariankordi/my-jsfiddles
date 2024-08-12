@@ -30,15 +30,10 @@
   });
 </script>
 
-    <h4>enter mii data:</h4>
     <form onsubmit="addToResultListFromFormSubmit(event)">
+      <br>
       <div>
-        <label for="name">name: </label>
-        <input type="text" name="name" id="form-name">
-      </div>
-      <div>
-        <label for="data">data: </label>
-        <input type="text" name="data" id="form-data">
+        <input type="text" name="data" id="form-data"  placeholder="your hex/b64 mii data here">
       </div>
       <input type="submit">
     </form>
@@ -47,14 +42,28 @@
 
     <ul id="results" class="results">
       <li id="result-template" style="display: none;">
-        <img no-src="https://mii-unsecure.ariankordi.net/miis/image.png?width=128&data=" class=" fade-in">
+        <img data-src="https://mii-unsecure.ariankordi.net/miis/image.png?width=128&data=" class=" fade-in">
         <details ontoggle="handleConvertDetailsToggle(event)">
           <summary>Convert <span></span></summary>
           <div>
+            <div style="margin: 5px;">Current data type: <code>Ver3StoreData</code></div>
+            <label for>Convert to: </label><select>
+              <option>Default</option>
+              <option></option>
+            </select>
             <ul class="left-justified-compact">
-              <li>Studio URL Data: <code class="studio-url-data"></code></li>
-              <li>Studio Code: <code class="studio-code"></code></li>
-              <li>Base64 3DS/Wii U StoreData: <code class="ver3storedata"></code></li>
+              <li style="margin: 5px;">
+                <a href="javascript:void(0)" onclick="handleCopyButtonAndUpdateCounter(event)">
+                  Studio Render
+                  <span class="text-copy">(copy URL)</span>
+                  <span class="text-counter" style="display: none;">(copied <span>1</span>x)</span>
+                </a>: 
+                <img class="image-80" data-src="https://studio.mii.nintendo.com/miis/image.png?type=face&width=96&data=">
+              </li>
+              <li>Studio Code: <code class="studio-code code-block"></code></li>
+              <li><button>Download .mnms</button> &lt;-- for <a href="https://heyimheroic.github.io/MiiStudioMiiLoader/">Mii Studio Mii Loader</a></li>
+              <li><button>Download .charinfo</button> &lt;-- Try this on <a href="https://miiinstructions.sticksweb.site">Switch Mii to Instructions, created by</a> <a href="https://github.com/sticks-stuff">stick</a>)</li>
+              <li>Base64 3DS/Wii U StoreData: <code class="ver3storedata code-block"></code></li>
             </ul>
           </div>
         </details>

@@ -4,7 +4,7 @@ const defaultResults = [
 	{name: 'Jasmine', data: 'AwBgMIJUICvpzY4vnWYVrXy7ikd01AAAWR1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAAAAAAAAAAAAAAAAAAAAAAAAAAAAAML0'},
   {name: 'Mii Studio Mii', data: 'f5fa013d45545e6048516667767883959a9da4acacb3bbc1d8e6eceef6fd8d98a0a7b2b0bbafb5b2c6c9d0c7ced5d8'},
   {name: 'Bro Mole High', data: 'AwAAQN9uZ0eqxkc022v7dby8sBv4ogAAAARiAHIAbwAAAAAAAAAAAAAAAAAAAEBALJI5AgKJRBZmNEYQzRINSE8A4igiQolZAAAAAAAAAAAAAAAAAAAAAAAAAAAAACpP'},
-  {name: 'Mii Studio Mii', data: '000b10575a727d808992a0aaa7a8b3bcc5d4dadae3e8f0f7eaf5fefd060d3b828d93a6b7bcb6b9bbbbbfc4d5dadede'},
+  {name: 'Mii Studio Mii', data: '0402400431040402020b030a0604060208070906020100140402080200394004010c160213040d0f03020a060d09'},
   {name: 'Mii Studio Mii', data: '0050575e64525d61848d8a93c4cad5dfe0f3fa0212191a220f0f131f838af8f1f7fef9f5fbeff4f4000b120910171a'}
 ];
 
@@ -21,7 +21,7 @@ const addToResultList = (data, name) => {
   const nameInResult = resultTemplateClone.getElementsByTagName('summary')[0].firstElementChild;
   nameInResult.textContent = name;
   const imageInResult = resultTemplateClone.getElementsByTagName('img')[0];
-  const imageInResultNewURL = imageInResult.getAttribute('no-src') + data;
+  const imageInResultNewURL = imageInResult.getAttribute('data-src') + data;
   imageInResult.setAttribute('src', imageInResultNewURL);
   
   // finally, reveal and prepend it
@@ -37,14 +37,21 @@ const addToResultListFromFormSubmit = event => {
 	event.preventDefault();
   
   // find form elements
-  const formName = document.getElementById('form-name');
   const formData = document.getElementById('form-data');
 
-	let name, data;
-
+	let name;
+  const data = formData.value;
+/*
 	name = formName.value;
-  if(!name) name = 'mii with no name';
-  data = formData.value;
+*/
+  const inputData = parseHexOrB64TextStringToUint8Array(formData.value);
+  const inputFormat = findInputFormatFromSize(inputData.length);
+  const dataStruct = createNewInstanceOfKaitaiStructFormat(inputFormat, inputData);
+  name = dataStruct.miiName;
+  if(!name) // i guess if it's blank or undefined
+  	name = inputFormat.className === 'Gen3Studio'
+    			? 'Mii Studio Mii' : 'mii with no name';
+
   addToResultList(data, name);
 };
 
@@ -164,6 +171,40 @@ conversionMethods.convertStudioToVer3 = data => {
 };
 
 
+const parseHexOrB64TextStringToUint8Array = text => {
+	let inputData;
+	// decode it to a uint8array whether it's hex or base64
+  const textData = stripSpaces(text);
+  // check if it's base 16 exclusively, otherwise assume base64
+  if(/^[0-9a-fA-F]+$/.test(text))
+    inputData = hexToUint8Array(text);
+  else
+    inputData = base64ToUint8Array(text);
+
+	return inputData;
+};
+
+const handleCopyButtonAndUpdateCounter = event => {
+	// do not visit the link
+  event.preventDefault();
+
+  // this function assumes... that the anchor,
+  // is in a parent element, and that the last element...
+  const parent = event.target.parentElement;
+  // ... is an image, where we want to copy the src element
+  const src = parent.lastElementChild.src;
+  if(!src) {// is it undefined, null, or empty?
+  	console.error('AAAAAAAAAAAAAAAAAA')
+    return; // stop at this point
+  }
+  else
+  	// copy :)
+  	navigator.clipboard.writeText(src);
+  
+  // ... and THEN, there is a counter.
+  // the counter 
+}
+
 const handleConvertDetailsToggle = event => {
 	if(!event.target.open // not toggled open? ignore
   		// or already revealed, we do not need to do anything
@@ -185,15 +226,10 @@ const handleConvertDetailsToggle = event => {
   if(!dataValue)
   	throw new Error('image\'s source doesn\'t have data query parameter');
 
-	// decode it to a uint8array whether it's hex or base64
-  const textData = stripSpaces(dataValue);
-  // check if it's base 16 exclusively, otherwise assume base64
-  if(/^[0-9a-fA-F]+$/.test(textData))
-    inputData = hexToUint8Array(textData);
-  else
-    inputData = base64ToUint8Array(textData);
+	const inputData = parseHexOrB64TextStringToUint8Array(dataValue);
   
-  const studioURLDataElement = event.target.getElementsByClassName('studio-url-data')[0];
+  //const studioURLDataElement = event.target.getElementsByClassName('studio-url-data')[0];
+  const studioImageElement = event.target.getElementsByClassName('image-80')[0];
 	const studioCodeElement = event.target.getElementsByClassName('studio-code')[0];  
 
 	// run the function to convert the data from the image to raw studio data
@@ -205,12 +241,15 @@ const handleConvertDetailsToggle = event => {
 	studioCodeElement.textContent = studioCode;
 
   const studioURLData = encodeStudioToObfuscatedHex(studioData);
-  studioURLDataElement.textContent = studioURLData;
+  const studioURLRender = studioImageElement.getAttribute('data-src') + studioURLData;
+  //studioURLDataElement.textContent = studioURLData;
+  studioImageElement.setAttribute('src', studioURLRender);
 
 
 	// do this at the end bc it is most likely to fail
   const ver3StoreDataElement = event.target.getElementsByClassName('ver3storedata')[0];
   const inputFormat = findInputFormatFromSize(inputData.length);
+  
   const newStoreDataLolMaybe = convertToVer3StoreDataWithoutChecksumPleaseRewrite(inputData, inputFormat);
   ver3StoreDataElement.textContent = uint8ArrayToBase64(newStoreDataLolMaybe);
 

@@ -1,3 +1,54 @@
+// fill results with dummies for now
+
+const defaultResults = [
+	{name: 'Jasmine', data: 'AwBgMIJUICvpzY4vnWYVrXy7ikd01AAAWR1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAAAAAAAAAAAAAAAAAAAAAAAAAAAAAML0'},
+  {name: 'Mii Studio Mii', data: 'f5fa013d45545e6048516667767883959a9da4acacb3bbc1d8e6eceef6fd8d98a0a7b2b0bbafb5b2c6c9d0c7ced5d8'},
+  {name: 'Bro Mole High', data: 'AwAAQN9uZ0eqxkc022v7dby8sBv4ogAAAARiAHIAbwAAAAAAAAAAAAAAAAAAAEBALJI5AgKJRBZmNEYQzRINSE8A4igiQolZAAAAAAAAAAAAAAAAAAAAAAAAAAAAACpP'},
+  {name: 'Mii Studio Mii', data: '000b10575a727d808992a0aaa7a8b3bcc5d4dadae3e8f0f7eaf5fefd060d3b828d93a6b7bcb6b9bbbbbfc4d5dadede'},
+  {name: 'Mii Studio Mii', data: '0050575e64525d61848d8a93c4cad5dfe0f3fa0212191a220f0f131f838af8f1f7fef9f5fbeff4f4000b120910171a'}
+];
+
+const resultsList = document.getElementById('results');
+const resultTemplate = document.getElementById('result-template');
+
+const addToResultList = (data, name) => {
+	// clone the template so that we can put the result text in it
+  const resultTemplateClone = resultTemplate.cloneNode(true);
+	// remove the id so that it does not conflict
+	resultTemplateClone.removeAttribute('id');
+  // this SHOULD be the first span in summary
+  // NOTE: this line is most likely to error out
+  const nameInResult = resultTemplateClone.getElementsByTagName('summary')[0].firstElementChild;
+  nameInResult.textContent = name;
+  const imageInResult = resultTemplateClone.getElementsByTagName('img')[0];
+  const imageInResultNewURL = imageInResult.getAttribute('no-src') + data;
+  imageInResult.setAttribute('src', imageInResultNewURL);
+  
+  // finally, reveal and prepend it
+  resultTemplateClone.style.display = '';
+  resultsList.prepend(resultTemplateClone);
+};
+
+defaultResults.forEach(result => {
+	addToResultList(result.data, result.name);
+});
+
+const addToResultListFromFormSubmit = event => {
+	event.preventDefault();
+  
+  // find form elements
+  const formName = document.getElementById('form-name');
+  const formData = document.getElementById('form-data');
+
+	let name, data;
+
+	name = formName.value;
+  if(!name) name = 'mii with no name';
+  data = formData.value;
+  addToResultList(data, name);
+};
+
+
 // NOTE: 3DS/Wii U compatible data is referred to officially in the Switch nn::mii library as "Ver3": "nn::mii::Ver3StoreData", functions and tables using "ToVer3" and "FromVer3", mii_Ver3Common.cpp, mii_Ver3StoreDataTable.cpp, etc.
 // Switch data is not commonly referred to as Ver4, however, in Pikmin Bloom's global-metadata.dat, there are many strings referring to Ver3, many being symbols directly from nn::mii, even a string that looks like a const or macro in the file: "NN_MII_CHAR_INFO_SIZE". And finally, there is a string in there reading "FromVer4CoreData".
 // Now, even though Pikmin Bloom is in Unity and not developed by Nintendo, there's still one other reference to the name. The Coral API endpoint "me.json" has a child in a "mii" object called "storeData", containing another child named simply "3" with 96-byte long Base64 data. However, there is another element called "coreData" containing a child named "4" with 48-byte long Base64 data. SO, there you go: Ver3StoreData, and Ver4CoreData.
@@ -37,7 +88,9 @@
           // downgrades the fields AND removes underscores
           toVer3Function: 'convertStudioToVer3',
           // needs to be run every time before using
-          toVer4Function: 'removeUnderscoreKeysFromObject'
+          toVer4Function: 'removeUnderscoreKeysFromObject',
+          preConvertFromFunction: '',
+          postConvertToFunction: '',
         },
       ];
 
@@ -120,7 +173,7 @@ const handleConvertDetailsToggle = event => {
 	// we need to find the data
   // .. for now, take this from the parent's image url
   // TODO: has to be replaced since it will not always be in the url
-  const hopefullyImage = event.target.parentElement.firstChild;
+  const hopefullyImage = event.target.parentElement.getElementsByTagName('img')[0];
   const imageSrc = hopefullyImage.getAttribute('src');
   if(!imageSrc)
   	// image src should not be undefined

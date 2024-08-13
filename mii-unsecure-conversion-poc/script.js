@@ -1,11 +1,12 @@
 // fill results with dummies for now
 
 const defaultResults = [
-	{name: 'Jasmine', data: 'AwBgMIJUICvpzY4vnWYVrXy7ikd01AAAWR1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAAAAAAAAAAAAAAAAAAAAAAAAAAAAAML0'},
-  {name: 'Mii Studio Mii', data: 'f5fa013d45545e6048516667767883959a9da4acacb3bbc1d8e6eceef6fd8d98a0a7b2b0bbafb5b2c6c9d0c7ced5d8'},
-  {name: 'Bro Mole High', data: 'AwAAQN9uZ0eqxkc022v7dby8sBv4ogAAAARiAHIAbwAAAAAAAAAAAAAAAAAAAEBALJI5AgKJRBZmNEYQzRINSE8A4igiQolZAAAAAAAAAAAAAAAAAAAAAAAAAAAAACpP'},
-  {name: 'Mii Studio Mii', data: '0402400431040402020b030a0604060208070906020100140402080200394004010c160213040d0f03020a060d09'},
-  {name: 'Mii Studio Mii', data: '0050575e64525d61848d8a93c4cad5dfe0f3fa0212191a220f0f131f838af8f1f7fef9f5fbeff4f4000b120910171a'}
+	{name: 'Jasmine Ver3StoreData', data: 'AwBgMIJUICvpzY4vnWYVrXy7ikd01AAAWR1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAAAAAAAAAAAAAAAAAAAAAAAAAAAAAML0'},
+  {name: 'Mii Studio Mii Obfuscated', data: 'f5fa013d45545e6048516667767883959a9da4acacb3bbc1d8e6eceef6fd8d98a0a7b2b0bbafb5b2c6c9d0c7ced5d8'},
+  {name: 'Bro Mole High Ver3StoreData', data: 'AwAAQN9uZ0eqxkc022v7dby8sBv4ogAAAARiAHIAbwAAAAAAAAAAAAAAAAAAAEBALJI5AgKJRBZmNEYQzRINSE8A4igiQolZAAAAAAAAAAAAAAAAAAAAAAAAAAAAACpP'},
+  {name: 'Mii Studio Mii Deobfuscated', data: '0402400431040402020b030a0604060208070906020100140402080200394004010c160213040d0f03020a060d09'},
+  {name: 'Matt Wii', data: '800230de30c330c800000000000000000000000000004040200000000000 0000f2453c48494f08e2b06e06843558408f0a8ce0cb450a000000000000 0000000000000000000000000000'},
+  {name: 'Mii Studio Mii Deobfuscated', data: '0050575e64525d61848d8a93c4cad5dfe0f3fa0212191a220f0f131f838af8f1f7fef9f5fbeff4f4000b120910171a'}
 ];
 
 const resultsList = document.getElementById('results');
@@ -41,9 +42,7 @@ const addToResultListFromFormSubmit = event => {
 
 	let name;
   const data = formData.value;
-/*
-	name = formName.value;
-*/
+	//name = formName.value;
   const inputData = parseHexOrB64TextStringToUint8Array(formData.value);
   const inputFormat = findInputFormatFromSize(inputData.length);
   const dataStruct = createNewInstanceOfKaitaiStructFormat(inputFormat, inputData);
@@ -65,6 +64,7 @@ const addToResultListFromFormSubmit = event => {
 			window.supportedFormats = [{
           className: 'CoreDataWii',
           sizes: [74, 76],
+          // TODO: needs dedicated encode function
           toVer3Function: 'convertWiiFieldsToVer3',
           toVer4Function: 'convertVer3FieldsToVer4'
         },
@@ -72,18 +72,21 @@ const addToResultListFromFormSubmit = event => {
           className: 'CoreDataSwitch',
           sizes: [48, 68],
           version: 4,
+          // TODO: needs dedicated encode function
           toVer3Function: 'convertVer4FieldsToVer3'
         },
         {
           className: 'CharInfoSwitch',
           sizes: [88],
           version: 4,
+          encodeFunction: 'encodeKaitaiStructToUint8Array',
           toVer3Function: 'convertVer4FieldsToVer3'
         },
         {
           className: 'CoreData3ds',
           sizes: [92, 96],
           version: 3,
+          encodeFunction: 'encodeVer3StoreData',
           toVer4Function: 'convertVer3FieldsToVer4',
         },
         {
@@ -91,13 +94,10 @@ const addToResultListFromFormSubmit = event => {
           // the js will deobfuscate length 47 itself
           sizes: [46, 47],
           version: 4,
-          // TODO: replace with a function that
-          // downgrades the fields AND removes underscores
-          toVer3Function: 'convertStudioToVer3',
-          // needs to be run every time before using
-          toVer4Function: 'removeUnderscoreKeysFromObject',
-          preConvertFromFunction: '',
-          postConvertToFunction: '',
+          encodeFunction: 'encodeKaitaiStructToUint8Array',
+          toVer3Function: 'convertVer4FieldsToVer3',
+          preConvertFromFunction: 'gen3studioDefineFacialHairFromBeardFields', // define facialhair from beard
+          postConvertToFunction: 'gen3studioDefineBeardFromFacialHairFields', // define beard from facialhair
         },
       ];
 
@@ -135,7 +135,6 @@ conversionMethods.convertVer3FieldsToVer4 = data => {
   // NOTE: you cannot do the same vice-versa to convert ver4 colors back
   // ver4 also has new glass types, and...
   // ... faceline/skin color is not mapped (ver3 ones work on ver4)
-  return data;
 };
 
 // converting fields from ver4 to ver3, like vice versa,
@@ -162,13 +161,106 @@ conversionMethods.convertVer4FieldsToVer3 = data => {
   data.mouthColor = ToVer3MouthColorTable[data.mouthColor];
   data.glassesColor = ToVer3GlassColorTable[data.glassesColor];
   data.faceColor = ToVer3FacelineColorTable[data.faceColor];
-  return data;
 };
-// this function just calls the method above and also removes underscore keys
-conversionMethods.convertStudioToVer3 = data => {
-	data = conversionMethods.convertVer4FieldsToVer3(data);
-  return removeUnderscoreKeysFromObject(data);
+
+// the method below is used to encode studio and switch charinfo
+// by more or less directly mapping the u8 fields in the struct to a new array
+// NOTE: only supports strings (TO UTF-16LE ONLY!!!), lists, and ofc uint8
+conversionMethods.encodeKaitaiStructToUint8Array = struct => {
+	// append all keys into this array
+  // which will then become a uint8array
+	let structArray = [];
+  // NOTE: NOTE: kaitai private fields are NOT:
+  // ... numbers, arrays, or strings. we can get away with switch()
+  /*for(const key in struct) {
+  	// remove all private fields so that the object
+  	// represents only the struct fields in order
+    if(key.startsWith('_')) {
+    	delete struct[key];
+      continue;
+    }
+    //else if(typeof key)
+    else
+    	// by default, add it directly (assuming int?)
+      structArray.push(struct[key]);
+  }*/
+  for(const key in struct) {
+  	// add to array based on the type
+  	switch(typeof struct[key]) {
+      case 'number':
+      	// assuming this is a uint8, pushing it
+        structArray.push(struct[key]);
+        break;
+      case 'boolean':
+      	// there are never booleans in these fields natively
+        // but there are when they are set from another struct
+        structArray.push(Number(struct[key]));
+        break;
+      case 'object':
+      	// actually, only arrays
+        if(!(struct[key] instanceof Array))
+        	continue;
+        // this is an array, so push each element
+        for(i in struct[key])
+        	structArray.push(i);
+    		break;
+      case 'string':
+      	break;
+      // all other types are ignored
+    }
+  }
+	// array of ints representing studio data
+  //const structArray = Object.values(struct);
+	// return as a uint8array for consistency
+	return new Uint8Array(structArray);
+  // NOTE: could be a uint8array, however...
+  // ... apparently, in order to encode to hex it has to be an array anyway
+
 };
+// the methods below remap inconsistently named fields in gen3_studio.ksy from the original mii2studio
+// as the fields usually prefixed "facialHair" in the other structs are instead prefixed "beard" here
+
+// this will map the fields FROM the studio struct TO another one
+conversionMethods.gen3studioDefineFacialHairFromBeardFields = (output, inputOptional) => {
+	// if we are only acting on one struct then we will use output for both
+	let input = inputOptional;
+  if(input === undefined)
+  	input = output;
+
+  // if the studio fields are properly named according to the others then skip
+  if(input.facialHairBeard !== undefined
+     // ... or, if this is somehow already the same studio struct?!
+     || output.beardGoatee !== undefined)
+    return;
+
+
+	Object.defineProperty(output, 'facialHairBeard', {
+    value: input.beardGoatee
+  });
+  Object.defineProperty(output, 'facialHairSize', {
+    value: input.beardSize
+  });
+  Object.defineProperty(output, 'facialHairMustache', {
+    value: input.beardMustache
+  });
+  Object.defineProperty(output, 'facialHairVertical', {
+    value: input.beardVertical
+  });
+}
+// this maps the fields TO the studio struct FROM any other one
+conversionMethods.gen3studioDefineBeardFromFacialHairFields = (output, input) => {
+  // if the studio fields are properly named according to the others then skip
+  if(output.facialHairBeard !== undefined
+     // ... or, if this is somehow already the same studio struct?!
+     || input.beardGoatee !== undefined)
+    return;
+
+  // erroneously prefixed "beard" in studio when other structs use "facialHair"
+  output.beardGoatee = input.facialHairBeard;
+  output.beardSize = input.facialHairSize;
+  output.beardMustache = input.facialHairMustache;
+  output.beardVertical = input.facialHairVertical;
+}
 
 
 const parseHexOrB64TextStringToUint8Array = text => {
@@ -176,34 +268,54 @@ const parseHexOrB64TextStringToUint8Array = text => {
 	// decode it to a uint8array whether it's hex or base64
   const textData = stripSpaces(text);
   // check if it's base 16 exclusively, otherwise assume base64
-  if(/^[0-9a-fA-F]+$/.test(text))
-    inputData = hexToUint8Array(text);
+  if(/^[0-9a-fA-F]+$/.test(textData))
+    inputData = hexToUint8Array(textData);
   else
-    inputData = base64ToUint8Array(text);
+    inputData = base64ToUint8Array(textData);
 
 	return inputData;
 };
 
-const handleCopyButtonAndUpdateCounter = event => {
-	// do not visit the link
+const handleCopyButtonAndUpdateCounter = (event, data) => {
+	// do not visit the link or submit the button
   event.preventDefault();
 
-  // this function assumes... that the anchor,
-  // is in a parent element, and that the last element...
-  const parent = event.target.parentElement;
-  // ... is an image, where we want to copy the src element
-  const src = parent.lastElementChild.src;
-  if(!src) {// is it undefined, null, or empty?
-  	console.error('AAAAAAAAAAAAAAAAAA')
-    return; // stop at this point
+  // this function assumes... that this is the anchor...
+  const target = event.currentTarget;
+  // and that the anchor is in a parent element
+  // and to act on the img if there is no data
+  const parent = target.parentElement;
+
+  // if there is data then just return that as a string
+  if(data !== undefined)
+  	navigator.clipboard.writeText(data); // NOTE: not used for anything rn
+	else {
+    // there is one img in the parent, where we want to copy the src element
+    const img = parent.getElementsByTagName('img')[0];
+    if(!img || !img.src) // is it undefined, null, or empty?
+      throw new Error('when you clicked the copy button for the studio render, ' +
+      'and we tried to find the image\'s source, it ended up as undefined...???');
+    else
+      // copy :)
+      navigator.clipboard.writeText(img.src);
   }
-  else
-  	// copy :)
-  	navigator.clipboard.writeText(src);
   
   // ... and THEN, there is a counter.
-  // the counter 
+  // the counter increases on every copy
+  // and copying once hides the text and unhides the counter
+  const textCopyElement = parent.getElementsByClassName('text-copy')[0];
+  textCopyElement.style.display = 'none';
+  const textCounterElement = parent.getElementsByClassName('text-counter')[0];
+  // the counter number is the only span inside of here
+  const textCounterNumberElement = textCounterElement.firstElementChild;
+  // pretend it's a number when it's a string and then increment it
+  textCounterNumberElement.textContent++;
+  textCounterElement.style.display = '';
 }
+
+// current name of studio kaitai struct class being used
+const studioFormat = supportedFormats.find(f => f.className === 'Gen3Studio');
+const ver3Format = supportedFormats.find(f => f.className === 'CoreData3ds');
 
 const handleConvertDetailsToggle = event => {
 	if(!event.target.open // not toggled open? ignore
@@ -226,6 +338,9 @@ const handleConvertDetailsToggle = event => {
   if(!dataValue)
   	throw new Error('image\'s source doesn\'t have data query parameter');
 
+	// the name of the input type will be put in this element
+	const inputTypeElement = event.target.getElementsByClassName('input-type')[0]; 
+
 	const inputData = parseHexOrB64TextStringToUint8Array(dataValue);
   
   //const studioURLDataElement = event.target.getElementsByClassName('studio-url-data')[0];
@@ -233,7 +348,7 @@ const handleConvertDetailsToggle = event => {
 	const studioCodeElement = event.target.getElementsByClassName('studio-code')[0];  
 
 	// run the function to convert the data from the image to raw studio data
-	const studioData = convertDataToStudio(inputData);
+	const studioData = convertDataToType(inputData, studioFormat);
   // "studio code" = raw studio data in hex
   // NOTE: three dots are only required if it is a uint8array which
   // it is only one if the input data is studio data directly
@@ -250,8 +365,20 @@ const handleConvertDetailsToggle = event => {
   const ver3StoreDataElement = event.target.getElementsByClassName('ver3storedata')[0];
   const inputFormat = findInputFormatFromSize(inputData.length);
   
-  const newStoreDataLolMaybe = convertToVer3StoreDataWithoutChecksumPleaseRewrite(inputData, inputFormat);
-  ver3StoreDataElement.textContent = uint8ArrayToBase64(newStoreDataLolMaybe);
+  if(inputFormat !== undefined
+  	&& typeof inputFormat.className === 'string')
+    inputTypeElement.textContent = inputFormat.className;
+  
+  const ver3StoreData = convertDataToType(inputData, ver3Format, inputFormat.className);
+  ver3StoreDataElement.textContent = uint8ArrayToBase64(ver3StoreData);
+  // finally make a qr code
+  if(window.QRCode !== undefined) {
+    const ver3QRCodeDataArray = encryptAndEncodeVer3StoreDataToQRCodeFormat(ver3StoreData);
+    const qrCodeImage = event.target.getElementsByClassName('image-80')[1];
+    qrCodeImage.src = QRCode.generatePNG(ver3QRCodeDataArray,
+    									{margin: null}); // for whatever reason they check whether this
+                                       // property in options is null - but it is undefined
+  }
 
 	// mark as revealed at the end, i.e. do NOT RUN THE HANDLER ANYMORE
   event.target.setAttribute('data-revealed', '1');
@@ -264,7 +391,7 @@ const handleConvertDetailsToggle = event => {
    - both needed to scan as a qr code
  * DOES NOT SET CHECKSUM...
  */
-const encodeVer3StoreDataFromStruct = dataStruct => {
+conversionMethods.encodeVer3StoreData = dataStruct => {
   // set unmarked fields
   dataStruct.unknown1 = 0x03;
   // 3ds version mii, will scan as a qr code on 3ds and wii u
@@ -277,8 +404,8 @@ const encodeVer3StoreDataFromStruct = dataStruct => {
   // TODO: you have enough bytes to pack the studio info within all arbitrary data given
   // NOTE: NOTE: this is what the Coral account API returns
   // in its Mii data, along with random IDs, I assume they forge it from studio data
-  if(!dataStruct.miiName)
-    dataStruct.miiName = 'Mii';
+  if(!dataStruct.miiName || isStringNull(dataStruct.miiName))
+    dataStruct.miiName = 'Mii'; // blanco api sets mii studio miis' names to this
   // setting system id and client id here are NOT necessary, but they can be randomized
   //origMii.systemId = [0, 0, 0, 0, 0, 0, 0, 0];
   // mii id on the other hand cannot be null
@@ -290,7 +417,10 @@ const encodeVer3StoreDataFromStruct = dataStruct => {
 
   // TODO: TODO: TODO: IF YOU ARE READING, ACTUALLY MAKE THIS
   // A HASH OF THE MII STUDIO DATA OR SOMETHING I THINK MAYBE
-  if(!dataStruct.avatarId)
+  //debugger
+  if(!dataStruct.avatarId || isArrayNull(dataStruct.avatarId))
+  // NOTE NOTE NOTE TODO TODO TODO
+  // 3DS DOES NOT LIKE e.g. MATT'S RAW ID, BUT FFL & MIITOMO DOES???
     dataStruct.avatarId = [128,
                            // should not exceed 256?
                            Math.floor(Math.random() * 257),
@@ -306,24 +436,6 @@ const encodeVer3StoreDataFromStruct = dataStruct => {
   //origMii.clientId = [0, 0, 0, 0, 0, 0];
   return encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode(dataStruct);
 };
-
-// TODO: please.
-const convertToVer3StoreDataWithoutChecksumPleaseRewrite = (data, format) => {
-  if(data && data.length === STUDIO_OBFUSCATED_LENGTH)
-    data = studioURLObfuscationDecode(data);
-  let dataStruct = createNewInstanceOfKaitaiStructFormat(format, data);
-  if(format.className === 'Gen3Studio') {
-    // TODO: TODO: MOVE THIS LOGIC AND LOGIC ABOVE ELSEWHERRRRRREEEEE
-    dataStruct.facialHairBeard = dataStruct.beardGoatee;
-    dataStruct.facialHairSize = dataStruct.beardSize;
-    dataStruct.facialHairMustache = dataStruct.beardMustache;
-    dataStruct.facialHairVertical = dataStruct.beardVertical;
-  }
-  if(format.toVer3Function !== undefined)
-  	dataStruct = conversionMethods[format.toVer3Function](dataStruct);
-
-	return encodeVer3StoreDataFromStruct(dataStruct);
-}
 
 // iterate through format list, assumed to be called supportedFormats
 // to find that input format and throw an error if it is not supported
@@ -376,38 +488,39 @@ const createNewInstanceOfKaitaiStructFormat = (format, data) => {
 // where the property names match on both
 const mapObjectFieldsOneToOne = (src, dest) => {
 	// copy fields on the destination that the source also has
-  for(const key in dest) {
+  let allDestKeys = [...Object.keys(dest),
+  									 // get keys as WELL as properties on the prototype
+                     // these are used by larsenv's structs for bitmapped fields
+                     ...Object.getOwnPropertyNames(
+                     			Object.getPrototypeOf(dest)
+                        )
+                    ];
+                    // speaking of structs, these have NOT been tested with HEYimHeroic's structs
+  for(const key of allDestKeys) { //in dest) {
   	// do not copy private fields that start with an underscore
-    if(!key.startsWith('_')
+    // NOTE: not needed anymore bc if they are not on the dest they wont be copied
+    if(!key.startsWith('_') &&
     	// if the key exists on the source...
-      && src[key] !== undefined) {
+      src[key] !== undefined) {
       	// ... then copy it to the destination
-      	// actually if it is a bool it needs to be an int
-        if(typeof src[key] === 'boolean')
-        	dest[key] = Number(src[key]);
-        else
-	        dest[key] = src[key];
+      	//dest[key] = src[key];
+        Object.defineProperty(dest, key, {
+          value: src[key]
+        });
+
       }
   }
+  // NOTE!!!! NOTE!!!! this TURNS THE DESTINATION
+  // into an INSTANCE OF THE SOURCE ...
 }
 
-// used to strip kaitai specific private fields from an object
-const removeUnderscoreKeysFromObject = obj => {
-  for(const key in obj) {
-    if(key.startsWith('_'))
-      delete obj[key];
-  }
-  return obj;
-}
-// converting studio data needs this
-conversionMethods.removeUnderscoreKeysFromObject = removeUnderscoreKeysFromObject;
 
+// converts and encodes to a certain type
 // third arugment, inupt format name, is optional
 // if not provided then the size is used to auto detect
-// beforeFinishFunc is another optional argument that 
-// is assumed to be a function called with
-// the input and output structs before returning
-const convertDataToType = (data, outputFormat, inputFormatName, beforeFinishFunc) => {
+// length of obfuscated studio data
+const STUDIO_OBFUSCATED_LENGTH = 47;
+const convertDataToType = (data, outputFormat, inputFormatName) => {
 	// ensure that data is an ArrayBuffer
   /*if(!(data instanceof ArrayBuffer))
   	throw new Error('data must be ArrayBuffer or compatible.');
@@ -431,11 +544,10 @@ const convertDataToType = (data, outputFormat, inputFormatName, beforeFinishFunc
 	// NOTE: SPECIAL CASE: DEOBFUSCATE STUDIO DATA
   if(data && data.length === STUDIO_OBFUSCATED_LENGTH)
   	data = studioURLObfuscationDecode(data);
-  // this is already done in convert to studio's dedicated function
-  // and could be avoided if there were a pre-process function
-  // actually NOTE: the dedicated studio and 3ds encode functions could be
-  // dropped entirely if the definitions had an encode function defined
 
+	// if this is the output format directly then no conversion is required
+	if(findInputFormatFromSize(data.length) === outputFormat)
+  	return data;
 
 	// create a new instance of the class, with this function handling errors
   // may be overridden by the preprocessing function
@@ -445,94 +557,72 @@ const convertDataToType = (data, outputFormat, inputFormatName, beforeFinishFunc
   if(!outputFormat || outputFormat.className === undefined)
   	throw new Error('outputFormat is not a valid format object or does not have className');
 
-	// evaluate what functions should be run to convert the input data
+  // version is needed to evaluate which of the few conversion functions need to be run
   if(typeof outputFormat.version !== 'number')
-  	throw new Error('All output format definitions need a "version" field that\'s a number.');
+  	throw new Error(`Output format ${outputFormat.className} does not have a version field or it is not a number.`);
+	// encode function is run at the end here so it is needed
+	if(outputFormat.encodeFunction === undefined
+     || typeof conversionMethods[outputFormat.encodeFunction] !== 'function')
+  	throw new Error(`Output format ${outputFormat.className} does not have a valid encodeFunction.`);
 
 /*
 	const ver3ConvertFunc = format.toVer3Function;
   const ver4ConvertFunc = format.toVer4Function;
 */
-  // checks if the property is defined or not
-  if(format.toVer3Function !== undefined)
-  	// TODO: DOES NOT CHECK WHETHER THE FUNCTION ITSELF IS UNDEFINED
-  	inputStruct = conversionMethods[format.toVer3Function](inputStruct);
 
-  // only run the to version 4 conversion, if this is actually version 4
-  if(outputFormat.version >= 4 && format.toVer4Function !== undefined)
-  	// TODO: DOES NOT CHECK WHETHER THE FUNCTION ITSELF IS UNDEFINED
-  	inputStruct = conversionMethods[format.toVer4Function](inputStruct);
+	/*
+   * usually:
+   * convert to ver3, and then ver4
+   * 
+   */
 
-  // run this function whose role is to convert input fields
-  // to be compatible with studio/switch CharInfo fields
-  // TODO: not needed in all circumstances, perhaps have a discriminator the type
-/*  if(format.preprocess) {
-  	// access it from globals/window
-  	const preprocessFunction = window[format.preprocess];
-    // ensure that it exists and is a function
-    if(typeof preprocessFunction !== 'function')
-    	throw new Error(`Preprocessing function for ${format.className} is not a function: ${format.preprocess}`);
-   	// pass struct into the function
-    inputStruct = window[format.preprocess](inputStruct);
+  // determine whether to convert to ver3, or ver4, or both
+  let doConvertToVer3 = true,
+      doConvertToVer4 = true;
+
+	// for equal versions, do not do conversion at all
+	if(format.version === outputFormat.version) {
+  	doConvertToVer3 = false;
+    doConvertToVer4 = false;
   }
-*/
+	// aim to convert up AND down...?
+  // if this is less than ver4 then do not convert to it
+  if(outputFormat.version < 4)
+  	doConvertToVer4 = false;
+	// if this is less than ver3 don't convert to that either
+  if(outputFormat.version < 3)
+  	doConvertToVer3 = false;
+
+	if(doConvertToVer3 && format.toVer3Function !== undefined)
+  	// TODO: DOES NOT CHECK WHETHER THE FUNCTION ITSELF IS UNDEFINED
+  	conversionMethods[format.toVer3Function](inputStruct);
+  if(doConvertToVer4 && format.toVer4Function !== undefined)
+  	// TODO: DOES NOT CHECK WHETHER THE FUNCTION ITSELF IS UNDEFINED
+  	conversionMethods[format.toVer4Function](inputStruct);
+
 	// create a new blank instance of the output format
   let outputStruct = createNewInstanceOfKaitaiStructFormat(outputFormat);
-  
-  // map all fields with the same names to each other
+
+	// call preConvertFromFunction for input if it exists
+  if(format.preConvertFromFunction !== undefined)
+  	conversionMethods[format.preConvertFromFunction](outputStruct, inputStruct);
+
+	// map all fields with the same names to each other
   // TODO: should use kaitai struct dedicated encoding functions instead...!!!
   mapObjectFieldsOneToOne(inputStruct, outputStruct);
-  
-  // call beforeFinishFunc if it exists
-  if(typeof beforeFinishFunc === 'function')
-  	beforeFinishFunc(inputStruct, outputStruct);
+  // NOTE!!!! NOTE!!!! the OUTPUT FORMAT becomes the same as the INPUT FORMAT's CLASS!!!!!
+
+  // call postConvertToFunction for output if it exists
+  if(outputFormat.postConvertToFunction !== undefined)
+  	conversionMethods[outputFormat.postConvertToFunction](outputStruct, inputStruct);
 
  	// we should be finished
-  return outputStruct;
+  //return outputStruct;
+  // FINALLY, call the encoding function
+  const encodedOutput = conversionMethods[outputFormat.encodeFunction](outputStruct);
+  return encodedOutput; // should be a uint8array
 }
 
-// function that uses convertDataToType but always converts to studio
-// converts to a raw array and maps studio fields
-// that don't match names of other structs in larsen's kaitai structs
-// length of obfuscated studio data
-const STUDIO_OBFUSCATED_LENGTH = 47;
-// assuming that the studio format name is always "Gen3Studio"
-const studioFormat = supportedFormats.find(f => f.className === 'Gen3Studio');
-const convertDataToStudio = (data, inputFormatName) => {
-	// deobfsucate if the length indicates it is obfuscated
-  if(data && data.length === STUDIO_OBFUSCATED_LENGTH)
-  	data = studioURLObfuscationDecode(data);
-	// if this is studio data directly then no conversion is required
-	if(findInputFormatFromSize(data.length) === studioFormat)
-  	return data;
-
-	// should NOT continue here if the data is studio 46 or 47 bytes long
-  const beforeFinishFunc = (input, output) => {
-  	// if the studio fields are properly named according to the others then skip
-		if(output.facialHairBeard !== undefined
-    	// ... or, if this is somehow already the same studio struct?!
-      || input.beardGoatee !== undefined)
-    	return;
-
-		// erroneously prefixed "beard" in studio when other structs use "facialHair"
-    output.beardGoatee = input.facialHairBeard;
-    output.beardSize = input.facialHairSize;
-    output.beardMustache = input.facialHairMustache;
-    output.beardVertical = input.facialHairVertical;
-  };
-  // run conversion function and get kaitai struct out
-	let studioStruct = convertDataToType(data, studioFormat, inputFormatName, beforeFinishFunc);
-
-	// remove all private fields so that the object
-  // represents only the struct fields in order
-  studioStruct = removeUnderscoreKeysFromObject(studioStruct);
-	// array of ints representing studio data
-  const studioData = Object.values(studioStruct);
-	// return as a uint8array for consistency
-	return studioData;//new Uint8Array(studioData);
-  // NOTE: could be a uint8array, however...
-  // ... apparently, in order to encode to hex it has to be an array anyway
-}
 
 // yes I'm aware that typing this function name is as long as the snippet itself
 const uint8ArrayToBase64 = data => btoa(String.fromCharCode.apply(null, data));
@@ -557,7 +647,7 @@ const encodeStudioToObfuscatedHex = data => {
   let previousEncodedValue = initialRandomValue;
 
   // iterate over the Uint8Array and encode each byte
-  for (let i = 0; i < uint8Array.length; i++) {
+  for(let i = 0; i < uint8Array.length; i++) {
     let currentValue = uint8Array[i];
     // XOR the current value with the previous one and add 7, then take modulo 256
     uint8Array[i] = (7 + (currentValue ^ previousEncodedValue)) % 256;
@@ -575,6 +665,10 @@ const encodeStudioToObfuscatedHex = data => {
 const stripSpaces = str => str.replace(/\s+/g, '');
 const hexToUint8Array = hex => new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
 const base64ToUint8Array = base64 => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+// used to check if a string is all zeroes, which are seen in kaitai structs
+const isStringNull = string => string.split('').every(char => char === '\u0000');
+// likewise used to check if an array is null
+const isArrayNull = array => array.every(i => i === 0);
 
 // TODO: TODO: CHECK IF YOU CAN PUT THE TWO TABLES INTO ONE
 // TODO: ALSO CHECK IF YOU CAN MAKE THIS SHORTER
@@ -611,8 +705,6 @@ conversionMethods.convertWiiFieldsToVer3 = data => {
     data.faceMakeup = makeup[data.facialFeature];
   if(wrinkles.hasOwnProperty(data.facialFeature))
     data.faceWrinkles = wrinkles[data.facialFeature];
-
-  return data;
 }
 
 // NOTE: customized for the kaitai by GPT-4o...
@@ -641,19 +733,19 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = data => {
 
   // systemId: unique ID associated with the console, 8 bytes
   if(data.systemId !== undefined) {
-    for (let i = 0; i < 8; i++) {
+    for(let i = 0; i < 8; i++) {
       buf[0x04 + i] = data.systemId[i] || 0;
     }
   }
 
   // avatarId: unique Mii ID, 4 bytes (REQUIRED)
-  for (let i = 0; i < 4; i++) {
+  for(let i = 0; i < 4; i++) {
     buf[0x0C + i] = data.avatarId[i] || 0;
   }
 
   // clientId: MAC address of the creator's console, 6 bytes
   if(data.clientId !== undefined) {
-    for (let i = 0; i < 6; i++) {
+    for(let i = 0; i < 6; i++) {
       buf[0x10 + i] = data.clientId[i] || 0;
     }
   }
@@ -672,9 +764,11 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = data => {
               ((data.favorite ? 1 : 0) << 6);  // favorite flag (1 bit)
 
   // mii name (REQUIRED), UTF-16LE encoded
-  let nameBytes = new Uint8Array(new ArrayBuffer(20));
-  for (let i = 0; i < data.miiName.length; i++) {
-    new DataView(nameBytes.buffer).setUint16(i * 2, data.miiName.charCodeAt(i), true);  // little-endian UTF-16
+  const nameBytes = new Uint8Array(new ArrayBuffer(20));
+  const nameBytesView = new DataView(nameBytes.buffer);
+  for(let i = 0; i < 10; i++) { // only copy 10 characters, last one is padding
+  	const u16Offset = i * 2;
+    nameBytesView.setUint16(u16Offset, data.miiName.charCodeAt(i), true);  // little-endian UTF-16
   }
   buf.set(nameBytes, 0x1A);
 
@@ -778,9 +872,11 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = data => {
 
   // creator name (optional), UTF-16LE encoded
   if(data.creatorName !== undefined) {
-    let creatorNameBytes = new Uint8Array(new ArrayBuffer(20));
-    for (let i = 0; i < data.creatorName.length; i++) {
-      new DataView(creatorNameBytes.buffer).setUint16(i * 2, data.creatorName.charCodeAt(i), true);  // little-endian UTF-16
+    const creatorNameBytes = new Uint8Array(new ArrayBuffer(20));
+    const creatorNameBytesView = new DataView(creatorNameBytes.buffer);
+    for(let i = 0; i < 10; i++) { // only copy 10 characters, last one is padding
+      const u16Offset = i * 2;
+      creatorNameBytesView.setUint16(u16Offset, data.creatorName.charCodeAt(i), true);  // little-endian UTF-16
     }
     buf.set(creatorNameBytes, 0x48);
   }
@@ -797,17 +893,99 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = data => {
 // deobfuscate the obfuscated studio url format
 // from, and to, a Uint8Array (so requires converting from/to hex)
 const studioURLObfuscationDecode = data => {
-    const decodedData = new Uint8Array(data);
-    const random = decodedData[0];
-    let previous = random;
+  const decodedData = new Uint8Array(data);
+  const random = decodedData[0];
+  let previous = random;
 
-		// NOTE: THIS MAY GET AWAY WITH BEING 47, IDK
-    for(let i = 1; i < 48; i++) {
-        const encodedByte = decodedData[i];
-        const original = (encodedByte - 7 + 256) % 256;
-        decodedData[i - 1] = original ^ previous;
-        previous = encodedByte;
+  // NOTE: THIS MAY GET AWAY WITH BEING 47, IDK
+  for(let i = 1; i < 48; i++) {
+    const encodedByte = decodedData[i];
+    const original = (encodedByte - 7 + 256) % 256;
+    decodedData[i - 1] = original ^ previous;
+    previous = encodedByte;
+  }
+
+  return decodedData.slice(0, 46); // resize to normal studio data
+}
+
+function crc16(data) {
+  let crc = 0;
+  let msb = crc >> 8;
+  let lsb = crc & 0xFF;
+
+  for(let i = 0; i < data.length; i++) {
+    let c = data[i];
+    let x = c ^ msb;
+    x ^= (x >> 4);
+    msb = (lsb ^ (x >> 3) ^ (x << 4)) & 0xFF;
+    lsb = (x ^ (x << 5)) & 0xFF;
+  }
+
+  crc = (msb << 8) + lsb;
+  return crc;
+}
+
+// sjcl formats keys in these huge 32 bit ints
+const qrEncryptionKey = [1509720446, 1682369121, -1875608800, -373436846];
+const encryptAndEncodeVer3StoreDataToQRCodeFormat = data => {
+	// NOTE: uses sjcl and assumes it is loaded
+  const nonce = data.slice(12, 20);
+  let content = [...data.slice(0, 12), ...data.slice(20)];
+
+	// checksum the data, overriding the previous checksum it may have had
+  const checksumContent = [...data.slice(0, 12), ...nonce, ...data.slice(20, -2)];
+  const newChecksum = crc16(new Uint8Array(checksumContent));
+  // pack the uint16 checksum into an array
+  const newChecksumArray = [(newChecksum >> 8) & 0xFF, newChecksum & 0xFF];
+  content = [...content.slice(0, -2), ...newChecksumArray];
+
+  //const cipher =  new sjcl.cipher.aes(sjcl.codec.hex.toBits('59FC817E6446EA6190347B20E9BDCE52'));
+  const cipher = new sjcl.cipher.aes(qrEncryptionKey);
+
+  const paddedContent = new Uint8Array([...content, ...new Array(8).fill(0)]);
+  const paddedContentBits = sjcl.codec.bytes.toBits(Array.from(paddedContent));
+  // nonce has to be padded
+  const nonceBits = sjcl.codec.bytes.toBits([...nonce, 0, 0, 0, 0]);
+
+  const encryptedBits = sjcl.mode.ccm.encrypt(cipher, paddedContentBits, nonceBits, [], 128);
+  const encryptedBytes = sjcl.codec.bytes.fromBits(encryptedBits);
+
+  const correctEncryptedContentLength = encryptedBytes.length - 8 - 16;
+  const encryptedContentCorrected = encryptedBytes.slice(0, correctEncryptedContentLength);
+  const tag = encryptedBytes.slice(encryptedBytes.length - 16);
+
+	// construct and return an array
+  const result = [...nonce, ...encryptedContentCorrected, ...tag];
+  // note: not a uint8array because qrjs takes arrays natively
+  return result;
+}
+
+function processAndDisplayQR(data) {
+
+  const encrypted = encryptAesCcm(data);
+  const qr = QRCode.generateHTML(Array.from(encrypted));
+  // adding a random color caused issues with scanning, sometimes worked sometimes no
+  /*const color = getRandomPastelColor();
+
+  // Modify the QR code table background color
+  qr.querySelector('table').style.backgroundColor = color;*/
+  const li = document.createElement('li');
+
+  // Extract UTF-16 LE Mii name starting at 0x1A
+	const startOffset = 0x1A;
+  // Find the position of the null terminator (0x00 0x00)
+  let endPosition = startOffset;
+  while (endPosition < data.length - 1) {
+    if (data[endPosition] === 0x00 && data[endPosition + 1] === 0x00) {
+      break;
     }
+    endPosition += 2; // Move in 2-byte increments (UTF-16 LE)
+  }
+	const utf16leBytes = data.slice(0x1A, endPosition);
+  const utf16leMiiName = new TextDecoder('utf-16le').decode(utf16leBytes);
+  utf16leMiiName && (li.textContent = utf16leMiiName);
 
-    return decodedData.slice(0, 46); // Return the first 46 bytes
+  li.appendChild(qr);
+  const qrList = document.getElementById('qrList');
+  qrList.insertBefore(li, qrList.firstChild); // Add to the top
 }

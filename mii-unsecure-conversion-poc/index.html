@@ -43,33 +43,46 @@
     <ul id="results" class="results">
       <li id="result-template" style="display: none;">
         <img data-src="https://mii-unsecure.ariankordi.net/miis/image.png?width=128&data=" class=" fade-in">
+        <br>
+        <button onclick="handleCopyButtonAndUpdateCounter(event)">
+          <span class="text-copy">Copy image URL</span>
+          <span class="text-counter" style="display: none;">Copied <span>0</span>x</span>
+        </button>
         <details ontoggle="handleConvertDetailsToggle(event)">
           <summary>Convert <span></span></summary>
           <div>
-            <div style="margin: 5px;">Current data type: <code>Ver3StoreData</code></div>
+            <div style="margin: 5px;">Current data type: <code class="input-type">Unknown</code></div>
             <label for>Convert to: </label><select>
               <option>Default</option>
               <option></option>
             </select>
             <ul class="left-justified-compact">
               <li style="margin: 5px;">
-                <a href="javascript:void(0)" onclick="handleCopyButtonAndUpdateCounter(event)">
-                  Studio Render
-                  <span class="text-copy">(copy URL)</span>
-                  <span class="text-counter" style="display: none;">(copied <span>1</span>x)</span>
-                </a>: 
+                Studio Render
+                <button onclick="handleCopyButtonAndUpdateCounter(event)">
+                  <span class="text-copy">Copy URL</span>
+                  <span class="text-counter" style="display: none;">Copied <span>0</span>x</span>
+                </button>
                 <img class="image-80" data-src="https://studio.mii.nintendo.com/miis/image.png?type=face&width=96&data=">
               </li>
               <li>Studio Code: <code class="studio-code code-block"></code></li>
-              <li><button>Download .mnms</button> &lt;-- for <a href="https://heyimheroic.github.io/MiiStudioMiiLoader/">Mii Studio Mii Loader</a></li>
-              <li><button>Download .charinfo</button> &lt;-- Try this on <a href="https://miiinstructions.sticksweb.site">Switch Mii to Instructions, created by</a> <a href="https://github.com/sticks-stuff">stick</a>)</li>
+              <li><button>Download .mnms</button> &lt;-- for <a target="_blank" href="https://heyimheroic.github.io/MiiStudioMiiLoader/">Mii Studio Mii Loader</a></li>
+              <li><button>Download .charinfo</button>
+                 <ul><li>Try this on <a target="_blank" href="https://miiinstructions.sticksweb.site">Switch Mii to Instructions, created by</a> <a target="_blank" href="https://github.com/sticks-stuff">stick</a></li></ul>
+              </li>
               <li>Base64 3DS/Wii U StoreData: <code class="ver3storedata code-block"></code></li>
+              <li style="margin: 5px;">Mii QR Code: <img class="image-80"></li>
             </ul>
           </div>
         </details>
       </li>
 
     </ul>
+
+    <!-- for qr codes -->
+    <script src="https://cdn.jsdelivr.net/npm/sjcl@1.0.8/sjcl.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sjcl@1.0.8/core/codecBytes.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrjs@0.2.0/qr.min.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/kaitai-struct@0.10.0/KaitaiStream.min.js"></script>
     <!-- Beginning of Kaitai structs -->

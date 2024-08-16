@@ -184,28 +184,45 @@ conversionMethods.encodeKaitaiStructToUint8Array = struct => {
     	// by default, add it directly (assuming int?)
       structArray.push(struct[key]);
   }*/
-  for(const key in struct) {
+
+	for(const key in struct) {
   	// add to array based on the type
-  	switch(typeof struct[key]) {
+    // value will be changed for string case
+    let value = struct[key];
+  	switch(typeof value) {
       case 'number':
       	// assuming this is a uint8, pushing it
-        structArray.push(struct[key]);
+        structArray.push(value);
         break;
       case 'boolean':
       	// there are never booleans in these fields natively
         // but there are when they are set from another struct
-        structArray.push(Number(struct[key]));
+        structArray.push(Number(value));
         break;
+      case 'string':
+        const stringBytes = new Uint8Array(new ArrayBuffer(22));
+        const stringBytesView = new DataView(stringBytes.buffer);
+        for(let i = 0; i < 10; i++) { // only copy 10 characters, last one is padding
+          const u16Offset = i * 2;
+          stringBytesView.setUint16(u16Offset, value.charCodeAt(i), true);  // little-endian UTF-16
+        }
+      	// encode string to utf-16le byte array
+      	value = [...stringBytes];
+      	// FALL THROUGH and add this as an array
       case 'object':
       	// actually, only arrays
-        if(!(struct[key] instanceof Array))
-        	continue;
+        if(!(value instanceof Array)) {
+          if(!key.startsWith('_'))
+        		console.warn('unknown field type on key object: ' + key);
+					continue;
+        }
         // this is an array, so push each element
-        for(i in struct[key])
-        	structArray.push(i);
+        for(v of value)
+        	structArray.push(v);
     		break;
-      case 'string':
-      	break;
+      default:
+       	if(!key.startsWith('_'))
+        	console.warn('unknown field type on key: ' + key);
       // all other types are ignored
     }
   }
@@ -379,6 +396,30 @@ const handleConvertDetailsToggle = event => {
     									{margin: null}); // for whatever reason they check whether this
                                        // property in options is null - but it is undefined
   }
+
+	const switchCharInfoData = convertDataToType(inputData, supportedFormats.find(f => f.className === 'CharInfoSwitch'), inputFormat.className);
+  const switchCharInfoDownloadButton = event.target.getElementsByClassName('download-switch-charinfo')[0];
+  console.log([...switchCharInfoData].map(byteToHex).join(''))
+
+  switchCharInfoDownloadButton.addEventListener('click', event => {
+  	event.preventDefault();
+		// define a filename with the name, TBD: if name is generic then prepend date maybe?
+		const filename = 'waza.charinfo';
+
+		// create and download a new blob from the uint8array we made
+    const blob = new Blob([switchCharInfoData])//, {type: 'application/octet-stream'});
+
+    // create a fake anchor so we can set the filename
+    const link = document.createElement('a');
+    // create a url from the blob, download from here
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+		// begin the download
+    link.click();
+    // revoke the object url after the download is complete ideally
+    URL.revokeObjectURL(url);
+	});
 
 	// mark as revealed at the end, i.e. do NOT RUN THE HANDLER ANYMORE
   event.target.setAttribute('data-revealed', '1');
@@ -764,7 +805,7 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = data => {
               ((data.favorite ? 1 : 0) << 6);  // favorite flag (1 bit)
 
   // mii name (REQUIRED), UTF-16LE encoded
-  const nameBytes = new Uint8Array(new ArrayBuffer(20));
+  const nameBytes = new Uint8Array(new ArrayBuffer(22));
   const nameBytesView = new DataView(nameBytes.buffer);
   for(let i = 0; i < 10; i++) { // only copy 10 characters, last one is padding
   	const u16Offset = i * 2;
@@ -872,7 +913,7 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = data => {
 
   // creator name (optional), UTF-16LE encoded
   if(data.creatorName !== undefined) {
-    const creatorNameBytes = new Uint8Array(new ArrayBuffer(20));
+    const creatorNameBytes = new Uint8Array(new ArrayBuffer(22));
     const creatorNameBytesView = new DataView(creatorNameBytes.buffer);
     for(let i = 0; i < 10; i++) { // only copy 10 characters, last one is padding
       const u16Offset = i * 2;

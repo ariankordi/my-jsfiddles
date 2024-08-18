@@ -25,6 +25,10 @@ const addToResultList = (data, name) => {
   const imageInResultNewURL = imageInResult.getAttribute('data-src') + data;
   imageInResult.setAttribute('src', imageInResultNewURL);
   
+  // define data as data-data attribute in details
+  const detailsInResult = resultTemplateClone.getElementsByTagName('details')[0];
+  detailsInResult.setAttribute('data-data', data);
+  
   // finally, reveal and prepend it
   resultTemplateClone.style.display = '';
   resultsList.prepend(resultTemplateClone);
@@ -62,37 +66,50 @@ const addToResultListFromFormSubmit = event => {
 
 // NOTE: "to" functions need to be defined in conersionMethods
 			window.supportedFormats = [{
-          className: 'CoreDataWii',
+          className: 'Gen1Wii',
+          technicalName: 'RFLCharData/RFLStoreData (Wii)',
           sizes: [74, 76],
           // TODO: needs dedicated encode function
           toVer3Function: 'convertWiiFieldsToVer3',
           toVer4Function: 'convertVer3FieldsToVer4'
         },
         {
-          className: 'CoreDataSwitch',
-          sizes: [48, 68],
+          className: 'Gen3Switch',
+          technicalName: 'nn::mii::StoreData/nn::mii::CoreData (Switch)',
+          sizes: [68, 48],
           version: 4,
           // TODO: needs dedicated encode function
           toVer3Function: 'convertVer4FieldsToVer3'
         },
         {
-          className: 'CharInfoSwitch',
+          className: 'Gen3Switchgame',
+          technicalName: 'nn::mii::CharInfo (Switch)',
           sizes: [88],
           version: 4,
           encodeFunction: 'encodeKaitaiStructToUint8Array',
           toVer3Function: 'convertVer4FieldsToVer3'
         },
         {
-          className: 'CoreData3ds',
-          sizes: [92, 96],
+          className: 'Gen2Wiiu3dsMiitomo',
+          sizes: [96, 92, 74],
+          technicalName: 'CFL/FFL/AFL/Ver3 (3DS/Wii U) StoreData',
           version: 3,
           encodeFunction: 'encodeVer3StoreData',
           toVer4Function: 'convertVer3FieldsToVer4',
         },
         {
+          className: 'Gen2Wiiu3dsMiitomoNfpstoredataextention',
+          sizes: [104],
+          //sizes: [], // not meant to be specified by user
+          technicalName: 'Ver3StoreData + NfpStoreDataExtention (amiibo Data)',
+          version: 3,
+          toVer4Function: 'useNfpStoreDataExtentionFieldsForVer4',
+        },
+        {
           className: 'Gen3Studio',
           // the js will deobfuscate length 47 itself
           sizes: [46, 47],
+          technicalName: 'Mii Studio Data',
           version: 4,
           encodeFunction: 'encodeKaitaiStructToUint8Array',
           toVer3Function: 'convertVer4FieldsToVer3',
@@ -163,6 +180,35 @@ conversionMethods.convertVer4FieldsToVer3 = data => {
   data.faceColor = ToVer3FacelineColorTable[data.faceColor];
 };
 
+// apply extra "extension" fields at the end of this struct
+// back to the actual fields since the extension fields are ver4
+conversionMethods.useNfpStoreDataExtentionFieldsForVer4 = data => {
+	Object.defineProperty(data, 'faceColor', {
+    value: data.extFacelineColor
+  });
+  Object.defineProperty(data, 'hairColor', {
+    value: data.extHairColor
+  });
+  Object.defineProperty(data, 'eyeColor', {
+    value: data.extEyeColor
+  });
+  Object.defineProperty(data, 'eyebrowColor', {
+    value: data.extEyebrowColor
+  });
+  Object.defineProperty(data, 'mouthColor', {
+    value: data.extMouthColor
+  });
+  Object.defineProperty(data, 'facialHairColor', {
+    value: data.extBeardColor
+  });
+  Object.defineProperty(data, 'glassesColor', {
+    value: data.extGlassColor
+  });
+  Object.defineProperty(data, 'glassesType', {
+    value: data.extGlassType
+  });
+}
+
 // the method below is used to encode studio and switch charinfo
 // by more or less directly mapping the u8 fields in the struct to a new array
 // NOTE: only supports strings (TO UTF-16LE ONLY!!!), lists, and ofc uint8
@@ -200,9 +246,15 @@ conversionMethods.encodeKaitaiStructToUint8Array = struct => {
         structArray.push(Number(value));
         break;
       case 'string':
-        const stringBytes = new Uint8Array(new ArrayBuffer(22));
+        // NOTE: assuming NAME is ALWAYS 10 CHARACTER UTF-16 STRING
+        // IMPORTANT!!!!: in Switch CharInfo, the name is (10+1) characters, where the last character is for padding
+        // I THINK!!!! that Switch CharInfo is the only (for storage/transmission) format with padding
+        // BECAUSE of this, for compatibility with other types...
+        // ... this will be using and serializing a 10 character name
+        // this WORKS in "gen3_switchgame.ksy" but NOT!!!! "miidata_swi.ksy" by HEYimHeroic
+        const stringBytes = new Uint8Array(new ArrayBuffer(20));
         const stringBytesView = new DataView(stringBytes.buffer);
-        for(let i = 0; i < 10; i++) { // only copy 10 characters, last one is padding
+        for(let i = 0; i < 10; i++) { // assuming name is always 10 characters even if it has padding
           const u16Offset = i * 2;
           stringBytesView.setUint16(u16Offset, value.charCodeAt(i), true);  // little-endian UTF-16
         }
@@ -332,7 +384,7 @@ const handleCopyButtonAndUpdateCounter = (event, data) => {
 
 // current name of studio kaitai struct class being used
 const studioFormat = supportedFormats.find(f => f.className === 'Gen3Studio');
-const ver3Format = supportedFormats.find(f => f.className === 'CoreData3ds');
+const ver3Format = supportedFormats.find(f => f.className === 'Gen2Wiiu3dsMiitomo');
 
 const handleConvertDetailsToggle = event => {
 	if(!event.target.open // not toggled open? ignore
@@ -340,20 +392,25 @@ const handleConvertDetailsToggle = event => {
       || event.target.getAttribute('data-revealed'))
   	return;
 
+	// NOTE: routine to find data in image, replaced by fetching from data attribute
+  /*
 	// we need to find the data
   // .. for now, take this from the parent's image url
-  // TODO: has to be replaced since it will not always be in the url
   const hopefullyImage = event.target.parentElement.getElementsByTagName('img')[0];
   const imageSrc = hopefullyImage.getAttribute('src');
   if(!imageSrc)
   	// image src should not be undefined
   	throw new Error('why is the image\'s src undefined...???');
 
-	// get data param, if it even exists
+  // get data param, if it even exists
   const imageURLParams = new URLSearchParams(new URL(imageSrc).search);
   const dataValue = imageURLParams.get('data');
   if(!dataValue)
   	throw new Error('image\'s source doesn\'t have data query parameter');
+	*/
+  const dataValue = event.target.getAttribute('data-data');
+  if(!dataValue)
+  	throw new Error('data-data attribute on <details> is undefined, it is supposed to contain the data for this result');
 
 	// the name of the input type will be put in this element
 	const inputTypeElement = event.target.getElementsByClassName('input-type')[0]; 
@@ -383,21 +440,21 @@ const handleConvertDetailsToggle = event => {
   const inputFormat = findInputFormatFromSize(inputData.length);
   
   if(inputFormat !== undefined
-  	&& typeof inputFormat.className === 'string')
-    inputTypeElement.textContent = inputFormat.className;
+  	&& typeof inputFormat.technicalName === 'string')
+    inputTypeElement.textContent = inputFormat.technicalName;
   
   const ver3StoreData = convertDataToType(inputData, ver3Format, inputFormat.className);
   ver3StoreDataElement.textContent = uint8ArrayToBase64(ver3StoreData);
   // finally make a qr code
   if(window.QRCode !== undefined) {
     const ver3QRCodeDataArray = encryptAndEncodeVer3StoreDataToQRCodeFormat(ver3StoreData);
-    const qrCodeImage = event.target.getElementsByClassName('image-80')[1];
+    const qrCodeImage = event.target.getElementsByClassName('image-qr')[0];
     qrCodeImage.src = QRCode.generatePNG(ver3QRCodeDataArray,
     									{margin: null}); // for whatever reason they check whether this
                                        // property in options is null - but it is undefined
   }
 
-	const switchCharInfoData = convertDataToType(inputData, supportedFormats.find(f => f.className === 'CharInfoSwitch'), inputFormat.className);
+	const switchCharInfoData = convertDataToType(inputData, supportedFormats.find(f => f.className === 'Gen3Switchgame'), inputFormat.className);
   const switchCharInfoDownloadButton = event.target.getElementsByClassName('download-switch-charinfo')[0];
   console.log([...switchCharInfoData].map(byteToHex).join(''))
 
@@ -513,10 +570,24 @@ const createNewInstanceOfKaitaiStructFormat = (format, data) => {
     const firstSupportedSize = format.sizes[0];
     stream = new KaitaiStream(new ArrayBuffer(firstSupportedSize));
   } else {
-  	// ... otherwise, construct with data, assuming it is long enough and compatible
-    // NOTE: assumes "data" is ArrayBuffer or DataView: https://github.com/kaitai-io/kaitai_struct_javascript_runtime/blob/a911d627ffeb244ce0b7873858325020d6694ba5/KaitaiStream.js#L20
-  	stream = new KaitaiStream(data);
-
+  	// ... otherwise, construct with data
+    // if the data is smaller than the first size, which is assumed to be the size of the struct, then construct with that first size
+    if(format.sizes.length > 0) {
+    	// this is what the size of the struct is meant to be
+    	const firstSupportedSize = format.sizes[0];
+      if(data.length < firstSupportedSize) {
+      	const u8Array = new Uint8Array(firstSupportedSize);
+        // copy the data to the larger buffer
+        u8Array.set(data, 0);
+        // create the stream with that buffer
+      	stream = new KaitaiStream(u8Array);
+      } else {
+      	stream = new KaitaiStream(data);
+      }
+    } else {
+      // NOTE: assumes "data" is ArrayBuffer or DataView: https://github.com/kaitai-io/kaitai_struct_javascript_runtime/blob/a911d627ffeb244ce0b7873858325020d6694ba5/KaitaiStream.js#L20
+      stream = new KaitaiStream(data);
+    }
   }
   
   const struct = new structClass(stream);
@@ -587,8 +658,12 @@ const convertDataToType = (data, outputFormat, inputFormatName) => {
   	data = studioURLObfuscationDecode(data);
 
 	// if this is the output format directly then no conversion is required
-	if(findInputFormatFromSize(data.length) === outputFormat)
+	/*if(findInputFormatFromSize(data.length) === outputFormat)
   	return data;
+  */
+  // NOTE: above isn't viable anymore just because ver3storedata
+  // needs birth platform modified before qr will work
+  // and if it is smaller than the full storedata it needs checksum
 
 	// create a new instance of the class, with this function handling errors
   // may be overridden by the preprocessing function
@@ -805,7 +880,7 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = data => {
               ((data.favorite ? 1 : 0) << 6);  // favorite flag (1 bit)
 
   // mii name (REQUIRED), UTF-16LE encoded
-  const nameBytes = new Uint8Array(new ArrayBuffer(22));
+  const nameBytes = new Uint8Array(new ArrayBuffer(20));
   const nameBytesView = new DataView(nameBytes.buffer);
   for(let i = 0; i < 10; i++) { // only copy 10 characters, last one is padding
   	const u16Offset = i * 2;
@@ -913,7 +988,7 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = data => {
 
   // creator name (optional), UTF-16LE encoded
   if(data.creatorName !== undefined) {
-    const creatorNameBytes = new Uint8Array(new ArrayBuffer(22));
+    const creatorNameBytes = new Uint8Array(new ArrayBuffer(20));
     const creatorNameBytesView = new DataView(creatorNameBytes.buffer);
     for(let i = 0; i < 10; i++) { // only copy 10 characters, last one is padding
       const u16Offset = i * 2;
@@ -922,11 +997,17 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = data => {
     buf.set(creatorNameBytes, 0x48);
   }
 
-  // padding2 and checksum (usually 0, depends on implementation)
+  // padding2 which should always be zero
   buf[0x5C] = data.padding2 & 0xFF;
   buf[0x5D] = (data.padding2 >> 8) & 0xFF;
-  buf[0x5E] = data.checksum & 0xFF;
-  buf[0x5F] = (data.checksum >> 8) & 0xFF;
+  
+  // SET CRC16 CHECKSUM
+  
+  // crc all before last two bytes
+  const calculatedCRC16 = crc16(buf.slice(0, 94));
+  // think MSB and LSB are reversed here but eh
+  buf[0x5E] = (calculatedCRC16 >> 8) & 0xFF;
+  buf[0x5F] = calculatedCRC16 & 0xFF;
 
   return buf;  // return the buffer containing the encoded StoreData
 }

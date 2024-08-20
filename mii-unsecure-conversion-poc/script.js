@@ -65,7 +65,7 @@ const addToResultListFromFormSubmit = event => {
 // that's why for simplicity, 3DS/Wii U format will be reffered to as "Ver3" and Switch/Studio as "Ver4". idk what wii is but it will be 1
 
 // NOTE: "to" functions need to be defined in conersionMethods
-			window.supportedFormats = [{
+		window.supportedFormats = [{
           className: 'Gen1Wii',
           technicalName: 'RFLCharData/RFLStoreData (Wii)',
           sizes: [74, 76],
@@ -79,7 +79,9 @@ const addToResultListFromFormSubmit = event => {
           sizes: [68, 48],
           version: 4,
           // TODO: needs dedicated encode function
-          toVer3Function: 'convertVer4FieldsToVer3'
+          toVer3Function: 'convertVer4FieldsToVer3',
+          // NOTE: coredata's eyebrow y field's true value += 3
+          preConvertFromFunction: 'correctFromVer4CoreDataFields'
         },
         {
           className: 'Gen3Switchgame',
@@ -209,6 +211,17 @@ conversionMethods.useNfpStoreDataExtentionFieldsForVer4 = data => {
   });
 }
 
+// add 3 to eyebrow vertical
+conversionMethods.correctFromVer4CoreDataFields = (output, input) => {
+  input.eyebrowVertical += 3;
+  /*
+  Object.defineProperty(output, 'eyebrowVertical', {
+    value: (input.eyebrowVertical + 3)
+  });
+  */
+  // when using this, it says attempt to change the value of a readonly property
+}
+
 // the method below is used to encode studio and switch charinfo
 // by more or less directly mapping the u8 fields in the struct to a new array
 // NOTE: only supports strings (TO UTF-16LE ONLY!!!), lists, and ofc uint8
@@ -303,7 +316,7 @@ conversionMethods.gen3studioDefineFacialHairFromBeardFields = (output, inputOpti
     return;
 
 
-	Object.defineProperty(output, 'facialHairBeard', {
+  Object.defineProperty(output, 'facialHairBeard', {
     value: input.beardGoatee
   });
   Object.defineProperty(output, 'facialHairSize', {
@@ -454,33 +467,51 @@ const handleConvertDetailsToggle = event => {
                                        // property in options is null - but it is undefined
   }
 
-	const switchCharInfoData = convertDataToType(inputData, supportedFormats.find(f => f.className === 'Gen3Switchgame'), inputFormat.className);
   const switchCharInfoDownloadButton = event.target.getElementsByClassName('download-switch-charinfo')[0];
-  console.log([...switchCharInfoData].map(byteToHex).join(''))
+  convertDataAndBindToDLButton(switchCharInfoDownloadButton, inputData, 'Gen3Switchgame', inputFormat.className);
 
-  switchCharInfoDownloadButton.addEventListener('click', event => {
-  	event.preventDefault();
-		// define a filename with the name, TBD: if name is generic then prepend date maybe?
-		const filename = 'waza.charinfo';
+  const studioDataDownloadButton = event.target.getElementsByClassName('download-studio-data')[0];
+  convertDataAndBindToDLButton(studioDataDownloadButton, inputData, 'Gen3Studio', inputFormat.className);
 
-		// create and download a new blob from the uint8array we made
-    const blob = new Blob([switchCharInfoData])//, {type: 'application/octet-stream'});
-
-    // create a fake anchor so we can set the filename
-    const link = document.createElement('a');
-    // create a url from the blob, download from here
-    const url = URL.createObjectURL(blob);
-    link.href = url;
-    link.download = filename;
-		// begin the download
-    link.click();
-    // revoke the object url after the download is complete ideally
-    URL.revokeObjectURL(url);
-	});
 
 	// mark as revealed at the end, i.e. do NOT RUN THE HANDLER ANYMORE
   event.target.setAttribute('data-revealed', '1');
 };
+
+const convertDataAndBindToDLButton = (button, inputData, formatName, inputFormatName) => {
+	const format = supportedFormats.find(f => f.className === formatName);
+	const data = convertDataToType(inputData, format, inputFormatName);
+
+  const dataString = uint8ArrayToBase64(data);
+  button.setAttribute('data-data', dataString);
+};
+
+const handleDownloadDataFileButton = event => {
+  event.preventDefault();
+  // define a filename with the name, TBD: if name is generic then prepend date maybe?
+  const filename = event.target.getAttribute('data-filename');
+  if(!filename)
+    throw new Error('download button does not have data-filename attribute');
+  const dataText = event.target.getAttribute('data-data');
+  if(!dataText)
+  	throw new Error('download button does not have data-data attribute, where base64 data is supposed to go');
+
+  const data = base64ToUint8Array(dataText);
+
+  // create and download a new blob from the uint8array we made
+  const blob = new Blob([data])//, {type: 'application/octet-stream'});
+
+  // create a fake anchor so we can set the filename
+  const link = document.createElement('a');
+  // create a url from the blob, download from here
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = filename;
+  // begin the download
+  link.click();
+  // revoke the object url after the download is complete ideally
+  URL.revokeObjectURL(url);
+}
 
 // encodes a compatible struct to Ver3StoreData
 /* NOTE: CURRENTLY DOES THESE ADDITIONAL (potentially undesirable) THINGS:
@@ -972,7 +1003,7 @@ const encode3DSStoreDataFromStructCopiedFromKazukiMiiEncode = data => {
   let glassesDetails = (data.glassesType & 0x0F) |  // glasses type (4 bits)
                        ((data.glassesColor & 0x07) << 4) |  // glasses color (3 bits)
                        ((data.glassesSize & 0x0F) << 7) |  // glasses size (4 bits)
-                       ((data.glassesVertical & 0x0F) << 11);  // glasses vertical position (4 bits)
+                       (data.glassesVertical << 11);  // glasses vertical position (4 bits)
 
   buf[0x44] = glassesDetails & 0xFF;
   buf[0x45] = (glassesDetails >> 8) & 0xFF;

@@ -51,11 +51,13 @@
         <details ontoggle="handleConvertDetailsToggle(event)">
           <summary>Convert <span></span></summary>
           <div>
-            <div style="margin: 5px;">Current data type: <code class="input-type">Unknown</code></div>
+            <div style="margin: 5px;">Current data type:<br><code class="input-type">Unknown</code></div>
+            <!--
             <label for>Convert to: </label><select>
               <option>Default</option>
               <option></option>
             </select>
+            -->
             <ul class="left-justified-compact">
               <li style="margin: 5px;">
                 Studio Render
@@ -66,12 +68,23 @@
                 <img class="image-80" data-src="https://studio.mii.nintendo.com/miis/image.png?type=face&width=96&data=">
               </li>
               <li>Studio Code: <code class="studio-code code-block"></code></li>
-              <li><button class="download-studio-data">Download .mnms</button> &lt;-- for <a target="_blank" href="https://heyimheroic.github.io/MiiStudioMiiLoader/">Mii Studio Mii Loader</a></li>
-              <li><button class="download-switch-charinfo">Download .charinfo</button>
+              <li>
+                <button class="download-studio-data" 
+                onclick="handleDownloadDataFileButton(event)"
+                data-filename="Mii.mnms">
+                Download .mnms
+                </button>
+              &lt;-- for <a target="_blank" href="https://heyimheroic.github.io/MiiStudioMiiLoader/">Mii Studio Mii Loader</a></li>
+              <li>
+                  <button class="download-switch-charinfo" 
+                  onclick="handleDownloadDataFileButton(event)"
+                  data-filename="Mii.charinfo">
+                  Download .charinfo
+                  </button>
                  <ul><li>Try this on <a target="_blank" href="https://miiinstructions.sticksweb.site">Switch Mii to Instructions, created by</a> <a target="_blank" href="https://github.com/sticks-stuff">stick</a></li></ul>
               </li>
               <li>Base64 3DS/Wii U StoreData: <code class="ver3storedata code-block"></code></li>
-              <li style="margin: 5px;">Mii QR Code: <img class="image-qr"></li>
+              <li style="margin: 5px;" class="image-qr-container">Mii QR Code (hover to enlarge):<div style="text-align: center;"><img class="image-qr"></div></li>
             </ul>
           </div>
         </details>

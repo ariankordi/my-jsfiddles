@@ -72,3 +72,7 @@ code.code-block {
  height: 150px;
  width: 150px;
 }
+.image-qr-container:hover img {
+ height: 100%;
+ width: 100%;
+}

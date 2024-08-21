@@ -69,10 +69,16 @@ code.code-block {
  width: 80px;
 }
 .image-qr {
- height: 150px;
- width: 150px;
+  height: 150px;
+  width: 150px;
+}
+.image-qr-container {
+  margin-top: 8px;
+  padding: 5px;
+  border-style: dotted;
+  border-radius: 5px;
 }
 .image-qr-container:hover img {
- height: 100%;
- width: 100%;
+  height: 100%;
+  width: 100%;
 }

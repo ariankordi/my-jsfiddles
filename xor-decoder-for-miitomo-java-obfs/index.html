@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XOR Decoder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        code {
+            display: block;
+            background-color: #f4f4f4;
+            padding: 10px;
+            margin-top: 5px;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>XOR Decoder</h1>
+    <form id="xorForm">
+        <label for="inputString">Enter string to decode (e.g., \u1308\u130c):</label><br>
+        <input type="text" id="inputString" name="inputString" required><br><br>
+        
+        <label for="xorKey">Enter XOR key (integer):</label><br>
+        <input type="number" id="xorKey" name="xorKey" required><br><br>
+        
+        <button type="submit">Decode</button>
+    </form>
+
+    <h2>Results:</h2>
+    <ul id="resultsList"></ul>
+
+    <script>
+        // JavaScript version of decodeXorForObfuscation
+        function decodeXorForObfuscation(str, key) {
+            const charArray = [];
+            for (let i = 0; i < str.length; i++) {
+                charArray[i] = String.fromCharCode(str.charCodeAt(i) ^ key);
+            }
+            return charArray.join('');
+        }
+
+        // Handle form submission
+        document.getElementById('xorForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // Get the input values
+            let inputString = document.getElementById('inputString').value;
+            if(inputString.includes('\\')) {
+              inputString = inputString.replace(/\\u/g, '%u'); // Replace \u with %u to properly unescape
+              inputString = unescape(inputString); // Unescape the unicode
+            }
+
+            const xorKey = parseInt(document.getElementById('xorKey').value, 10);
+
+            // Decode the string
+            const decodedString = decodeXorForObfuscation(inputString, xorKey);
+
+            // Convert decoded string to hex with space between each byte
+            const hexString = Array.from(decodedString).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
+
+            // Add the result to the list
+            const resultsList = document.getElementById('resultsList');
+            const li = document.createElement('li');
+
+            const utf8CodeBlock = document.createElement('code');
+            utf8CodeBlock.textContent = `UTF-8 String: ${decodedString}`;
+            li.appendChild(utf8CodeBlock);
+
+            const hexCodeBlock = document.createElement('code');
+            hexCodeBlock.textContent = `Hex: ${hexString}`;
+            li.appendChild(hexCodeBlock);
+
+            resultsList.prepend(li);
+        });
+    </script>
+</body>
+</html>

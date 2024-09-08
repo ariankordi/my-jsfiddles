@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mii QR Code Encoder/Decoder</title>
+    <style>
+      .tab-content {
+        display: none;
+      }
+      .active {
+        display: block;
+      }
+      .tab-button {
+        padding: 10px;
+        cursor: pointer;
+        display: inline-block;
+        border: 1px solid #ddd;
+        background-color: #f0f0f0;
+        margin-right: 5px;
+      }
+      .tab-button.active {
+        background-color: #ddd;
+      }
+
+       table, table * {
+        margin: 0;
+        padding: 0;
+        vertical-align: top;
+        font: 1em/1em courier;
+      }
+      .hex-textarea {
+        height: 1.5em;
+        resize: none;
+        width: 100%;
+      }
+      .table-padding {
+        padding: 0 2px;
+      }
+      .file-input {
+        position: absolute;
+        opacity: .001;
+      }
+      .ascii-output {
+        overflow: hidden;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sjcl@1.0.8/sjcl.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sjcl@1.0.8/core/codecBytes.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrjs@0.2.0/qr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/criteo-forks/qr-scanner/qr-scanner.umd.min.js"></script>
+    <script src="src/script.js"></script>
+  </head>
+  <body>
+    <!--
+
+<div>
+  <button class="tab-button active" onclick="showTab('encode-tab')">Encode</button>
+  <button class="tab-button" onclick="showTab('decode-tab')">Decode</button>
+</div>
+
+
+<div id="encode-tab" class="tab-content active">
+  <h3>Encode Mii QR Code</h3>
+  <h4>Base Hex Input</h4>
+  <table id="hex-editor-base" border>
+    <tr>
+      <td></td>
+      <td><pre class="table-padding"></pre></td>
+    </tr>
+    <tr>
+      <td class="line-numbers" width="80"></td>
+      <td>
+        <textarea spellcheck="false" class="hex-textarea" cols="48"></textarea>
+      </td>
+      <td width="160" class="ascii-output">.</td>
+    </tr>
+  </table>
+  
+  <details>
+    <summary>Extra Data (Optional)</summary>
+    <table id="hex-editor-extra" border>
+    <tr>
+      <td></td>
+      <td><pre class="table-padding"></pre></td>
+    </tr>
+    <tr>
+      <td class="line-numbers" width="80"></td>
+      <td>
+        <textarea spellcheck="false" class="hex-textarea" cols="48"></textarea>
+      </td>
+      <td width="160" class="ascii-output">.</td>
+    </tr>
+    </table>
+  </details>
+  
+  <br>
+  <button onclick="generateQrCode()">Generate QR Code</button>
+  <div id="qr-code-container"></div>
+</div>
+-->
+    <!-- Decode Section -->
+    <div id="decode-tab" class="tab-content active">
+      <h3>Decode Mii QR Code</h3>
+      <div>
+          <label for="cam-list">Select camera:</label>
+          <select id="cam-list">
+              <option value="environment" selected>Back Camera (default)</option>
+              <option value="user">User/Front Facing Camera</option>
+              <option class="device-camera" disabled>(Open the camera for more options)</option>
+          </select>
+      </div>
+      <button id="start-camera">Start Camera</button>
+      <button id="stop-camera">Stop Camera</button>
+      <input type="file" id="file-input" accept="image/*" />
+      <video id="qr-video" style="max-width: 100%;"></video>
+
+      <h4>Decrypted StoreData (AES-CCM)</h4>
+      <table id="hex-editor-decrypt-base" border>
+        <tr>
+          <td></td>
+          <td><pre class="table-padding"></pre></td>
+        </tr>
+        <tr>
+          <td class="line-numbers" width="80"></td>
+          <td>
+            <textarea
+              spellcheck="false"
+              class="hex-textarea"
+              cols="48"
+            ></textarea>
+          </td>
+          <td width="160" class="ascii-output">.</td>
+        </tr>
+      </table>
+
+      <table id="hex-editor-decrypt-extra" style="display:none;" border>
+        <tr>
+          <td></td>
+          <td><pre class="table-padding"></pre></td>
+        </tr>
+        <tr>
+          <td class="line-numbers" width="80"></td>
+          <td>
+            <textarea
+              spellcheck="false"
+              class="hex-textarea"
+              cols="48"
+            ></textarea>
+          </td>
+          <td width="160" class="ascii-output">.</td>
+        </tr>
+      </table>
+    </div>
+
+    <script>
+      class HexEditor {
+        constructor(container, isReadOnly = false) {
+          this.container = container; // Store reference to the container element
+          this.isReadOnly = isReadOnly; // Check if the editor should be read-only
+          this.textArea = container.querySelector('.hex-textarea'); // Text area for hex input
+          this.lineNumbers = container.querySelector('.line-numbers'); // Element for line numbers
+          this.asciiOutput = container.querySelector('.ascii-output'); // Element for ASCII/Unicode output
+          this.header = container.querySelector('.table-padding'); // Header with hex values (00, 01, 02...)
+
+          // Bind encoding selector change event
+          this.encodingMode = 'ascii'; // Default to ASCII mode
+          /*document.getElementById('encoding-mode').addEventListener('change', (event) => {
+            this.encodingMode = event.target.value; // Update the encoding mode based on the selection
+            this.updateAsciiOutput(this.cleanHexInput(this.textArea.selectionStart)); // Refresh ASCII output
+          });
+          */
+
+          this.initTopCell(); // Initialize the top row with hex values
+          this.bindTextAreaInput(); // Bind input events for hex editing
+
+          if (isReadOnly) {
+            this.textArea.setAttribute('readonly', 'readonly'); // Set the textarea as read-only if needed
+          }
+        }
+
+        // Initialize the top row with hexadecimal values (00, 01, 02, ..., 0F)
+        initTopCell() {
+          let headerContent = ''; // Empty string to store the header content
+          for (let i = 0; i < 16; i++) {
+            headerContent += (0 + i.toString(16)).slice(-2) + ' '; // Convert numbers to hex and append to header
+          }
+          this.header.innerHTML = headerContent; // Display the hex values in the header
+        }
+
+        // Bind input event to handle hex editing
+        bindTextAreaInput() {
+          this.textArea.addEventListener('input', () => {
+            const caretPosition = this.textArea.selectionStart; // Capture the caret position
+            const cleanHex = this.cleanHexInput(caretPosition); // Clean and format the hex input
+            this.updateLineNumbers(cleanHex); // Update the line numbers
+            this.updateAsciiOutput(cleanHex); // Update the ASCII/Unicode output based on the current encoding mode
+            this.adjustTextAreaHeight(cleanHex); // Adjust the height of the textarea
+          });
+        }
+
+        // Clean hex input and return clean value while maintaining caret position
+        cleanHexInput(caretPosition) {
+          let hexValue = this.textArea.value; // Get the current value from the textarea
+
+          // Clean and format the hex input, but maintain caret position
+          let beforeCaret = hexValue
+            .substr(0, caretPosition)
+            .replace(/[^0-9A-F]/gi, '') // Strip non-hex characters
+            .replace(/(..)/g, '$1 ') // Add space between every two hex digits
+            .length;
+
+          hexValue = hexValue
+            .replace(/[^0-9A-F]/gi, '') // Remove non-hex characters
+            .replace(/(..)/g, '$1 ') // Format the string with a space every two hex characters
+            .replace(/ $/, '') // Remove trailing space
+            .toUpperCase(); // Convert to uppercase
+
+          this.textArea.value = hexValue; // Update the value in the textarea
+
+          if (hexValue[beforeCaret] === ' ') beforeCaret--; // Handle the caret being positioned after a space
+
+          this.textArea.setSelectionRange(beforeCaret, beforeCaret); // Restore caret position
+
+          return hexValue; // Return the cleaned hex string
+        }
+
+        // Update the line numbers in the left column based on the hex data
+        updateLineNumbers(cleanHex) {
+          let lineNumberString = ''; // String to hold the line numbers
+          for (let i = 0; i < cleanHex.length / 48; i++) {
+            lineNumberString += (1e7 + (16 * i).toString(16)).slice(-8) + ' '; // Calculate and append each line number
+          }
+          this.lineNumbers.innerHTML = lineNumberString; // Update the line numbers in the editor
+        }
+
+        // Update the ASCII or Unicode output based on the hex data and selected encoding
+        updateAsciiOutput(cleanHex) {
+          let asciiString = ''; // String to store the ASCII or Unicode output
+
+          // Parse differently based on the encoding mode
+          if (this.encodingMode === 'ascii') {
+            for (let i = 0; i < cleanHex.length; i += 3) { // Read every byte for ASCII
+              const charCode = parseInt(cleanHex.substr(i, 2), 16); // Convert hex to a character code
+              let char = '.';
+              if (34 < charCode && charCode < 127 && charCode != 60) // not sure why 60 causes issues
+                char = String.fromCharCode(charCode); // Add the character or dot
+              asciiString += char;
+            }
+          } else {
+            // For UTF-16, read every two bytes
+            for (let i = 0; i < cleanHex.length; i += 6) { // Read every two bytes for UTF-16
+              const byte1 = parseInt(cleanHex.substr(i, 2), 16); // First byte
+              const byte2 = parseInt(cleanHex.substr(i + 3, 2), 16); // Second byte
+              let charCode;
+
+              // Handle little-endian or big-endian parsing
+              if (this.encodingMode === 'utf16le') {
+                charCode = (byte2 << 8) + byte1; // Little-endian: low byte first
+              } else {
+                charCode = (byte1 << 8) + byte2; // Big-endian: high byte first
+              }
+
+              asciiString += String.fromCharCode(charCode); // Convert to character
+            }
+          }
+
+          this.asciiOutput.innerHTML = asciiString.replace(/(.{16})/g, '$1 '); // Format the output into blocks of 16 characters
+        }
+
+        // Adjust the textarea height based on its content length
+        adjustTextAreaHeight(cleanHex) {
+          this.textArea.style.height = (1.5 + cleanHex.length / 47) + 'em'; // Dynamically adjust the textarea height
+        }
+
+        // Load data from a Uint8Array into the hex editor
+        loadFromArray(uint8Array) {
+          let hexString = ''; // Initialize empty hex string
+          uint8Array.forEach(byte => {
+            hexString += (0 + byte.toString(16)).slice(-2) + ' '; // Convert each byte to hex and append
+          });
+          this.textArea.value = hexString.trim(); // Set the hex string in the textarea
+          this.textArea.dispatchEvent(new Event('input')); // Trigger input event to update the editor
+        }
+
+        // Save the current hex data back to a Uint8Array
+        saveToArray() {
+          const cleanHex = this.cleanHexInput(this.textArea.selectionStart).replace(/ /g, ''); // Get the cleaned hex string
+          const byteArray = new Uint8Array(cleanHex.length / 2); // Create a Uint8Array to hold the hex data
+          for (let i = 0; i < cleanHex.length; i += 2) {
+            byteArray[i / 2] = parseInt(cleanHex.substr(i, 2), 16); // Convert each hex pair to a byte
+          }
+          return byteArray; // Return the Uint8Array
+        }
+      }
+    </script>
+  <script src="script.js"></script>
+</body>
+</html>

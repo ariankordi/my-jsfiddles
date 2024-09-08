@@ -180,6 +180,8 @@ document.getElementById('file-input').addEventListener('change', event => {
 
 function handleQrCode(result) {
   if (!result || !result.bytes) return;
+  
+  cameraScanner.stop();
 
   const qrData = new Uint8Array(result.bytes);
   const decryptedData = decryptAesCcm(qrData.slice(0, 112)); // First 112 bytes are AES-CCM

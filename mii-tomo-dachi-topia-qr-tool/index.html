@@ -3,54 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mii QR Code Encoder/Decoder</title>
-    <style>
-      .tab-content {
-        display: none;
-      }
-      .active {
-        display: block;
-      }
-      .tab-button {
-        padding: 10px;
-        cursor: pointer;
-        display: inline-block;
-        border: 1px solid #ddd;
-        background-color: #f0f0f0;
-        margin-right: 5px;
-      }
-      .tab-button.active {
-        background-color: #ddd;
-      }
-
-       table, table * {
-        margin: 0;
-        padding: 0;
-        vertical-align: top;
-        font: 1em/1em courier;
-      }
-      .hex-textarea {
-        height: 1.5em;
-        resize: none;
-        width: 100%;
-      }
-      .table-padding {
-        padding: 0 2px;
-      }
-      .file-input {
-        position: absolute;
-        opacity: .001;
-      }
-      .ascii-output {
-        overflow: hidden;
-      }
-    </style>
     <script src="https://cdn.jsdelivr.net/npm/sjcl@1.0.8/sjcl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sjcl@1.0.8/core/codecBytes.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrjs@0.2.0/qr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/criteo-forks/qr-scanner/qr-scanner.umd.min.js"></script>
     <script src="src/script.js"></script>
-  </head>
+  <link rel="stylesheet" href="style.css">
+</head>
   <body>
     <!--
 
@@ -243,7 +202,7 @@
             for (let i = 0; i < cleanHex.length; i += 3) { // Read every byte for ASCII
               const charCode = parseInt(cleanHex.substr(i, 2), 16); // Convert hex to a character code
               let char = '.';
-              if (34 < charCode && charCode < 127 && charCode != 60) // not sure why 60 causes issues
+              if (34 < charCode && charCode < 127) // not sure why 60 causes issues
                 char = String.fromCharCode(charCode); // Add the character or dot
               asciiString += char;
             }
@@ -265,7 +224,7 @@
             }
           }
 
-          this.asciiOutput.innerHTML = asciiString.replace(/(.{16})/g, '$1 '); // Format the output into blocks of 16 characters
+          this.asciiOutput.textContent = asciiString.replace(/(.{16})/g, '$1 '); // Format the output into blocks of 16 characters
         }
 
         // Adjust the textarea height based on its content length

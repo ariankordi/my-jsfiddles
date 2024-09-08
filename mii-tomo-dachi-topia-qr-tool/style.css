@@ -1,0 +1,39 @@
+      .tab-content {
+        display: none;
+      }
+      .active {
+        display: block;
+      }
+      .tab-button {
+        padding: 10px;
+        cursor: pointer;
+        display: inline-block;
+        border: 1px solid #ddd;
+        background-color: #f0f0f0;
+        margin-right: 5px;
+      }
+      .tab-button.active {
+        background-color: #ddd;
+      }
+
+       table, table * {
+        margin: 0;
+        padding: 0;
+        vertical-align: top;
+        font: 1em/1em courier;
+      }
+      .hex-textarea {
+        height: 1.5em;
+        resize: none;
+        width: 100%;
+      }
+      .table-padding {
+        padding: 0 2px;
+      }
+      .file-input {
+        position: absolute;
+        opacity: .001;
+      }
+      .ascii-output {
+        overflow: hidden;
+      }

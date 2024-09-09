@@ -28,6 +28,49 @@ function base64ToUint8Array(base64) {
   return bytes;
 }
 
+// Helper function to check if a string is valid hex
+function isHex(str) {
+  const hexRegex = /^[0-9A-Fa-f]+$/;
+  return hexRegex.test(str);
+}
+
+// Helper function to check if a string is valid base64
+function isBase64(str) {
+  try {
+    atob(str);  // `atob` will throw an error if the string is not valid base64
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Event listener for hex input field to handle both hex and base64
+function setupHexEditorPasteHandling(hexEditorInstance) {
+  const hexTextArea = hexEditorInstance.textArea;
+
+  hexTextArea.addEventListener('paste', (event) => {
+    event.preventDefault();
+
+    const pasteData = event.clipboardData.getData('text').trim().replace(/\s+/g, '');
+
+    // If the pasted data is not valid hex, try to decode as base64
+    if (!isHex(pasteData)) {
+      if (isBase64(pasteData)) {
+        // Decode base64 and load as hex into the HexEditor
+        const decodedBase64 = base64ToUint8Array(pasteData);
+        hexEditorInstance.loadFromArray(decodedBase64);
+      } else {
+        alert('Invalid hex or base64 data.');
+      }
+    } else {
+      // Process valid hex normally
+      hexEditorInstance.textArea.value = pasteData.replace(/(.{2})/g, "$1 ").trim();
+    }
+
+    hexEditorInstance.textArea.dispatchEvent(new Event('input'));
+  });
+}
+
 // CRC16 and CRC32 utilities
 function crc16(data) {
   let crc = 0xFFFF;
@@ -111,13 +154,96 @@ async function decryptAesCtr(encryptedData, iv) {
   return new Uint8Array(decrypted);
 }
 
+// General function to download any data as a file
+function downloadData(dataArray, filename) {
+	if (dataArray.length < 1) return; // ignore blank data
+  const blob = new Blob([dataArray], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url); // Clean up the object URL
+}
+
 // Initialize hex editors for the inputs and outputs
 let hexEditorBaseInput, hexEditorExtraInput, hexEditorBaseOutput, hexEditorExtraOutput;
 
+
+function extractUTF16LEText(data, startOffset) {
+  const length = 20;
+  let endPosition = startOffset;
+
+  // Determine the byte order based on the isBigEndian flag
+  const decoder = new TextDecoder('utf-16le');
+
+  // Find the position of the null terminator (0x00 0x00)
+  while (endPosition < startOffset + length) {
+    if (data[endPosition] === 0x00 && data[endPosition + 1] === 0x00) {
+      break;
+    }
+    endPosition += 2; // Move in 2-byte increments (UTF-16)
+  }
+
+  // Extract and decode the name bytes
+  const nameBytes = data.slice(startOffset, endPosition);
+  return decoder.decode(nameBytes);
+}
+function getNameFromCFSD(data) {
+  return extractUTF16LEText(data, 0x1A);
+}
+function getFormattedTime() {
+  const now = new Date();
+	return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
+}
+
+// Function to download StoreData
+function downloadStoreData() {
+  const data = hexEditorBaseOutput.saveToArray(); // Get the Uint8Array from the hex editor
+  const name = getNameFromCFSD(data); // extract name
+  // base name will be name if it is defined
+  let fileBaseName = name;
+  if (!fileBaseName)
+    // otherwise compose a base name from the date and type
+    fileBaseName = getFormattedTime() + '-from-mii-qr-code.cfsd';
+  downloadData(data, fileBaseName + '.cfsd');
+}
+
+function getExtraDataGenericName(data) {
+	switch (data.length) {
+  	case 40:
+    	return 'miitomo-data';
+    case 240:
+    	return 'tomodachi-life-data';
+    case 192:
+    	return 'miitopia-data';
+    default:
+    	break;
+  }
+}
+
+// Function to download extra data
+function downloadExtraData() {
+  const extraData = hexEditorExtraOutput.saveToArray(); // Get the Uint8Array from the hex editor
+  const storeData = hexEditorBaseOutput.saveToArray();
+  let name = getNameFromCFSD(storeData); // extract name
+	if(!name)
+  	name = getFormattedTime(); // use in place of name
+
+  let fileBaseName = getExtraDataGenericName(extraData);
+  if(!fileBaseName)
+  	fileBaseName = 'extra-mii-qr-data';
+  fileBaseName = name + '-' + fileBaseName;
+  downloadData(extraData, fileBaseName + '.bin'); // Use the abstracted function
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  hexEditorBaseInput = new HexEditor(document.getElementById('hex-editor-base'), false);
+  hexEditorBaseInput = new HexEditor(document.getElementById('hex-editor-storedata'), false);
+  
+  setupHexEditorPasteHandling(hexEditorBaseInput);  // Attach paste handling to this instance
+  
   hexEditorExtraInput = new HexEditor(document.getElementById('hex-editor-extra'), false);
-   hexEditorBaseOutput = new HexEditor(document.getElementById('hex-editor-decrypt-base'), true);
+   hexEditorBaseOutput = new HexEditor(document.getElementById('hex-editor-decrypt-storedata'), true);
   hexEditorExtraOutput = new HexEditor(document.getElementById('hex-editor-decrypt-extra'), true);
 });
 
@@ -283,3 +409,59 @@ QrScanner.hasCamera().then(hasCamera => {
   if (!hasCamera) document.getElementById('start-camera').disabled = true;
   if (!hasCamera) document.getElementById('stop-camera').disabled = true;
 });
+
+
+
+
+
+
+
+// Constants for StoreData size
+const STORE_DATA_MIN_SIZE = 72;
+const STORE_DATA_MAX_SIZE = 96;
+
+// Function to load StoreData from file
+function loadStoreDataFromFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const fileSize = file.size;
+  if (fileSize < STORE_DATA_MIN_SIZE || fileSize > STORE_DATA_MAX_SIZE) {
+    alert(`StoreData (.cfsd) file must be between ${STORE_DATA_MIN_SIZE} and ${STORE_DATA_MAX_SIZE} bytes.`);
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    let baseData = new Uint8Array(e.target.result);
+    
+    // Pad StoreData to 96 bytes if it's less
+    if (baseData.length < 96) {
+      const paddedBaseData = new Uint8Array(96);
+      paddedBaseData.set(baseData); // Copy original data
+      baseData = paddedBaseData;    // Replace with padded data
+    }
+
+    // Load into the hex editor for base data (StoreData)
+    hexEditorBaseInput.loadFromArray(baseData);
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+// Function to load Extra Data from file
+function loadExtraDataFromFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const extraData = new Uint8Array(e.target.result);
+    
+    // Load into the hex editor for extra data
+    hexEditorExtraInput.loadFromArray(extraData);
+    document.getElementById('hex-editor-decrypt-extra').style.display = 'block';
+  };
+
+  reader.readAsArrayBuffer(file);
+}

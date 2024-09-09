@@ -40,15 +40,38 @@ function crc16(data) {
   return crc & 0xFFFF;
 }
 
-function crc32(data) {
-  let crc = 0xFFFFFFFF;
-  for (let byte of data) {
-    crc ^= byte;
-    for (let i = 0; i < 8; i++) {
-      crc = (crc & 1) ? (crc >>> 1) ^ 0xEDB88320 : crc >>> 1;
+// Define the polynomial used in CRC-32/CKSUM
+const CRC32_CKSUM_POLYNOMIAL = 0x04C11DB7;
+
+// Create a table for CRC-32/CKSUM lookup
+let crc32CksumTable = new Uint32Array(256);
+
+// Generate the CRC-32/CKSUM table
+function generateCrc32CksumTable() {
+  for (let i = 0; i < 256; i++) {
+    let crc = i << 24;
+    for (let j = 0; j < 8; j++) {
+      if (crc & 0x80000000) {
+        crc = (crc << 1) ^ CRC32_CKSUM_POLYNOMIAL;
+      } else {
+        crc = crc << 1;
+      }
     }
+    crc32CksumTable[i] = crc >>> 0; // Ensure the value is an unsigned 32-bit integer
   }
-  return crc ^ 0xFFFFFFFF;
+}
+
+// Call the table generation function
+generateCrc32CksumTable();
+
+// CRC-32/CKSUM function
+function crc32(input) {
+  let crc = 0x00000000; // Initial value for CRC-32/CKSUM
+  for (let i = 0; i < input.length; i++) {
+    const byte = (input[i] ^ (crc >>> 24)) & 0xFF;
+    crc = (crc32CksumTable[byte] ^ (crc << 8)) >>> 0;
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0; // XOR with 0xFFFFFFFF at the end and ensure it's unsigned
 }
 
 // AES-CCM Decryption (using private ctrMode function)
@@ -92,9 +115,9 @@ async function decryptAesCtr(encryptedData, iv) {
 let hexEditorBaseInput, hexEditorExtraInput, hexEditorBaseOutput, hexEditorExtraOutput;
 
 document.addEventListener('DOMContentLoaded', () => {
-  /*hexEditorBaseInput = new HexEditor(document.getElementById('hex-editor-base'), false);
-    hexEditorExtraInput = new HexEditor(document.getElementById('hex-editor-extra'), false);
-    */hexEditorBaseOutput = new HexEditor(document.getElementById('hex-editor-decrypt-base'), true);
+  hexEditorBaseInput = new HexEditor(document.getElementById('hex-editor-base'), false);
+  hexEditorExtraInput = new HexEditor(document.getElementById('hex-editor-extra'), false);
+   hexEditorBaseOutput = new HexEditor(document.getElementById('hex-editor-decrypt-base'), true);
   hexEditorExtraOutput = new HexEditor(document.getElementById('hex-editor-decrypt-extra'), true);
 });
 
@@ -107,19 +130,21 @@ async function generateQrCode() {
   let qrData = encryptedBase;
 
   if (extraData.length > 0) {
-    const { encryptedData, iv } = await encryptAesCtr(extraData);
-    qrData = new Uint8Array([...qrData, ...iv, ...encryptedData]);
-
     // Append CRC32 for extra data
-    const crc32Val = crc32(new Uint8Array([...iv, ...encryptedData]));
+    const dataForCRC32 = new Uint8Array([...encryptedBase, ...extraData]);
+    console.log('data into crc32:', uint8ArrayToHex(dataForCRC32).replace(/(.{2})/g, '$1 '))
+    const crc32Val = crc32(dataForCRC32);
     const crc32Bytes = new Uint8Array([crc32Val & 0xff, (crc32Val >> 8) & 0xff, (crc32Val >> 16) & 0xff, (crc32Val >> 24) & 0xff]);
-    qrData = new Uint8Array([...qrData, ...crc32Bytes]);
+   console.log('crc32: ', uint8ArrayToHex(crc32Bytes).replace(/(.{2})/g, '$1 '))
+    const extraDataWithCRC32 = new Uint8Array([...extraData, ...crc32Bytes]);
+    const { encryptedData, iv } = await encryptAesCtr(extraDataWithCRC32);
+    qrData = new Uint8Array([...qrData, ...iv, ...encryptedData]);
+    console.log(qrData)
   }
 
   const qrContainer = document.getElementById('qr-code-container');
-  qrContainer.innerHTML = '';
-  const qrCode = QRCode.generateHTML(qrData);
-  qrContainer.appendChild(qrCode);
+  qrContainer.firstElementChild.src = QRCode.generatePNG(qrData, {margin: null});
+
 }
 
 // QR Code Scanner for decoding
@@ -210,23 +235,33 @@ function showTab(tabId) {
 
 // AES-CCM Encryption (for Mii QR code data)
 function encryptAesCcm(data) {
-  const nonce = data.slice(12, 20);
-  const content = [...data.slice(0, 12), ...data.slice(20)];
+  // effectively changes birth platform to 3ds
+  // if this is not set then the code
+  // will not scan on 3ds (wiiu sets this)
+  data[0x03] = 0x30; //'0'
+  // Assuming sjcl.codec.bytes is properly defined
+  let nonce = data.slice(12, 20);
+  let content = [...data.slice(0, 12), ...data.slice(20)];
+
+  let checksumContent = [...data.slice(0, 12), ...nonce, ...data.slice(20, -2)];
+  let newChecksum = crc16(new Uint8Array(checksumContent));
+  content = [...content.slice(0, -2), ...toByteArray(newChecksum)];
 
   const cipher = new sjcl.cipher.aes(AES_CCM_KEY_BITS);
 
-  const checksumContent = [...data.slice(0, 12), ...nonce, ...data.slice(20, -2)];
-  const newChecksum = crc16(new Uint8Array(checksumContent));
-  const updatedContent = [...content.slice(0, -2), ...toByteArray(newChecksum)];
+  let paddedContent = new Uint8Array([...content, ...new Array(8).fill(0)]);
+  let paddedContentBits = sjcl.codec.bytes.toBits(Array.from(paddedContent));
+  let nonceBits = sjcl.codec.bytes.toBits([...nonce, 0, 0, 0, 0]);
 
-  const paddedContent = new Uint8Array([...updatedContent, ...new Array(8).fill(0)]);
-  const paddedContentBits = sjcl.codec.bytes.toBits(Array.from(paddedContent));
-  const nonceBits = sjcl.codec.bytes.toBits([...nonce, 0, 0, 0, 0]);
+  let encryptedBits = sjcl.mode.ccm.encrypt(cipher, paddedContentBits, nonceBits, [], 128);
+  let encryptedBytes = sjcl.codec.bytes.fromBits(encryptedBits);
 
-  const encryptedBits = sjcl.mode.ccm.encrypt(cipher, paddedContentBits, nonceBits, [], 128);
-  const encryptedBytes = sjcl.codec.bytes.fromBits(encryptedBits);
+  let correctEncryptedContentLength = encryptedBytes.length - 8 - 16;
+  let encryptedContentCorrected = encryptedBytes.slice(0, correctEncryptedContentLength);
+  let tag = encryptedBytes.slice(encryptedBytes.length - 16);
 
-  return new Uint8Array([...nonce, ...encryptedBytes]);
+  let result = new Uint8Array([...nonce, ...encryptedContentCorrected, ...tag]);
+  return result;
 }
 
 // AES-CTR Encryption (for extra data)

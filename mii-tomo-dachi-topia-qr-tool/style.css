@@ -24,7 +24,7 @@ table, table * {
   margin: 0;
   padding: 0;
   vertical-align: top;
-  font: 1em/1em courier;
+  font: 1em/1em monospace;
 }
 .hex-textarea {
   height: 1.5em;

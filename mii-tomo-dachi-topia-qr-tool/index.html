@@ -12,16 +12,20 @@
 </head>
   <body>
 
-<!-- Tabbing Section -->
+<!-- Tabbing Section 
 <div>
   <button class="tab-button active" onclick="showTab('encode-tab')">Encode</button>
   <button class="tab-button" onclick="showTab('decode-tab')">Decode</button>
 </div>
+-->
 
 <!-- Encode Section -->
 <div id="encode-tab" class="tab-content active">
-  <h1>Encrypt QR Code</h1>
-  <h4>StoreData Hex Input</h4>
+  <h1>encrypt/encode mii qr code</h1>
+  <div>
+    <b>StoreData hex input:</b>
+    <div>(you can also paste Base64 into this, or, load from a cfsd file below)</div>
+  </div>
   <table id="hex-editor-storedata" border>
     <tr>
       <td></td>
@@ -38,7 +42,7 @@
   <input type="file" id="load-storedata-btn" accept=".cfsd,.ffsd,.3dsmii,.cfcd,.ffcd,.bin,.dat" onchange="loadStoreDataFromFile(event)">
   
   <details>
-    <summary>Extra Data (Optional)</summary>
+    <summary>load extra data for tomodachi life/miitomo/miitopia 3ds:</summary>
     <table id="hex-editor-extra" border>
     <tr>
       <td></td>
@@ -56,13 +60,17 @@
   </details>
   
   <br>
-  <button onclick="generateQrCode()">Generate QR Code</button>
+  <button onclick="generateQrCode()">encrypt QR code</button>
   <div id="qr-code-container"><img></div>
 </div>
 
+<hr>
+
     <!-- Decode Section -->
     <div id="decode-tab" class="tab-content active">
-      <h1>Decrypt QR Code</h1>
+      <h1>decrypt mii qr code</h1>
+      <details>
+        <summary>scan from your camera by clicking here, or upload an image below:</summary>
       <div>
           <label for="cam-list">Select camera:</label>
           <select id="cam-list">
@@ -71,12 +79,13 @@
               <option class="device-camera" disabled>(Open the camera for more options)</option>
           </select>
       </div>
-      <button id="start-camera">Start Camera</button>
-      <button id="stop-camera">Stop Camera</button>
-      <input type="file" id="file-input" accept="image/*" />
+      <button id="start-camera">Start camera</button>
+      <button id="stop-camera">Stop camera</button>
       <video id="qr-video" style="max-width: 100%;"></video>
+      </details>
+      <input type="file" id="file-input" accept="image/*" />
 
-      <h4>Decrypted StoreData (AES-CCM)</h4>
+      <h4>decrypted data (StoreData, then extra data)</h4>
       <table id="hex-editor-decrypt-storedata" border>
         <tr>
           <td></td>
@@ -95,7 +104,7 @@
         </tr>
       </table>
       
-      <button onclick="downloadStoreData()">Download StoreData (.cfsd)</button>
+      <button onclick="downloadStoreData()">download StoreData (.cfsd)</button>
 
       <table id="hex-editor-decrypt-extra" style="display:none;" border>
         <tr>
@@ -116,7 +125,7 @@
       </table>
     </div>
     
-    <button onclick="downloadExtraData()">Download Extra Data</button>
+    <button onclick="downloadExtraData()">download game extra data if present</button>
 
 
 

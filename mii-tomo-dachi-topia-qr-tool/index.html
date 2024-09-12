@@ -11,6 +11,14 @@
 </head>
   <body>
 
+  <!-- rudimentary js error handling text -->
+  <div id="error-container" style="display: none;">
+    <h1>😭 JavaScript Error!! 😭</h1>
+    <p id="error-message" style="color: red;"></p>
+    <pre id="error-stacktrace" style="display: none;"></pre>
+    <pre id="error-at">At <span></span></pre>
+  </div>
+
 <!-- Tabbing Section 
 <div>
   <button class="tab-button active" onclick="showTab('encode-tab')">Encode</button>
@@ -67,7 +75,7 @@
 
     <!-- Decode Section -->
     <div id="decode-tab" class="tab-content active">
-      <h1>decrypt mii qr code</h1>
+      <h1>decrypt/decode mii qr code</h1>
       <details>
         <summary>scan from your camera by clicking here, or upload an image below:</summary>
       <div>
@@ -84,7 +92,7 @@
       </details>
       <input type="file" id="file-input" accept="image/*" />
 
-      <h4>decrypted data (StoreData, then extra data)</h4>
+      <h4>decrypted data (StoreData, then extra data below)</h4>
       <table id="hex-editor-decrypt-storedata" border>
         <tr>
           <td></td>
@@ -128,6 +136,30 @@
     <button onclick="downloadExtraData()">download game extra data if present</button>
 
 
+    <!-- add error handling js before anything else is loaded
+             also have somewhat tried to make it backwards compatible -->
+    <script>
+      // handle all errors and show them at the top of the page
+      window.addEventListener('error', function(event) {
+        var errorContainer = document.getElementById('error-container');
+        var errorMessage = document.getElementById('error-message');
+        var errorStacktrace = document.getElementById('error-stacktrace');
+        var errorAt = document.getElementById('error-at');
+        errorMessage.textContent = event.message;
+        // show stack trace if it has one
+        if(event.error) {
+          errorStacktrace.textContent = event.error.stack;
+          errorStacktrace.style.display = '';
+        } else {
+          // otherwise just use error's line number
+          errorAt.textContent = (event.source + ':' + event.lineno + ':' + event.colno);
+          errorAt.style.display = '';
+        }
+
+        // un-hide the error container
+        errorContainer.style.display = '';
+      });
+    </script>
 
     <script>
       class HexEditor {

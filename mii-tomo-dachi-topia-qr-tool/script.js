@@ -462,7 +462,7 @@ function loadExtraDataFromFile(event) {
     
     // Load into the hex editor for extra data
     hexEditorExtraInput.loadFromArray(extraData);
-    document.getElementById('hex-editor-decrypt-extra').style.display = 'block';
+    document.getElementById('hex-editor-decrypt-extra').style.display = 'initial';
   };
 
   reader.readAsArrayBuffer(file);

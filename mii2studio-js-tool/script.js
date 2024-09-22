@@ -119,10 +119,6 @@ function useStudioStruct(origData) {
       delete origData[key];
     }
   }
-  origData.facialHairBeard = origData.beardGoatee;
-  origData.facialHairSize = origData.beardSize;
-  origData.facialHairMustache = origData.beardMustache;
-  origData.facialHairVertical = origData.beardVertical;
 	return origData;
 }
 

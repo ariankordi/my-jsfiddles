@@ -1,41 +1,34 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
 <link rel="stylesheet" href="style.css">
-</head>
-<body>
+<!-- UI for inputting the model URL and controlling rotation -->
+<div id="ui">
+    <form id="modelForm">
+        <label for="modelUrl">glTF Model URL:</label>
+        <input type="text" id="modelUrl" value="https://mii-unsecure.ariankordi.net/miis/image.glb?nnid=JasmineChlora">
+        <small class="hint">Hint: To find this, go to <a href="https://mii-unsecure.ariankordi.net" target="_blank">my Mii renderer site</a>, copy your Mii's image URL, then replace "image.png" with "image.glb" and paste it into here.</small>
+        <button type="submit">Load Model</button>
+    </form>
+    <div id="controls">
+        <div id="buttons">
+            <button id="pauseButton">Pause Rotation</button>
+            <button id="resumeButton" style="display:none;">Resume Rotation</button>
+        </div>
 
-    <!-- UI for inputting the model URL and controlling rotation -->
-    <div id="ui">
-        <form id="modelForm">
-            <label for="modelUrl">glTF Model URL:</label>
-            <input type="text" id="modelUrl" value="https://mii-unsecure.ariankordi.net/miis/image.glb?nnid=JasmineChlora">
-            <small class="hint">Hint: To find this, go to <a href="https://mii-unsecure.ariankordi.net" target="_blank">my Mii renderer site</a>, copy your Mii's image URL, then replace "image.png" with "image.glb" and paste it into here.</small>
-            <button type="submit">Load Model</button>
-        </form>
-        <div id="controls">
-            <div id="buttons">
-                <button id="pauseButton">Pause Rotation</button>
-                <button id="resumeButton" style="display:none;">Resume Rotation</button>
-            </div>
-
-            <div id="rotationSpeedControl">
-                <label for="rotationSpeed">Rotation Speed:</label>
-                <input type="range" id="rotationSpeed" min="0" max="0.1" step="0.001" value="0.01">
-            </div>
+        <div id="rotationSpeedControl">
+            <label for="rotationSpeed">Rotation Speed:</label>
+            <input type="range" id="rotationSpeed" min="0" max="0.1" step="0.001" value="0.01">
         </div>
     </div>
+</div>
 
-    <!-- Include Three.js library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r126/three.min.js"></script>
-    <!-- Include GLTFLoader -->
-    <script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
-    <!-- Include OrbitControls for mouse interaction -->
-    <script src="https://unpkg.com/three@0.126.0/examples/js/controls/OrbitControls.js"></script>
+<!-- Include Three.js library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r126/three.min.js"></script>
+<!-- Include GLTFLoader -->
+<script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
+<!-- Include OrbitControls for mouse interaction -->
+<script src="https://unpkg.com/three@0.126.0/examples/js/controls/OrbitControls.js"></script>
 
-    <!-- Vertex Shader derived from MiiDefaultShader.vsh found in Miitomo -->
-    <script id="vertexShader" type="x-shader/x-vertex">
+<!-- Vertex Shader derived from MiiDefaultShader.vsh found in Miitomo -->
+<script id="vertexShader" type="x-shader/x-vertex">
 // position, texCoord (uv), normal are all provided by three.js
 
 // 頂点シェーダーに入力される attribute 変数
@@ -85,10 +78,10 @@ void main()
     v_tangent = normalize(normalMatrix * tangent.xyz);
     v_color = _color;
 }
-    </script>
+</script>
 
-    <!-- Fragment Shader derived from MiiDefaultShader.fsh found in Miitomo -->
-    <script id="fragmentShader" type="x-shader/x-fragment">
+<!-- Fragment Shader derived from MiiDefaultShader.fsh found in Miitomo -->
+<script id="fragmentShader" type="x-shader/x-fragment">
 //
 //  定数定義ファイル
 //
@@ -353,7 +346,4 @@ void main()
 
     gl_FragColor = color;
 }
-    </script>
-<script src="script.js"></script>
-</body>
-</html>
+</script><script src="script.js"></script>

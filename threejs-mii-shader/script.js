@@ -2,7 +2,8 @@
 const scene = new THREE.Scene();
 
 // Set a pastel purple background color
-scene.background = new THREE.Color(0xE6E6FA); // Light lavender
+// already set by html background
+//scene.background = new THREE.Color(0xE6E6FA); // Light lavender
 
 // Perspective camera with specified parameters
 const fov = 15; // Field of view in degrees
@@ -185,11 +186,11 @@ const loadModel = (url) => {
                         },
                         defines: defines,
                         side: originalMaterial.side,
-                        // HACK: GLTFLoader should set this,
-                        // using its value results in no mask/glass
-                        // transparency however true doesn't
-                        // seem to pose major issues
-                        transparent: true, // Handle transparency
+                        // NOTE: usually these blend modes are
+                        // only set for DrawXlu stage
+                        blending: THREE.CustomBlending,
+                        blendDstAlpha: THREE.OneFactor,
+                        transparent: originalMaterial.transparent, // Handle transparency
                         alphaTest: originalMaterial.alphaTest // Handle alpha testing
                     });
 

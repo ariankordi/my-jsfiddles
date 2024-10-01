@@ -5,7 +5,7 @@
         <label for="modelUrl">glTF Model URL:</label>
         <input type="text" id="modelUrl" value="https://mii-unsecure.ariankordi.net/miis/image.glb?nnid=JasmineChlora">
         <small class="hint">Hint: To find this, go to <a href="https://mii-unsecure.ariankordi.net" target="_blank">my Mii renderer site</a>, copy your Mii's image URL, then replace "image.png" with "image.glb" and paste it into here.</small>
-        <button type="submit">Load Model</button>
+        <button id="loadModelButton" type="submit">Load Model</button>
     </form>
     <div id="controls">
         <div id="buttons">
@@ -20,7 +20,7 @@
     </div>
 </div>
 
-<!-- Include Three.js library -->
+<!-- Include three.js library -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r126/three.min.js"></script>
 <!-- Include GLTFLoader -->
 <script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>

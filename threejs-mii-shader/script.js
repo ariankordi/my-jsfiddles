@@ -108,8 +108,16 @@ const cLightDir      = new THREE.Vector3(-0.4531539381, 0.4226179123, 0.78488588
 const cRimColor      = new THREE.Vector4(0.3, 0.3, 0.3, 1.0);
 const cRimPower      = 2.0;
 
+
+// Select the Load Model button
+const loadModelButton = document.getElementById('loadModelButton');
+
 // Function to load the glTF model from a URL
 const loadModel = (url) => {
+    // Disable the Load Model button when loading starts
+    if (loadModelButton)
+    	loadModelButton.disabled = true;
+
     // Remove existing model if any
     if (model) {
         scene.remove(model);
@@ -163,6 +171,22 @@ const loadModel = (url) => {
                     if (originalMaterial.map) 
                         defines.USE_MAP = '';
 
+										// Function to Map FFLCullMode to three.js material side
+										let side = originalMaterial.side;
+                    if (userData.cullMode !== undefined) {
+                    		switch (userData.cullMode) {
+                        	case 0: // FFL_CULL_MODE_NONE
+                          	side = THREE.DoubleSide; // No culling
+                            break;
+                          case 1: // FFL_CULL_MODE_BACK
+                            side = THREE.FrontSide;  // Cull back faces, render front
+                            break;
+                          case 2: // FFL_CULL_MODE_FRONT
+                          	side = THREE.BackSide;   // Cull front faces, render back
+                            break;
+                        }
+                    }
+
                     // Create a custom ShaderMaterial
                     const shaderMaterial = new THREE.ShaderMaterial({
                         vertexShader: document.getElementById('vertexShader').textContent,
@@ -185,7 +209,7 @@ const loadModel = (url) => {
                             s_texture: { value: originalMaterial.map }
                         },
                         defines: defines,
-                        side: originalMaterial.side,
+                        side: side,
                         // NOTE: usually these blend modes are
                         // only set for DrawXlu stage
                         blending: THREE.CustomBlending,
@@ -201,11 +225,16 @@ const loadModel = (url) => {
 
             // Add the model to the scene
             scene.add(model);
+
+            // Re-enable the Load Model button after loading completes
+            loadModelButton.disabled = false;
         },
         undefined,
         (error) => {
             console.error('An error occurred while loading the model:', error);
             alert('An error occurred while loading the model: ' + error.toString());
+            // Re-enable the Load Model button if there's an error
+            loadModelButton.disabled = false;
         }
     );
 };

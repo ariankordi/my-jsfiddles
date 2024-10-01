@@ -118,7 +118,7 @@ const loadModelButton = document.getElementById('loadModelButton');
 const loadModel = (url) => {
     // Disable the Load Model button when loading starts
     if (loadModelButton)
-    	loadModelButton.disabled = true;
+        loadModelButton.disabled = true;
 
     // Remove existing model if any
     if (model) {
@@ -152,27 +152,35 @@ const loadModel = (url) => {
                     const userData = node.geometry.userData;
 
                     // Retrieve modulateType and map to material parameters
-                    const modulateType = userData.modulateType ?? 0;
+                    const modulateType = userData.modulateType;
+                    if (userData.modulateType === undefined)
+                        console.warn(`Mesh "${node.name}" is missing "modulateType" in userData.`);
 
-                    // HACK for now: disable lighting on mask and glass
+                    // HACK for now: disable lighting on mask, glass, noseline
                     // (Because there is some lighting bug affecting
                     // those that does not happen in FFL-Testing)
-                    const lightEnable = (modulateType === 6 || userData.modulateType === 8) ? false : true;
-					// Select material parameter based on the modulate type, default to faceline
-                    const materialParam = cMaterialParam[modulateType] ?? cMaterialParam[0];
+                    const lightEnable = (modulateType > 5) ? false : true;
+                    // Select material parameter based on the modulate type, default to faceline
+                    const materialParam = modulateType && modulateType < 9
+                    ? cMaterialParam[modulateType]
+                    : cMaterialParam[0];
 
                     // Retrieve modulateMode, defaulting to constant color
-                    const modulateMode = userData.modulateMode ?? 0;
+                    const modulateMode = userData.modulateMode === undefined ? 0 : userData.modulateMode;
 
-                    // Retrieve modulateColor (vec3), default to red if missing
-                    const modulateColor = new THREE.Vector4(...(userData.modulateColor ?? [1, 0, 0]), 1);
-
-                    if (!userData.modulateColor)
+                    // Retrieve modulateColor (vec3)
+                    let modulateColor;
+                    if (!userData.modulateColor) {
                         console.warn(`Mesh "${node.name}" is missing "modulateColor" in userData.`);
+                        // Default to red if missing
+                        modulateColor = new THREE.Vector4(...([1, 0, 0]), 1);
+                    } else {
+                        modulateColor = new THREE.Vector4(...(userData.modulateColor), 1);
+                    }
 
                     // Define macros based on the presence of textures
                     const defines = {};
-                    if (originalMaterial.map) 
+                    if (originalMaterial.map)
                         defines.USE_MAP = '';
 
                     // Function to Map FFLCullMode to three.js material side
@@ -310,6 +318,19 @@ document.getElementById('rotationSpeed').addEventListener('input', function () {
     rotationSpeed = parseFloat(this.value) || 0;
 });
 
+// Toggle UI functionality
+const hideUiButton = document.getElementById('hideUiButton');
+const showUiButton = document.getElementById('showUiButton');
+const ui = document.getElementById('ui');
+
+hideUiButton.addEventListener('click', () => {
+    ui.style.display = 'none';
+    showUiButton.style.display = '';
+});
+showUiButton.addEventListener('click', () => {
+    ui.style.display = '';
+    showUiButton.style.display = 'none';
+});
 
 // Initialize light direction sliders
 const lightDirX = document.getElementById('lightDirX');
@@ -323,8 +344,9 @@ const updateLightDirection = () => {
     // Normalize new user-provided light direction
     const lightDir = new THREE.Vector3(x, y, z).normalize();
 
-    // Update the uniform for all shader materials
-    model && model.traverse(node => { // Ensure model is not false before traversing
+    // Ensure model exists before traversing
+    model && model.traverse(node => {
+        // Update the uniform for all shader materials
         if (node.isMesh && node.material.uniforms)
             node.material.uniforms.u_light_dir.value = lightDir;
     });
@@ -335,7 +357,7 @@ lightDirY.addEventListener('input', updateLightDirection);
 lightDirZ.addEventListener('input', updateLightDirection);
 // Function to reset the light direction to default const values
 const resetLightDirection = () => {
-	// Reset inputs to const values
+    // Reset inputs to const values
     lightDirX.value = cLightDir.x;
     lightDirY.value = cLightDir.y;
     lightDirZ.value = cLightDir.z;

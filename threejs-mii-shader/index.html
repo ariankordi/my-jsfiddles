@@ -1,46 +1,51 @@
 <link rel="stylesheet" href="style.css">
 <!-- UI for inputting the model URL and controlling rotation -->
-<div id="ui">
-    <form id="modelForm">
-        <label for="modelUrl">glTF Model URL:</label>
-        <input type="text" id="modelUrl" value="https://mii-unsecure.ariankordi.net/miis/image.glb?nnid=JasmineChlora">
-        <small class="hint">Hint: To find this, go to <a href="https://mii-unsecure.ariankordi.net" target="_blank">my Mii renderer site</a>, copy your Mii's image URL, then replace "image.png" with "image.glb" and paste it into here.</small>
-        <button id="loadModelButton" type="submit">Load Model</button>
-    </form>
-    <div id="controls">
+<div id="uiContainer" class="resizable">
+    <button id="showUiButton" class="floating" type="button" style="display: none;">Show UI</button>
+    <div id="ui" class="floating">
+        <form id="modelForm">
+            <div class="controls">
+                <label for="modelUrl">glTF Model URL:</label>
+                <button id="hideUiButton" type="button">Hide UI</button>
+            </div>
+            <input type="text" id="modelUrl" value="https://mii-unsecure.ariankordi.net/miis/image.glb?nnid=JasmineChlora">
+            <small class="hint">Hint: To find this, go to <a href="https://mii-unsecure.ariankordi.net" target="_blank">my Mii renderer site</a>, copy your Mii's image URL, then replace "image.png" with "image.glb" and paste it into here.</small>
+            <button id="loadModelButton" type="submit">Load Model</button>
+        </form>
+        <div class="controls">
 
-        <div id="lightDirectionControl">
-            <details>
-                <summary>Light Direction Control</summary>
-                <label for="lightDirX">Light Direction X:</label>
-                <input type="range" id="lightDirX" min="-1" max="1" step="0.01" value="-0.453">
+            <div id="lightDirectionControl">
+                <details>
+                    <summary>Light Direction Control</summary>
+                    <label for="lightDirX">Light Direction X:</label>
+                    <input type="range" id="lightDirX" min="-1" max="1" step="0.01" value="-0.453">
 
-                <label for="lightDirY">Light Direction Y:</label>
-                <input type="range" id="lightDirY" min="-1" max="1" step="0.01" value="0.423">
+                    <label for="lightDirY">Light Direction Y:</label>
+                    <input type="range" id="lightDirY" min="-1" max="1" step="0.01" value="0.423">
 
-                <label for="lightDirZ">Light Direction Z:</label>
-                <input type="range" id="lightDirZ" min="-1" max="1" step="0.01" value="0.785">
+                    <label for="lightDirZ">Light Direction Z:</label>
+                    <input type="range" id="lightDirZ" min="-1" max="1" step="0.01" value="0.785">
 
-                <button id="resetLightButton">Reset Light Direction</button>
-            </details>
+                    <button id="resetLightButton">Reset Light Direction</button>
+                </details>
+            </div>
+
+            <div id="rotationControl">
+                <button id="pauseButton">Pause Rotation</button>
+                <button id="resumeButton" style="display: none;">Resume Rotation</button>
+
+                <label for="rotationSpeed">Rotation Speed:</label>
+                <input type="range" id="rotationSpeed" min="0.001" max="0.1" step="0.001" value="0.01">
+            </div>
+
         </div>
-
-        <div id="rotationControl">
-            <button id="pauseButton">Pause Rotation</button>
-            <button id="resumeButton" style="display:none;">Resume Rotation</button>
-
-            <label for="rotationSpeed">Rotation Speed:</label>
-            <input type="range" id="rotationSpeed" min="0.001" max="0.1" step="0.001" value="0.01">
-        </div>
-
     </div>
 </div>
 
-<!-- Include three.js library -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r126/three.min.js"></script>
-<!-- Include GLTFLoader -->
+<!-- three.js 0.126.0 from mid-2021 -->
+<script src="https://unpkg.com/three@0.126.0/build/three.min.js"></script>
+<!-- Include GLTFLoader, OrbitControls -->
 <script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
-<!-- Include OrbitControls for mouse interaction -->
 <script src="https://unpkg.com/three@0.126.0/examples/js/controls/OrbitControls.js"></script>
 
 <!-- Vertex Shader derived from MiiDefaultShader.vsh found in Miitomo -->

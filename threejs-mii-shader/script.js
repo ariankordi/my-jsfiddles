@@ -161,7 +161,7 @@ const loadModel = (url) => {
 					// Select material parameter based on the modulate type, default to faceline
                     const materialParam = cMaterialParam[modulateType] ?? cMaterialParam[0];
 
-                    // Retrieve modulateMode
+                    // Retrieve modulateMode, defaulting to constant color
                     const modulateMode = userData.modulateMode ?? 0;
 
                     // Retrieve modulateColor (vec3), default to red if missing
@@ -178,16 +178,16 @@ const loadModel = (url) => {
                     // Function to Map FFLCullMode to three.js material side
                     let side = originalMaterial.side;
                     if (userData.cullMode !== undefined) {
-                    		switch (userData.cullMode) {
-                        	case 0: // FFL_CULL_MODE_NONE
-                          	side = THREE.DoubleSide; // No culling
-                            break;
-                          case 1: // FFL_CULL_MODE_BACK
-                            side = THREE.FrontSide;  // Cull back faces, render front
-                            break;
-                          case 2: // FFL_CULL_MODE_FRONT
-                          	side = THREE.BackSide;   // Cull front faces, render back
-                            break;
+                        switch (userData.cullMode) {
+                            case 0: // FFL_CULL_MODE_NONE
+                                side = THREE.DoubleSide; // No culling
+                                break;
+                            case 1: // FFL_CULL_MODE_BACK
+                                side = THREE.FrontSide;  // Cull back faces, render front
+                                break;
+                            case 2: // FFL_CULL_MODE_FRONT
+                                side = THREE.BackSide;   // Cull front faces, render back
+                                break;
                         }
                     }
 
@@ -305,51 +305,40 @@ renderer.domElement.addEventListener('pointerup', () => {
     }
 });
 
-
 // Handle rotation speed slider
 document.getElementById('rotationSpeed').addEventListener('input', function () {
     rotationSpeed = parseFloat(this.value) || 0;
 });
 
+
 // Initialize light direction sliders
 const lightDirX = document.getElementById('lightDirX');
 const lightDirY = document.getElementById('lightDirY');
 const lightDirZ = document.getElementById('lightDirZ');
-
 // Function to update the light direction in the shader
 const updateLightDirection = () => {
     const x = parseFloat(lightDirX.value);
     const y = parseFloat(lightDirY.value);
     const z = parseFloat(lightDirZ.value);
-    cLightDir.set(x, y, z).normalize();
+    // Normalize new user-provided light direction
+    const lightDir = new THREE.Vector3(x, y, z).normalize();
 
     // Update the uniform for all shader materials
-    if (model) {
-        model.traverse(node => {
-            if (node.isMesh && node.material.uniforms) {
-                node.material.uniforms.u_light_dir.value = cLightDir;
-            }
-        });
-    }
+    model && model.traverse(node => { // Ensure model is not false before traversing
+        if (node.isMesh && node.material.uniforms)
+            node.material.uniforms.u_light_dir.value = lightDir;
+    });
 };
-
 // Add event listeners to update the light direction when sliders change
 lightDirX.addEventListener('input', updateLightDirection);
 lightDirY.addEventListener('input', updateLightDirection);
 lightDirZ.addEventListener('input', updateLightDirection);
-
-// Default light direction values
-const defaultLightDir = {
-    x: cLightDir.x,
-    y: cLightDir.y,
-    z: cLightDir.z
-};
-
-// Function to reset the light direction to default values
+// Function to reset the light direction to default const values
 const resetLightDirection = () => {
-    lightDirX.value = defaultLightDir.x;
-    lightDirY.value = defaultLightDir.y;
-    lightDirZ.value = defaultLightDir.z;
+	// Reset inputs to const values
+    lightDirX.value = cLightDir.x;
+    lightDirY.value = cLightDir.y;
+    lightDirZ.value = cLightDir.z;
     updateLightDirection(); // Update the shader with the default values
 };
 // Add event listener to the reset button

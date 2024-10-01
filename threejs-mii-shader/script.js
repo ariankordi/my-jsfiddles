@@ -9,7 +9,7 @@ const scene = new THREE.Scene();
 const fov = 15; // Field of view in degrees
 const aspect = window.innerWidth / window.innerHeight; // Aspect ratio
 const near = 10; // Near clipping plane
-const far = 1000; // Far clipping plane
+const far = 10000; // Far clipping plane
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 
 // Position the camera and set the lookAt point
@@ -33,65 +33,66 @@ let rotationSpeed = parseFloat(document.getElementById('rotationSpeed').value);
 // Variable to hold the loaded model
 let model = null;
 
-// Define material parameters based on the C++ struct
+// Material table for FFLDefaultShader mapping to FFLModulateType
+// Reference: https://github.com/aboood40091/FFL-Testing/blob/master/src/Shader.cpp
 const cMaterialParam = [
-    { // ShapeFaceline
+    { // FFL_MODULATE_TYPE_SHAPE_FACELINE
         ambient: new THREE.Vector4(0.85, 0.75, 0.75, 1.0),
         diffuse: new THREE.Vector4(0.75, 0.75, 0.75, 1.0),
         specular: new THREE.Vector4(0.30, 0.30, 0.30, 1.0),
         specularPower: 1.2,
         specularMode: 0
     },
-    { // ShapeBeard
+    { // FFL_MODULATE_TYPE_SHAPE_BEARD
         ambient: new THREE.Vector4(1.0, 1.0, 1.0, 1.0),
         diffuse: new THREE.Vector4(0.7, 0.7, 0.7, 1.0),
         specular: new THREE.Vector4(0.0, 0.0, 0.0, 1.0),
         specularPower: 40.0,
         specularMode: 1
     },
-    { // ShapeNose
+    { // FFL_MODULATE_TYPE_SHAPE_NOSE
         ambient: new THREE.Vector4(0.90, 0.85, 0.85, 1.0),
         diffuse: new THREE.Vector4(0.75, 0.75, 0.75, 1.0),
         specular: new THREE.Vector4(0.22, 0.22, 0.22, 1.0),
         specularPower: 1.5,
         specularMode: 0
     },
-    { // ShapeForehead
+    { // FFL_MODULATE_TYPE_SHAPE_FOREHEAD
         ambient: new THREE.Vector4(0.85, 0.75, 0.75, 1.0),
         diffuse: new THREE.Vector4(0.75, 0.75, 0.75, 1.0),
         specular: new THREE.Vector4(0.30, 0.30, 0.30, 1.0),
         specularPower: 1.2,
         specularMode: 0
     },
-    { // ShapeHair
+    { // FFL_MODULATE_TYPE_SHAPE_HAIR
         ambient: new THREE.Vector4(1.00, 1.00, 1.00, 1.0),
         diffuse: new THREE.Vector4(0.70, 0.70, 0.70, 1.0),
         specular: new THREE.Vector4(0.35, 0.35, 0.35, 1.0),
         specularPower: 10.0,
         specularMode: 1
     },
-    { // ShapeCap
+    { // FFL_MODULATE_TYPE_SHAPE_CAP
         ambient: new THREE.Vector4(0.75, 0.75, 0.75, 1.0),
         diffuse: new THREE.Vector4(0.72, 0.72, 0.72, 1.0),
         specular: new THREE.Vector4(0.30, 0.30, 0.30, 1.0),
         specularPower: 1.5,
         specularMode: 0
     },
-    { // ShapeMask
+    { // FFL_MODULATE_TYPE_SHAPE_MASK
         ambient: new THREE.Vector4(1.0, 1.0, 1.0, 1.0),
         diffuse: new THREE.Vector4(0.7, 0.7, 0.7, 1.0),
         specular: new THREE.Vector4(0.0, 0.0, 0.0, 1.0),
         specularPower: 40.0,
         specularMode: 1
     },
-    { // ShapeNoseline
+    { // FFL_MODULATE_TYPE_SHAPE_NOSELINE
         ambient: new THREE.Vector4(1.0, 1.0, 1.0, 1.0),
         diffuse: new THREE.Vector4(0.7, 0.7, 0.7, 1.0),
         specular: new THREE.Vector4(0.0, 0.0, 0.0, 1.0),
         specularPower: 40.0,
         specularMode: 1
     },
-    { // ShapeGlass
+    { // FFL_MODULATE_TYPE_SHAPE_GLASS
         ambient: new THREE.Vector4(1.0, 1.0, 1.0, 1.0),
         diffuse: new THREE.Vector4(0.7, 0.7, 0.7, 1.0),
         specular: new THREE.Vector4(0.0, 0.0, 0.0, 1.0),
@@ -100,16 +101,17 @@ const cMaterialParam = [
     }
 ];
 
-// Define light parameters based on the C++ constants
+// FFLDefaultShader default lighting parameters
 const cLightAmbient  = new THREE.Vector4(0.73, 0.73, 0.73, 1.0);
 const cLightDiffuse  = new THREE.Vector4(0.60, 0.60, 0.60, 1.0);
 const cLightSpecular = new THREE.Vector4(0.70, 0.70, 0.70, 1.0);
+// Light direction derived from this vector: [-0.65, 0.36]
 const cLightDir      = new THREE.Vector3(-0.4531539381, 0.4226179123, 0.7848858833);
 const cRimColor      = new THREE.Vector4(0.3, 0.3, 0.3, 1.0);
 const cRimPower      = 2.0;
 
 
-// Select the Load Model button
+// Select the Load Model button to later disable/re-enable it
 const loadModelButton = document.getElementById('loadModelButton');
 
 // Function to load the glTF model from a URL
@@ -153,15 +155,17 @@ const loadModel = (url) => {
                     const modulateType = userData.modulateType ?? 0;
 
                     // HACK for now: disable lighting on mask and glass
+                    // (Because there is some lighting bug affecting
+                    // those that does not happen in FFL-Testing)
                     const lightEnable = (modulateType === 6 || userData.modulateType === 8) ? false : true;
-
+					// Select material parameter based on the modulate type, default to faceline
                     const materialParam = cMaterialParam[modulateType] ?? cMaterialParam[0];
 
                     // Retrieve modulateMode
                     const modulateMode = userData.modulateMode ?? 0;
 
-                    // Retrieve modulateColor (vec3), default to white if missing
-                    const modulateColor = new THREE.Vector4(...(userData.modulateColor ?? [1, 0, 0]), 1); // Default to red, always opaque
+                    // Retrieve modulateColor (vec3), default to red if missing
+                    const modulateColor = new THREE.Vector4(...(userData.modulateColor ?? [1, 0, 0]), 1);
 
                     if (!userData.modulateColor)
                         console.warn(`Mesh "${node.name}" is missing "modulateColor" in userData.`);
@@ -171,8 +175,8 @@ const loadModel = (url) => {
                     if (originalMaterial.map) 
                         defines.USE_MAP = '';
 
-										// Function to Map FFLCullMode to three.js material side
-										let side = originalMaterial.side;
+                    // Function to Map FFLCullMode to three.js material side
+                    let side = originalMaterial.side;
                     if (userData.cullMode !== undefined) {
                     		switch (userData.cullMode) {
                         	case 0: // FFL_CULL_MODE_NONE
@@ -306,6 +310,52 @@ renderer.domElement.addEventListener('pointerup', () => {
 document.getElementById('rotationSpeed').addEventListener('input', function () {
     rotationSpeed = parseFloat(this.value) || 0;
 });
+
+// Initialize light direction sliders
+const lightDirX = document.getElementById('lightDirX');
+const lightDirY = document.getElementById('lightDirY');
+const lightDirZ = document.getElementById('lightDirZ');
+
+// Function to update the light direction in the shader
+const updateLightDirection = () => {
+    const x = parseFloat(lightDirX.value);
+    const y = parseFloat(lightDirY.value);
+    const z = parseFloat(lightDirZ.value);
+    cLightDir.set(x, y, z).normalize();
+
+    // Update the uniform for all shader materials
+    if (model) {
+        model.traverse(node => {
+            if (node.isMesh && node.material.uniforms) {
+                node.material.uniforms.u_light_dir.value = cLightDir;
+            }
+        });
+    }
+};
+
+// Add event listeners to update the light direction when sliders change
+lightDirX.addEventListener('input', updateLightDirection);
+lightDirY.addEventListener('input', updateLightDirection);
+lightDirZ.addEventListener('input', updateLightDirection);
+
+// Default light direction values
+const defaultLightDir = {
+    x: cLightDir.x,
+    y: cLightDir.y,
+    z: cLightDir.z
+};
+
+// Function to reset the light direction to default values
+const resetLightDirection = () => {
+    lightDirX.value = defaultLightDir.x;
+    lightDirY.value = defaultLightDir.y;
+    lightDirZ.value = defaultLightDir.z;
+    updateLightDirection(); // Update the shader with the default values
+};
+// Add event listener to the reset button
+document.getElementById('resetLightButton').addEventListener('click', resetLightDirection);
+
+
 
 // Load the default model on startup
 loadModel(document.getElementById('modelUrl').value);

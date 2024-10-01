@@ -8,15 +8,31 @@
         <button id="loadModelButton" type="submit">Load Model</button>
     </form>
     <div id="controls">
+
+        <div id="lightDirectionControl">
+            <details>
+                <summary>Light Direction Control</summary>
+                <label for="lightDirX">Light Direction X:</label>
+                <input type="range" id="lightDirX" min="-1" max="1" step="0.01" value="-0.453">
+
+                <label for="lightDirY">Light Direction Y:</label>
+                <input type="range" id="lightDirY" min="-1" max="1" step="0.01" value="0.423">
+
+                <label for="lightDirZ">Light Direction Z:</label>
+                <input type="range" id="lightDirZ" min="-1" max="1" step="0.01" value="0.785">
+
+                <button id="resetLightButton">Reset Light Direction</button>
+            </details>
+        </div>
+
         <div id="buttons">
             <button id="pauseButton">Pause Rotation</button>
             <button id="resumeButton" style="display:none;">Resume Rotation</button>
-        </div>
 
-        <div id="rotationSpeedControl">
             <label for="rotationSpeed">Rotation Speed:</label>
             <input type="range" id="rotationSpeed" min="0" max="0.1" step="0.001" value="0.01">
         </div>
+
     </div>
 </div>
 

@@ -185,7 +185,7 @@ const loadModel = (url) => {
                         },
                         defines: defines,
                         side: originalMaterial.side,
-                        // HACK: GLTFLoader shshould set this,
+                        // HACK: GLTFLoader should set this,
                         // using its value results in no mask/glass
                         // transparency however true doesn't
                         // seem to pose major issues

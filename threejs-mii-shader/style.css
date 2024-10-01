@@ -1,0 +1,51 @@
+body { margin: 0; overflow: hidden; background-color: #E6E6FA; } /* Pastel purple background */
+canvas { display: block; }
+
+#ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255,255,255,0.8);
+    padding: 10px;
+    border-radius: 4px;
+    font-family: Arial, sans-serif;
+    z-index: 1;
+    overflow: hidden; /* Ensure content remains within the boundaries */
+    resize: both;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Optional shadow for better visibility */
+}
+#ui input, #ui button, #ui label {
+    display: block;
+    margin: 5px 0;
+}
+#modelUrl {
+    width: 100%; /* Ensure input field takes up available width within the constrained size */
+}
+.hint {
+    color: gray;
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    max-width: 430px; /* Constrain the width of the hint text */
+    word-wrap: break-word; /* Ensure long text wraps inside the constrained width */
+}
+/* Flexbox layout for aligning buttons and rotation speed on the same row */
+#controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/
+#buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 5px; /* Adds space between buttons */
+}
+
+#rotationSpeedControl {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}

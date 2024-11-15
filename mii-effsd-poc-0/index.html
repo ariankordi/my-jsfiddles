@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <body>
+    <h1>CFLiPackedMiiDataCore/FFLiMiiDataCore Padding Tool</h1>
+
+    <!-- Encoding Form -->
+    <h2>Encode Padding Fields</h2>
+    <form id="encodeForm">
+      <label for="dataEncode">Data (Hex):</label><br />
+      <textarea id="dataEncode" rows="4" cols="72"></textarea><br /><br />
+
+      <label for="paddingData">Padding Data to Insert (Hex, 41 Bits Max):</label
+      ><br />
+      <input type="text" id="paddingData" size="72" /><br /><br />
+
+      <input type="submit" value="Encode" />
+    </form>
+    <p id="encodeResult"></p>
+
+    <!-- Decoding Form -->
+    <h2>Decode Padding Fields</h2>
+    <form id="decodeForm">
+      <label for="dataDecode">Data (Hex):</label><br />
+      <textarea id="dataDecode" rows="4" cols="72"></textarea><br /><br />
+
+      <input type="submit" value="Decode" />
+    </form>
+    <p id="decodeResult"></p>
+  <script src="script.js"></script>
+</body>
+</html>

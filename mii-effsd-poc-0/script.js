@@ -22,6 +22,7 @@ function byteArrayToHexString(byteArray) {
 // Define the padding fields with their positions and sizes
 const paddingFields = [
   { byteOffset: 1, bitOffset: 6, size: 2 }, // reserved_0:2
+  { byteOffset: 3, bitOffset: 0, size: 4 }, // authorType:4
   { byteOffset: 3, bitOffset: 7, size: 1 }, // reserved_1:1
   { byteOffset: 22, bitOffset: 0, size: 8 }, // reserved_2[0]:8 bits
   { byteOffset: 23, bitOffset: 0, size: 8 }, // reserved_2[1]:8 bits

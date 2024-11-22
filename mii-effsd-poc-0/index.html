@@ -1,31 +1,100 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-  <body>
-    <h1>CFLiPackedMiiDataCore/FFLiMiiDataCore Padding Tool</h1>
 
-    <!-- Encoding Form -->
-    <h2>Encode Padding Fields</h2>
-    <form id="encodeForm">
-      <label for="dataEncode">Data (Hex):</label><br />
-      <textarea id="dataEncode" rows="4" cols="72"></textarea><br /><br />
+<body>
 
-      <label for="paddingData">Padding Data to Insert (Hex, 41 Bits Max):</label
-      ><br />
-      <input type="text" id="paddingData" size="72" /><br /><br />
+<h1>CFLiPackedMiiDataCore Padding Tool</h1>
 
-      <input type="submit" value="Encode" />
-    </form>
-    <p id="encodeResult"></p>
+<hr>
 
-    <!-- Decoding Form -->
-    <h2>Decode Padding Fields</h2>
-    <form id="decodeForm">
-      <label for="dataDecode">Data (Hex):</label><br />
-      <textarea id="dataDecode" rows="4" cols="72"></textarea><br /><br />
+<!-- Form 1: Encode Padding Data into Core Data -->
+<h2>1. Encode Padding Data into Core Data</h2>
+<form id="encodePaddingForm">
+    <label for="encodeCoreData">Core Data Hex (72 bytes - 144 hex chars):</label><br>
+    <textarea id="encodeCoreData" name="encodeCoreData" rows="4" cols="80" required></textarea><br><br>
 
-      <input type="submit" value="Decode" />
-    </form>
-    <p id="decodeResult"></p>
-  <script src="script.js"></script>
+    <label for="encodePaddingHex">Padding Data Hex (6 bytes - 12 hex chars):</label><br>
+    <input type="text" id="encodePaddingHex" name="encodePaddingHex" maxlength="12" required><br><br>
+
+    <input type="submit" value="Encode Padding into Core Data">
+</form>
+
+<h3>Encoded Core Data Hex:</h3>
+<pre id="encodedCoreDataHexOutput"></pre>
+
+<hr>
+
+<!-- Form 2: Decode Padding Data from Core Data -->
+<h2>2. Decode Padding Data from Core Data</h2>
+<form id="decodePaddingForm">
+    <label for="decodeCoreData">Core Data Hex (72 bytes - 144 hex chars):</label><br>
+    <textarea id="decodeCoreData" name="decodeCoreData" rows="4" cols="80" required></textarea><br><br>
+
+    <input type="submit" value="Decode Padding from Core Data">
+</form>
+
+<h3>Extracted Padding Data Hex:</h3>
+<pre id="extractedPaddingHexOutput"></pre>
+
+<hr>
+
+<!-- Form 3: Pack Common Colors into Core Data -->
+<h2>3. Pack Common Colors into Core Data</h2>
+<form id="packCommonColorsForm">
+    <label for="packCoreData">Core Data Hex (72 bytes - 144 hex chars):</label><br>
+    <textarea id="packCoreData" name="packCoreData" rows="4" cols="80" required></textarea><br><br>
+
+    <!-- Common Colors Inputs -->
+    <h3>Common Colors (Ver4):</h3>
+    <label for="packFaceColor">Face Color (0-9):</label>
+    <input type="number" id="packFaceColor" name="packFaceColor" min="0" max="9" required><br><br>
+
+    <label for="packHairColor">Hair Color (0-99):</label>
+    <input type="number" id="packHairColor" name="packHairColor" min="0" max="99" required><br><br>
+
+    <label for="packEyeColor">Eye Color (0-99):</label>
+    <input type="number" id="packEyeColor" name="packEyeColor" min="0" max="99" required><br><br>
+
+    <label for="packEyebrowColor">Eyebrow Color (0-99):</label>
+    <input type="number" id="packEyebrowColor" name="packEyebrowColor" min="0" max="99" required><br><br>
+
+    <label for="packMouthColor">Mouth Color (0-99):</label>
+    <input type="number" id="packMouthColor" name="packMouthColor" min="0" max="99" required><br><br>
+
+    <label for="packBeardColor">Beard Color (0-99):</label>
+    <input type="number" id="packBeardColor" name="packBeardColor" min="0" max="99" required><br><br>
+
+    <label for="packGlassColor">Glass Color (0-99):</label>
+    <input type="number" id="packGlassColor" name="packGlassColor" min="0" max="99" required><br><br>
+
+    <label for="packGlassType">Glass Type (0-19):</label>
+    <input type="number" id="packGlassType" name="packGlassType" min="0" max="19" required><br><br>
+
+    <input type="submit" value="Pack Common Colors into Core Data">
+</form>
+
+<h3>Pack Common Colors Results:</h3>
+<pre id="packCommonColorsResults"></pre>
+
+<label for="packEncodedHex">Encoded Core Data Hex:</label><br>
+<input type="text" id="packEncodedHex" readonly size="144"><br><br>
+
+<hr>
+
+<!-- Form 4: Extract Common Colors from Core Data -->
+<h2>4. Extract Common Colors from Core Data</h2>
+<form id="extractCommonColorsForm">
+    <label for="extractCoreData">Core Data Hex (72 bytes - 144 hex chars):</label><br>
+    <textarea id="extractCoreData" name="extractCoreData" rows="4" cols="80" required></textarea><br><br>
+
+    <input type="submit" value="Extract Common Colors">
+</form>
+
+<h3>Extracted Common Colors (Ver4):</h3>
+<pre id="extractedCommonColorsOutput"></pre>
+
+<hr>
+
+<script src="script.js"></script>
 </body>
 </html>

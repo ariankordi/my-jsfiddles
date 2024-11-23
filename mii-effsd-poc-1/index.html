@@ -102,36 +102,29 @@
 // === Mapping Tables ===
 
 // Mapping tables from Ver4 to Ver3
- const ToVer3HairColorTable = [
-    0, 1, 2, 3, 4, 5, 6, 7, 0, 4, 3, 5, 4, 4, 6, 2, 0, 6, 4, 3,
-    2, 2, 7, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-    2, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4, 4, 4, 4, 4, 4, 0, 0, 0, 4,
-    4, 4, 4, 4, 4, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 5, 7, 5, 7, 7,
-    7, 7, 7, 6, 7, 7, 7, 7, 7, 3, 7, 7, 7, 7, 7, 0, 4, 4, 4, 4
+const ToVer3HairColorTable = [
+  /* 0:  */ 0, 1, 2, 3, 4, 5, 6, 7, 0, 4, 3, 5, 4, 5 /* < 13, orig. val: 4 */, 6, 2, 0, 6, 4, 3, 2, 2, 7, 3, 2, 2,
+  /* 26: */ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 0, 0, 4, 4,
+  /* 52: */ 4, 4, 4, 4, 0, 0, 0, 5 /* < 59, orig. val: 4 */, 4, 4, 4, 4, 4, 5, 5, 5, 4, 4, 7 /* 70, < orig. val: 4 */, 4, 4, 4, 4, 5, 7, 5,
+  /* 78: */ 7, 7, 7, 7, 7, 6, 7, 7, 7, 7, 7, 3, 7, 7, 7, 7, 7, 0, 4, 4, 4, 4,
 ];
-
 const ToVer3EyeColorTable = [
-    0, 2, 2, 2, 1, 3, 2, 3, 0, 1, 2, 3, 4, 5, 2, 2, 4, 2, 1, 2,
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0,
-    4, 4, 4, 4, 4, 4, 4, 1, 0, 4, 4, 4, 4, 4, 4, 4, 0, 5, 5, 5,
-    5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 3,
-    3, 3, 3, 2, 2, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1
+  /* 0:  */ 0, 2, 2, 2, 1, 3, 2, 3, 0, 1, 2, 3, 4, 5, 2, 2, 4, 2, 1, 2, 2, 2, 2, 2, 2, 2,
+  /* 26: */ 2, 1 /* < 27, orig. val: 2 */, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1 /* < 37, orig. val: 2 */, 0, 0, 4, 4, 4, 4, 4, 4, 4, 1, 0, 4, 4, 4,
+  /* 52: */ 4, 4, 4, 4, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3,
+  /* 78: */ 3, 3, 3, 3, 3, 2, 2, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1,
 ];
-
 const ToVer3MouthColorTable = [
-    4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 0,
-    1, 2, 3, 4, 4, 2, 3, 3, 4, 4, 4, 4, 1, 4, 4, 2, 3, 3, 4, 4,
-    4, 4, 4, 4, 4, 3, 3, 3, 4, 4, 4, 3, 3, 3, 3, 3, 4, 4, 4, 4,
-    4, 3, 3, 3, 3, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 4, 4, 3, 3, 3,
-    3, 3, 3, 4, 3, 3, 3, 3, 3, 4, 0, 3, 3, 3, 3, 4, 3, 3, 3, 3
+  /* 0:  */ 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 0, 1, 2, 3, 4, 4, 2,
+  /* 26: */ 3, 3, 4, 4, 4, 4, 1, 4, 4, 2, 3, 3, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 4, 4, 4, 3,
+  /* 52: */ 3, 3, 3, 3, 4, 4, 4, 4, 4, 3, 3, 3, 3, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 4, 4, 3,
+  /* 78: */ 3, 3, 3, 3, 3, 4, 3, 3, 3, 3, 3, 4, 0, 3, 3, 3, 3, 4, 3, 3, 3, 3,
 ];
-
 const ToVer3GlassColorTable = [
-    0, 1, 1, 1, 5, 1, 1, 4, 0, 5, 1, 1, 3, 5, 1, 2, 3, 4, 5, 4,
-    2, 2, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3,
-    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 5,
-    5, 5, 5, 5, 5, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-    5, 5, 5, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5
+  /* 0:  */ 0, 1, 1, 1, 5, 1, 1, 4, 0, 5, 1, 1, 3, 5, 1, 2, 3, 4, 5, 4, 2, 2, 4, 4, 2, 2,
+  /* 26: */ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+  /* 52: */ 3, 3, 3, 3, 0, 0, 0, 5, 5, 5, 5, 5, 5, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4 /* < 77, orig. val: 5 */,
+  /* 78: */ 5, 5, 5, 5, 5, 1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5,
 ];
 
 const ToVer3FacelineColorTable = [0, 1, 2, 3, 4, 5, 0, 1, 5, 5];
@@ -222,13 +215,17 @@ function writePadding(coreData, bits) {
     let mask;
 
     // Write each part of the padding into the respective bits in the core data
-    // bits: 0-40 (41 bits)
+    // Write reserved_0 and authorType
     mask = (1n << 2n) - 1n; // 2 bits
     coreData[1] = (coreData[1] & 0x3F) | Number((bits & mask) << 6n);
     bits >>= 2n;
 
-    mask = (1n << 1n) - 1n; // 1 bit
-    coreData[3] = (coreData[3] & 0x7F) | Number((bits & mask) << 7n);
+    mask = (1n << 4n) - 1n; // 4 bits (authorType)
+    coreData[3] = (coreData[3] & 0x0F) | Number((bits & mask) << 4n);
+    bits >>= 4n;
+
+    mask = (1n << 1n) - 1n; // 1 bit (reserved_1)
+    coreData[3] = (coreData[3] & 0xFE) | Number((bits & mask));
     bits >>= 1n;
 
     mask = (1n << 8n) - 1n; // 8 bits
@@ -264,6 +261,8 @@ function writePadding(coreData, bits) {
     mask = (1n << 8n) - 1n; // 8 bits
     coreData[0x41] = Number(bits & mask);
     bits >>= 8n;
+    
+    // above are used for NfpStoreDataExtention
 
     mask = (1n << 1n) - 1n; // 1 bit
     coreData[0x43] = (coreData[0x43] & 0x7F) | Number((bits & mask) << 7n);
@@ -272,8 +271,21 @@ function writePadding(coreData, bits) {
     coreData[0x47] = (coreData[0x47] & 0x7F) | Number((bits & mask) << 7n);
     bits >>= 1n;
 
-    mask = (1n << 4n) - 1n; // 4 bits
-    coreData[3] = (coreData[3] & 0xF0) | Number(bits & mask);
+
+    // Room Index and Position in Room (last fields before optional padding_9)
+    mask = (1n << 4n) - 1n; // Room Index (4 bits)
+    coreData[0x30] = (coreData[0x30] & 0x0F) | Number((bits & mask) << 4n);
+    bits >>= 4n;
+
+    mask = (1n << 4n) - 1n; // Position in Room (4 bits)
+    coreData[0x30] = (coreData[0x30] & 0xF0) | Number(bits & mask);
+    bits >>= 4n;
+
+    // Optional padding_9
+    if (length >= 96) {
+        mask = (1n << 16n) - 1n; // 16 bits
+        coreData[0x48] = Number(bits & mask);
+    }
 
 }
 
@@ -281,8 +293,14 @@ function writePadding(coreData, bits) {
 function extractPadding(coreData) {
     let bits = 0n;
 
-    bits |= BigInt(coreData[1] >> 6 & 0x3) << 0n;
-    bits |= BigInt(coreData[3] >> 7 & 0x1) << 2n;
+    // Extract reserved_0
+    bits |= BigInt((coreData[1] >> 6) & 0x3) << 0n;
+
+    // Extract authorType
+    bits |= BigInt((coreData[3] >> 4) & 0xF) << 2n;
+
+    // Extract reserved_1
+    bits |= BigInt(coreData[3] & 0x1) << 6n;
     bits |= BigInt(coreData[0x16]) << 3n;
     bits |= BigInt(coreData[0x17]) << 11n;
     bits |= BigInt(coreData[0x19] >> 7 & 0x1) << 19n;
@@ -294,14 +312,24 @@ function extractPadding(coreData) {
     bits |= BigInt(coreData[0x41]) << 31n;
     bits |= BigInt(coreData[0x43] >> 7 & 0x1) << 39n;
     bits |= BigInt(coreData[0x47] >> 7 & 0x1) << 40n;
-    bits |= BigInt(coreData[3] & 0xF) << 41n;
+
+    // Extract roomIndex
+    bits |= BigInt((coreData[0x30] >> 4) & 0xF) << 49n;
+
+    // Extract positionInRoom
+    bits |= BigInt(coreData[0x30] & 0xF) << 53n;
+
+    // Extract optional padding_9
+    if (length >= 96) {
+        bits |= BigInt(coreData[0x48]) << 57n;
+    }
 
     return bits;
 }
 
 
-// === CRC-4 Checksum Functions ===
-function calculateCRC4ITU(groupArray) {
+// === Checksum Functions ===
+function crc4ITU(groupArray) {
     const polynomial = 0x3; // CRC-4-ITU polynomial (x^4 + x + 1)
     let crc = 0x0;          // Initial value
 
@@ -320,57 +348,79 @@ function calculateCRC4ITU(groupArray) {
     return crc; // Return 4-bit CRC
 }
 
+function crc3GSM(data) {
+    // Polynomial for CRC-3-GSM: x^3 + x + 1 (binary: 0b1011, hex: 0xB)
+    const polynomial = 0xB;
+    let crc = 0; // Initialize CRC to 0
+
+    // Process each byte in the data stream
+    for (let byte of data) {
+        // Process each bit in the byte (MSB first)
+        for (let i = 7; i >= 0; i--) {
+            let bit = (byte >> i) & 1; // Extract the current bit
+            let msb = (crc >> 2) & 1;  // Extract MSB of the current CRC (3 bits)
+            crc = ((crc << 1) & 0x7) ^ (bit ^ msb ? polynomial : 0);
+        }
+    }
+
+    return crc & 0x7; // Return only the last 3 bits
+}
+
 // === Group Indices Packing and Unpacking ===
 
 // Pack group indices into 41-bit integer
-function packGroupIndices(indices) {
+function packGroupIndices(indices, extensionMode = 0b01) {
     let bits = 0n;
 
-    bits |= BigInt(indices.faceColorGroupIndex & 0x3);          // 2 bits
-    bits |= BigInt(indices.hairColorGroupIndex & 0x3F) << 2n;   // 6 bits
-    bits |= BigInt(indices.eyeColorGroupIndex & 0x3F) << 8n;    // 6 bits
-    bits |= BigInt(indices.eyebrowColorGroupIndex & 0x3F) << 14n; // 6 bits
-    bits |= BigInt(indices.mouthColorGroupIndex & 0x3F) << 20n;    // 6 bits
-    bits |= BigInt(indices.beardColorGroupIndex & 0x3F) << 26n;    // 6 bits
-    bits |= BigInt(indices.glassColorGroupIndex & 0x3F) << 32n;    // 6 bits
-    bits |= BigInt(indices.glassTypeGroupIndex & 0x7) << 38n;      // 3 bits
+    bits |= BigInt(indices.faceColorGroupIndex & 0x3) << 0n;  // 2 bits
+    bits |= BigInt(indices.hairColorGroupIndex & 0x1F) << 2n; // 5 bits
+    bits |= BigInt(indices.eyeColorGroupIndex & 0x1F) << 7n;  // 5 bits
+    bits |= BigInt(indices.eyebrowColorGroupIndex & 0x1F) << 12n; // 5 bits
+    bits |= BigInt(indices.mouthColorGroupIndex & 0x3F) << 17n;   // 6 bits
+    bits |= BigInt(indices.beardColorGroupIndex & 0x1F) << 23n;   // 5 bits
+    bits |= BigInt(indices.glassColorGroupIndex & 0x1F) << 28n;   // 5 bits
+    bits |= BigInt(indices.glassTypeGroupIndex & 0x7) << 33n;     // 3 bits
 
-   // Prepare group indices as an array of bytes for CRC calculation
-   const groupArray = [
-       indices.faceColorGroupIndex,
-       indices.hairColorGroupIndex,
-       indices.eyeColorGroupIndex,
-       indices.eyebrowColorGroupIndex,
-       indices.mouthColorGroupIndex,
-       indices.beardColorGroupIndex,
-       indices.glassColorGroupIndex,
-       indices.glassTypeGroupIndex,
-   ];
+    // Prepare group indices as an array for CRC calculation
+    const groupArray = [
+        indices.faceColorGroupIndex,
+        indices.hairColorGroupIndex,
+        indices.eyeColorGroupIndex,
+        indices.eyebrowColorGroupIndex,
+        indices.mouthColorGroupIndex,
+        indices.beardColorGroupIndex,
+        indices.glassColorGroupIndex,
+        indices.glassTypeGroupIndex,
+    ];
 
-   // Calculate the CRC-4-ITU checksum
-   const crc = calculateCRC4ITU(groupArray);
+    // Calculate the CRC-4-ITU checksum
+    const crc = crc3GSM(groupArray); //crc4ITU(groupArray);
 
-   // Append CRC to the last 4 bits
-   bits |= BigInt(crc & 0xF) << 41n; // 4 bits
+    // Append CRC
+    bits |= BigInt(crc & /*0xF*/ 0x7) << 36n; // 3 bits
+    
+    // Append the 2-bit extension mode
+    bits |= BigInt(extensionMode & 0x3) << 39n//40n; // 2 bits
 
-   return bits;
+    return bits;
 }
 
 // Unpack group indices from 41-bit integer
 function unpackGroupIndices(bits) {
-    const indices = {};
+    // Extract group indices
+    const indices = {
+        faceColorGroupIndex: Number((bits >> 0n) & 0x3n),  // 2 bits
+        hairColorGroupIndex: Number((bits >> 2n) & 0x1Fn), // 5 bits
+        eyeColorGroupIndex: Number((bits >> 7n) & 0x1Fn),  // 5 bits
+        eyebrowColorGroupIndex: Number((bits >> 12n) & 0x1Fn), // 5 bits
+        mouthColorGroupIndex: Number((bits >> 17n) & 0x3Fn),   // 6 bits
+        beardColorGroupIndex: Number((bits >> 23n) & 0x1Fn),   // 5 bits
+        glassColorGroupIndex: Number((bits >> 28n) & 0x1Fn),   // 5 bits
+        glassTypeGroupIndex: Number((bits >> 33n) & 0x7n),     // 3 bits
+    };
 
-    indices.faceColorGroupIndex = Number((bits >> 0n) & 0x3n);             // 2 bits
-    indices.hairColorGroupIndex = Number((bits >> 2n) & 0x3Fn);          // 6 bits
-    indices.eyeColorGroupIndex = Number((bits >> 8n) & 0x3Fn);           // 6 bits
-    indices.eyebrowColorGroupIndex = Number((bits >> 14n) & 0x3Fn);      // 6 bits
-    indices.mouthColorGroupIndex = Number((bits >> 20n) & 0x3Fn);        // 6 bits
-    indices.beardColorGroupIndex = Number((bits >> 26n) & 0x3Fn);        // 6 bits
-    indices.glassColorGroupIndex = Number((bits >> 32n) & 0x3Fn);        // 6 bits
-    indices.glassTypeGroupIndex = Number((bits >> 38n) & 0x7n);          // 3 bits
-    
-    // Extract the CRC from the last 4 bits
-    const extractedCRC = Number((bits >> 41n) & 0xFn);
+    // Extract the CRC from the last few bits
+    const extractedCRC = Number((bits >> 36n) & 0x7n);//0xFn);
 
     // Prepare group indices as an array for CRC calculation
     const groupArray = [
@@ -385,10 +435,13 @@ function unpackGroupIndices(bits) {
     ];
 
     // Calculate the expected CRC
-    const expectedCRC = calculateCRC4ITU(groupArray);
+    const expectedCRC = crc3GSM(groupArray);//crc4ITU(groupArray);
 
     // Add verification status to the indices
     indices.verificationPassed = (expectedCRC === extractedCRC);
+
+    // Extract the 2-bit extension mode
+    indices.extensionMode = Number((bits >> 39n) & 0x3n);
 
     return indices;
 }
@@ -773,10 +826,17 @@ document.getElementById('extractCommonColorsForm').addEventListener('submit', fu
         const verificationStatus = unpackResults.groupIndices.verificationPassed
         ? "Verification Passed"
         : "Verification Failed (Data may be corrupted)";
+        const extensionModeDesc = unpackResults.groupIndices.extensionMode === 0b00
+            ? "Disabled (NO EXTENSION!!! EVERYTHING BELOW SHOULD BE IGNORED)"
+            : unpackResults.groupIndices.extensionMode === 0b01
+            ? "Enabled"
+            : "Reserved";
+
 
         const commonColors = unpackResults.ver4Colors;
         
         const results = `Verification Status: ${verificationStatus}
+Extension Mode: ${extensionModeDesc}
 
 Reconstructed Common Colors (Ver4):
     Face Color: ${commonColors.faceColor}

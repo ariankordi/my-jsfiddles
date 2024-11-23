@@ -1,50 +1,15 @@
+<link rel="stylesheet" href="style.css">
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {
-            margin: 20px;
-        }
-        h3 {
-            cursor: pointer;
-            display: inline;
-        }
-        .color-rect {
-            display: inline-block;
-            width: 100px;
-            height: 50px;
-            margin: 5px;
-            text-align: center;
-            line-height: 50px;
-            font-weight: bold;
-            color: white;
-            border: 1px solid #000;
-        }
-        .color-square {
-            display: inline-block;
-            width: 50px;
-            height: 50px;
-            margin: 5px;
-            text-align: center;
-            line-height: 50px;
-            font-weight: bold;
-            color: white;
-            border: 1px solid #000;
-        }
-        #details-container {
-            margin-top: 20px;
-        }
-    </style>
-</head>
 <body>
     <h1>Ver3 to Common Color Reverse Mapping Toy</h1>
     <b>note: i made this to visualize reordering the switch to wiiu/3ds conversion tables and so the tables in the JS are the final modified versions</b>
     <div style="font-size: 10px;">but why did I reorder the values? the maximum "grouped index" values for most part types barely exceeded 31, so now with these modifications the grouped indices can use 5 bits instead of 6, giving me additional space for a less jank checksum/detection/signature etc</div>
     <div id="details-container"></div>
     <h2>Common Colors Mapping:</h2>
-    <div id="common-colors"></div>
+    <div id="common-colors">
+    </div>
+    <div id="mapping-count"></div>
 
     <script>
     </script>

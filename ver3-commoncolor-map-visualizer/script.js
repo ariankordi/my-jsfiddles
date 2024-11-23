@@ -669,41 +669,58 @@ function createColorDetails(title, ver3Colors, mappingTable) {
   summary.innerHTML = `<h3>${title}</h3>`
   details.appendChild(summary)
 
-  // Add Ver3 color rectangles
-  ver3Colors.forEach((color) => {
-    const colorRect = document.createElement("div")
-    colorRect.className = "color-rect"
-    colorRect.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`
-    colorRect.textContent = color.id
-    colorRect.addEventListener("click", () => {
-      showCommonColors(color.id, mappingTable)
-    })
-    details.appendChild(colorRect)
-  })
+    // Add Ver3 color rectangles
+    ver3Colors.forEach(color => {
+        const colorRect = document.createElement('div');
+        colorRect.className = 'color-rect';
+        colorRect.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+        colorRect.textContent = color.id;
 
+        // Adjust text color for contrast
+        const brightness = (color.r * 0.299 + color.g * 0.587 + color.b * 0.114) / 255;
+        colorRect.style.color = brightness > 0.5 ? 'black' : 'white';
+
+        // Highlight selected Ver3 color
+        colorRect.addEventListener('click', () => {
+            document.querySelectorAll('.color-rect').forEach(el => el.classList.remove('highlight'));
+            colorRect.classList.add('highlight');
+            showCommonColors(color.id, mappingTable);
+        });
+
+        details.appendChild(colorRect);
+    });
   return details
 }
 
 function showCommonColors(ver3Id, mappingTable) {
-  const commonColorsDiv = document.getElementById("common-colors")
-  commonColorsDiv.innerHTML = "" // Clear previous content
+    const commonColorsDiv = document.getElementById('common-colors');
+    const mappingCountDiv = document.getElementById('mapping-count');
+    commonColorsDiv.innerHTML = ''; // Clear previous content
 
-  // Find all common colors mapping to the selected Ver3 color
-  const mappedIndexes = mappingTable.reduce((indexes, val, index) => {
-    if (val === ver3Id) indexes.push(index)
-    return indexes
-  }, [])
+    // Find all common colors mapping to the selected Ver3 color
+    const mappedIndexes = mappingTable.reduce((indexes, val, index) => {
+        if (val === ver3Id) indexes.push(index);
+        return indexes;
+    }, []);
 
-  // Display common colors
-  mappedIndexes.forEach((index) => {
-    const color = commonColors.find((c) => c.id == index)
-    if (!color) return // Skip if no color exists
-    const colorSquare = document.createElement("div")
-    colorSquare.className = "color-square"
-    colorSquare.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`
-    colorSquare.textContent = index
-    commonColorsDiv.appendChild(colorSquare)
-  })
+    // Display common colors
+    mappedIndexes.forEach(index => {
+        const color = commonColors.find(c => c.id === index);
+        if (!color) return; // Skip if no color exists
+        const colorSquare = document.createElement('div');
+        colorSquare.className = 'color-square';
+        colorSquare.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+        colorSquare.textContent = index;
+
+        // Adjust text color for contrast
+        const brightness = (color.r * 0.299 + color.g * 0.587 + color.b * 0.114) / 255;
+        colorSquare.style.color = brightness > 0.5 ? 'black' : 'white';
+
+        commonColorsDiv.appendChild(colorSquare);
+    });
+
+    // Show total count of mappings
+    mappingCountDiv.textContent = `Total mappings for Ver3 Color ${ver3Id}: ${mappedIndexes.length}`;
 }
 
 // Initialize the details section

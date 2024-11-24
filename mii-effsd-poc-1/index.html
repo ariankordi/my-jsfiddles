@@ -301,24 +301,30 @@ function extractPadding(coreData) {
 
     // Extract reserved_1
     bits |= BigInt(coreData[3] & 0x1) << 6n;
-    bits |= BigInt(coreData[0x16]) << 3n;
-    bits |= BigInt(coreData[0x17]) << 11n;
-    bits |= BigInt(coreData[0x19] >> 7 & 0x1) << 19n;
-    bits |= BigInt(coreData[0x33] >> 4 & 0xF) << 20n;
-    bits |= BigInt(coreData[0x37] >> 6 & 0x3) << 24n;
-    bits |= BigInt(coreData[0x39] >> 7 & 0x1) << 26n;
-    bits |= BigInt(coreData[0x3B] >> 6 & 0x3) << 27n;
-    bits |= BigInt(coreData[0x3D] >> 6 & 0x3) << 29n;
-    bits |= BigInt(coreData[0x41]) << 31n;
-    bits |= BigInt(coreData[0x43] >> 7 & 0x1) << 39n;
-    bits |= BigInt(coreData[0x47] >> 7 & 0x1) << 40n;
 
+    bits |= BigInt(coreData[0x16]) << 7n;
+    bits |= BigInt(coreData[0x17]) << 15n;
+
+    bits |= BigInt((coreData[0x19] >> 7) & 0x1) << 23n;
+    bits |= BigInt((coreData[0x33] >> 4) & 0xF) << 24n;
+    bits |= BigInt((coreData[0x37] >> 6) & 0x3) << 28n;
+
+    bits |= BigInt((coreData[0x39] >> 7) & 0x1) << 30n;
+    bits |= BigInt((coreData[0x3B] >> 6) & 0x3) << 31n;
+
+    bits |= BigInt((coreData[0x3D] >> 6) & 0x3) << 33n;
+    bits |= BigInt(coreData[0x41]) << 35n;
+    bits |= BigInt((coreData[0x43] >> 7) & 0x1) << 43n;
+
+    bits |= BigInt((coreData[0x47] >> 7) & 0x1) << 44n;
+    bits |= BigInt(coreData[3] & 0xF) << 45n;
+/*
     // Extract roomIndex
     bits |= BigInt((coreData[0x30] >> 4) & 0xF) << 49n;
 
     // Extract positionInRoom
     bits |= BigInt(coreData[0x30] & 0xF) << 53n;
-
+*/
     // Extract optional padding_9
     if (length >= 96) {
         bits |= BigInt(coreData[0x48]) << 57n;

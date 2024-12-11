@@ -273,30 +273,6 @@
 
         /**
          * Display the list of valid Mii Base64 strings in the HTML.
-         * @param {Array} miis - Array of Base64 encoded Mii data.
-         */
-        /*
-        function displayMiis(miis) {
-            var ul = document.getElementById('miiList');
-            ul.innerHTML = ''; // Clear any existing content
-
-            for (var i = 0; i < miis.length; i++) {
-                var li = document.createElement('li');
-                li.textContent = miis[i];
-                //li.innerHTML = '<img src="https://mii-unsecure.ariankordi.net/miis/image.png?width=96&data=' + encodeURIComponent(miis[i]) + '"><br>';
-                ul.appendChild(li);
-            }
-
-            // Inform the user if no valid Miis were found
-            if (miis.length === 0) {
-                var li = document.createElement('li');
-                li.textContent = 'No valid Mii data found.';
-                ul.appendChild(li);
-            }
-        }
-        */
-        /**
-         * Display the list of valid Mii Base64 strings in the HTML.
          * @param {Array} miis - Array of Mii objects containing name, roomIndex, positionInRoom, and Base64 data.
          */
         function displayMiis(miis) {
@@ -391,9 +367,17 @@
 
                     // Check if FFLCreateID is all zeros
                     if (!areAllZeros(createId)) {
-                        // Valid Mii data, encode to Base64
+                        // Decode UTF-16 name
+                        var name = decodeUTF16Name(swappedData, NAME_OFFSET, MAX_NAME_LENGTH, true);
+
+                        // Encode Mii data to Base64
                         var base64Mii = bytesToBase64(swappedData);
-                        validMiis.push(base64Mii);
+
+                        // Add entry to the validMiis array as formatted text
+                        validMiis.push({
+                            name: name,
+                            base64: base64Mii
+                        });
                     }
                 }
 

@@ -222,7 +222,7 @@
             // Calculate the total size expected for m_MiiDataOfficial
             var expectedSize = FFLI_DATABASE_MIIDATA_OFFSET + (TOTAL_MIIS * FFLI_MII_DATA_OFFICIAL_SIZE);
             if (uint8Array.length < expectedSize) {
-                alert('Invalid FFL_ODB.dat file size.');
+                alert('Invalid FFL_ODB.dat file size. Actual size: ' + uint8Array.length);
                 return;
             }
 
@@ -230,7 +230,7 @@
 
             for (var i = 0; i < TOTAL_MIIS; i++) {
                 var offset = FFLI_DATABASE_MIIDATA_OFFSET + (i * FFLI_MII_DATA_OFFICIAL_SIZE);
-                var miiData = uint8Array.slice(offset, offset + FFLI_MII_DATA_OFFICIAL_SIZE);
+                var miiData = uint8Array.subarray(offset, offset + FFLI_MII_DATA_OFFICIAL_SIZE);
 
                 // Perform endian swapping
                 var swappedData = swapFFLiMiiDataOfficial(miiData);
@@ -343,53 +343,47 @@
         }
 
         // Uncomment the following block to use NWF's file reading implementation
-        /*
-        // Original NWF File Reading Implementation
+        
+        // NWF File Reading Implementation
         function onFFLODBRead(evt) {
-            getFFLStoreDataFromFFL_ODB(evt.data, function (err, FFLStoreDataArray) {
-                if (err) {
-                    return console.error('[IO] Error reading file contents: ', err);
+            // Check if evt.data is a Blob
+            if (!evt.data) {
+                alert('Error: No data found in the event.');
+                return;
+            }
+
+            var blob = evt.data; // The Blob from the event
+            var reader = new FileReader();
+
+            reader.onloadend = function () {
+                if (reader.result) {
+                    // Convert text content to an ArrayBuffer
+                    var textData = reader.result; // Result is a string
+                    var arrayBuffer = new Uint8Array(textData.split('').map(function (char) {
+                        return char.charCodeAt(0);
+                    })).buffer;
+
+                    // Process the ArrayBuffer
+                    processFFLODB(arrayBuffer);
+                } else {
+                    alert('Error: Failed to read Blob content.');
                 }
+            };
 
-                var validMiis = [];
+            reader.onerror = function () {
+                alert('Error: Could not read Blob.');
+            };
 
-                for (var i = 0; i < FFLStoreDataArray.length; i++) {
-                    var data = FFLStoreDataArray[i];
-
-                    // Perform endian swapping
-                    var swappedData = swapFFLiMiiDataOfficial(data);
-
-                    // Extract FFLCreateID (bytes 4 to 20 within FFLiMiiDataOfficial)
-                    var createId = [];
-                    for (var j = 4; j < 20; j++) {
-                        createId.push(swappedData[j]);
-                    }
-
-                    // Check if FFLCreateID is all zeros
-                    if (!areAllZeros(createId)) {
-                        // Decode UTF-16 name
-                        var name = decodeUTF16Name(swappedData, NAME_OFFSET, MAX_NAME_LENGTH, true);
-
-                        // Encode Mii data to Base64
-                        var base64Mii = bytesToBase64(swappedData);
-
-                        // Add entry to the validMiis array as formatted text
-                        validMiis.push({
-                            name: name,
-                            base64: base64Mii
-                        });
-                    }
-                }
-
-                // Display the valid Mii data
-                displayMiis(validMiis);
-            });
+            // Read the Blob as text
+            reader.readAsBinaryString(blob); // Use binary string to match expected content format
         }
+
 
         function onFFLODBReadFail() {
             alert('Failed to read FFL_ODB.dat file.');
         }
 
+/*
         // Initialize NWF file reading on document ready
         document.addEventListener('DOMContentLoaded', function () {
             try {
@@ -410,7 +404,7 @@
                 alert("An error occurred while accessing the directory: " + error.message);
             }
         });
-        */
+*/
 
         // Ensure the DOM is loaded before attaching event listeners
         document.addEventListener('DOMContentLoaded', function () {

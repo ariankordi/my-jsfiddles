@@ -37,6 +37,8 @@
         var FFLI_MII_DATA_OFFICIAL_SIZE = 92; // 0x5C bytes
         var FFLI_CREATE_ID_SIZE = 16; // 0x10 bytes
         var TOTAL_MIIS = 3000; // Number of FFLiMiiDataOfficial entries
+        var NAME_OFFSET = 0x1A; // Starting offset for the name
+        var MAX_NAME_LENGTH = 10; // Maximum name length in characters
 
         /**
          * Check if all elements in an array are zero.
@@ -182,6 +184,35 @@
         }
 
         /**
+             * Convert a UTF-16 encoded name to a string.
+             * @param {Uint8Array} data - The byte array containing the UTF-16 name.
+             * @param {number} offset - The offset where the name starts.
+             * @param {number} maxLength - The maximum length of the name in characters.
+             * @param {boolean} isLittleEndian - Whether the data is in little-endian format.
+             * @return {string} - The decoded UTF-16 name as a string.
+             */
+        function decodeUTF16Name(data, offset, maxLength, isLittleEndian) {
+            var name = '';
+            for (var i = 0; i < maxLength; i++) {
+                var charCode;
+                if (isLittleEndian) {
+                    charCode = (data[offset + 1] << 8) | data[offset];
+                } else {
+                    charCode = (data[offset] << 8) | data[offset + 1];
+                }
+
+                // Stop if null terminator is encountered
+                if (charCode === 0) {
+                    break;
+                }
+
+                name += String.fromCharCode(charCode);
+                offset += 2;
+            }
+            return name;
+        }
+
+        /**
          * Process the uploaded FFL_ODB.dat file and display valid Mii data.
          * @param {ArrayBuffer} arrayBuffer - The file data as ArrayBuffer.
          */
@@ -212,9 +243,27 @@
 
                 // Check if FFLCreateID is all zeros
                 if (!areAllZeros(createId)) {
-                    // Valid Mii data, encode to Base64
+                    // Decode UTF-16 name
+                    var name = decodeUTF16Name(swappedData, NAME_OFFSET, MAX_NAME_LENGTH, true);
+
+                    // Extract roomIndex (4 bits) and positionInRoom (4 bits)
+                    /*
+                    var roomIndex = (swappedData[3] >> 4) & 0x0F; // Upper 4 bits of byte 3
+                    var positionInRoom = swappedData[3] & 0x0F;   // Lower 4 bits of byte 3
+                    */
+
+                    // Encode Mii data to Base64
                     var base64Mii = bytesToBase64(swappedData);
-                    validMiis.push(base64Mii);
+
+                    // Add entry to the validMiis array as formatted text
+                    validMiis.push({
+                        name: name,
+                        /*
+                        roomIndex: roomIndex,
+                        positionInRoom: positionInRoom,
+                        */
+                        base64: base64Mii
+                    });
                 }
             }
 
@@ -226,6 +275,7 @@
          * Display the list of valid Mii Base64 strings in the HTML.
          * @param {Array} miis - Array of Base64 encoded Mii data.
          */
+        /*
         function displayMiis(miis) {
             var ul = document.getElementById('miiList');
             ul.innerHTML = ''; // Clear any existing content
@@ -244,6 +294,51 @@
                 ul.appendChild(li);
             }
         }
+        */
+        /**
+         * Display the list of valid Mii Base64 strings in the HTML.
+         * @param {Array} miis - Array of Mii objects containing name, roomIndex, positionInRoom, and Base64 data.
+         */
+        function displayMiis(miis) {
+            var ul = document.getElementById('miiList');
+            ul.innerHTML = ''; // Clear any existing content
+
+            // Add text format description
+            /*
+            var formatDesc = document.createElement('li');
+            formatDesc.textContent = 'Format: Name (Room Index/Position In Room): Base64 Data';
+            ul.appendChild(formatDesc);
+            */
+
+            for (var i = 0; i < miis.length; i++) {
+                var li = document.createElement('li');
+
+                // Prefix with Name and Room Info
+                li.textContent = miis[i].name + '\n';//`${miis[i].name} (${miis[i].roomIndex}/${miis[i].positionInRoom}): `;
+
+                // Add Base64 in a code block
+                var codeBlock = document.createElement('code');
+                codeBlock.textContent = miis[i].base64;
+                li.appendChild(codeBlock);
+
+                // Add inner bullet with image
+                var innerUl = document.createElement('ul');
+                var innerLi = document.createElement('li');
+                innerLi.innerHTML = '<img src="https://mii-unsecure.ariankordi.net/miis/image.png?width=96&data=' + encodeURIComponent(miis[i].base64) + '"><br>';
+                innerUl.appendChild(innerLi);
+                li.appendChild(innerUl);
+
+                ul.appendChild(li);
+            }
+
+            // Inform the user if no valid Miis were found
+            if (miis.length === 0) {
+                var li = document.createElement('li');
+                li.textContent = 'No valid Mii data found.';
+                ul.appendChild(li);
+            }
+        }
+
 
         /**
          * Handle the file input change event.

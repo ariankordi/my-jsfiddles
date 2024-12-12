@@ -273,12 +273,13 @@ function writePadding(coreData, bits) {
 
 
     // Room Index and Position in Room (last fields before optional padding_9)
+
     mask = (1n << 4n) - 1n; // Room Index (4 bits)
-    coreData[0x30] = (coreData[0x30] & 0x0F) | Number((bits & mask) << 4n);
+    coreData[2] = (coreData[2] & 0x0F) | Number((bits & mask) << 4n);
     bits >>= 4n;
 
     mask = (1n << 4n) - 1n; // Position in Room (4 bits)
-    coreData[0x30] = (coreData[0x30] & 0xF0) | Number(bits & mask);
+    coreData[2] = (coreData[2] & 0xF0) | Number(bits & mask);
     bits >>= 4n;
 
     // Optional padding_9
@@ -318,13 +319,13 @@ function extractPadding(coreData) {
 
     bits |= BigInt((coreData[0x47] >> 7) & 0x1) << 44n;
     bits |= BigInt(coreData[3] & 0xF) << 45n;
-/*
+
     // Extract roomIndex
-    bits |= BigInt((coreData[0x30] >> 4) & 0xF) << 49n;
+    bits |= BigInt((coreData[2] >> 4) & 0xF) << 49n;
 
     // Extract positionInRoom
-    bits |= BigInt(coreData[0x30] & 0xF) << 53n;
-*/
+    bits |= BigInt(coreData[2] & 0xF) << 53n;
+
     // Extract optional padding_9
     if (length >= 96) {
         bits |= BigInt(coreData[0x48]) << 57n;

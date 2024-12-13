@@ -6,6 +6,13 @@
         <form id="modelForm">
             <div class="controls">
                 <label for="modelUrl">glTF Model URL:</label>
+              
+                <!--<label for="shaderSelector">Select Shader:</label>-->
+                <select id="shaderSelector">
+                  <option value="FFLShaderMaterial" selected>FFLShaderMaterial</option>
+                  <option value="LUTShaderMaterial">LUTShaderMaterial</option>
+                </select>
+              
                 <button id="hideUiButton" type="button">Hide UI</button>
             </div>
             <input type="text" id="modelUrl" value="https://mii-unsecure.ariankordi.net/miis/image.glb?nnid=JasmineChlora">
@@ -48,16 +55,680 @@
 <script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://unpkg.com/three@0.126.0/examples/js/controls/OrbitControls.js"></script>
 
-<!-- Vertex Shader derived from MiiDefaultShader.vsh found in Miitomo -->
-<script id="vertexShader" type="x-shader/x-vertex">
-// position, texCoord (uv), normal are all provided by three.js
+<!-- Vertex Shader derived from LUT.vsh found in Miitomo. -->
+<script id="LUTShaderVert" type="x-shader/x-vertex">
+#define AGX_FEATURE_ALBEDO_TEXTURE
+/**
+ * @file    LUT.vsh
+ * @brief   LUT
+ * @since   2014/10/02
+ *
+ * Copyright (c)2014 Nintendo Co., Ltd. All rights reserved.
+ */
 
+// シェーダーの種類毎に設定されるマクロリスト
+// AGX_FEATURE_VERTEX_COLOR         頂点カラーが有効
+// AGX_FEATURE_ALBEDO_TEXTURE       アルベドテクスチャーが有効
+// AGX_FEATURE_BUMP_TEXTURE         バンプテクスチャーが有効
+// AGX_FEATURE_MASK_TEXTURE         マスクテクスチャーが有効
+// AGX_FEATURE_ALPHA_TEXTURE        アルファテクスチャーが有効
+// AGX_FEATURE_SPHERE_MAP_TEXTURE   スフィア環境マップが有効
+// AGX_FEATURE_SKIN_MASK            肌マスクが有効（uColor0）
+// AGX_FEATURE_HAIR_MASK            髪マスクが有効（uColor1）
+// AGX_FEATURE_ALPHA_TEST           アルファテストが有効
+// AGX_FEATURE_FADE_OUT_COLOR       フェードアウトカラーが有効（uColor2）
+// AGX_FEATURE_DISABLE_LIGHT        ライトが無効
+// AGX_FEATURE_ALPHA_COLOR_FILTER   アルベドアルファによる色替えが有効
+// AGX_FEATURE_ALBEDO_ALPHA         アルベドのアルファをカラーのアルファに適用
+// AGX_FEATURE_PREMULTIPLY_ALPHA    プレマルチプライアルファな描画
+// AGX_FEATURE_MII                  Miiを描画する
+// AGX_FEATURE_MII_CONSTANT         Miiを描画する：Constant
+// AGX_FEATURE_MII_TEXTURE_DIRECT   Miiを描画する：Texture Direct
+// AGX_FEATURE_MII_RGB_LAYERED      Miiを描画する：RGB Layered
+// AGX_FEATURE_MII_ALPHA            Miiを描画する：Alpha
+// AGX_FEATURE_MII_LUMINANCE_ALPHA  Miiを描画する：Luminance Alpha
+// AGX_FEATURE_MII_ALPHA_OPA        Miiを描画する：Alpha Opa
+//
+// AGX_BONE_MAX     ボーンの最大数
+
+#ifdef GL_ES
+precision highp float;
+#else
+#   define lowp
+#   define mediump
+#   define highp
+#endif
+
+#ifndef AGX_BONE_MAX
+#   define AGX_BONE_MAX 15
+#endif
+#ifndef AGX_DIR_LIGHT_MAX
+#   define AGX_DIR_LIGHT_MAX 2
+#endif
+
+// ----------------------------------------
+// 頂点シェーダーに入力される attribute 変数
+//attribute highp   vec3 position;   //!< 入力:[ 1 : 1 ] 位置情報
+#if defined(AGX_FEATURE_ALBEDO_TEXTURE) || defined(AGX_FEATURE_BUMP_TEXTURE) || defined(AGX_FEATURE_MASK_TEXTURE) || defined(AGX_FEATURE_ALPHA_TEXTURE)
+//attribute mediump vec2 uv;  //!< 入力:[ 1 : 5 ] テクスチャー座標
+#endif
+//attribute mediump vec3 normal;     //!< 入力:[ 1 : 2 ] 法線ベクトル
+attribute mediump vec4 aBoneIndex;  //!< 入力:[ 1 : 3 ] ボーンのインデックス（最大4つ）
+attribute mediump vec4 aBoneWeight; //!< 入力:[ 1 : 4 ] ボーンの影響度（最大4つ）
+#if defined(AGX_FEATURE_VERTEX_COLOR)
+//attribute lowp    vec4 _color;      //!< 入力:[ 1 : 6 ] 頂点カラー
+#endif
+#if defined(AGX_FEATURE_BUMP_TEXTURE)
+//attribute mediump vec3 tangent;    //!< 入力:[ 1 : 7 ] 接線ベクトル
+#endif
+
+// ^^ Commented attributes are provided by three.js.
+
+// ----------------------------------------
+// 頂点シェーダーに入力される uniform 変数
+//uniform highp   mat4 modelViewMatrix;                            //!< 入力:[ 4      /  4 :   4 ] モデルの合成行列
+//uniform mat4 projectionMatrix;
+//uniform highp   mat4 viewMatrix;                           //!< 入力:[ 4      /  4 :   8 ] モデルのビュー行列
+//uniform mediump mat3 normalMatrix;                         //!< 入力:[ 3      /  3 :  11 ] モデルの法線用行列
+//uniform highp   mat4 modelMatrix;                          //!< 入力:[ 4      /  4 :  15 ] モデルのワールド変換行列
+uniform lowp    int  uBoneCount;                            //!< 入力:[ 1      /  1 :  16 ] ボーンの個数
+uniform highp   mat4 uBoneMatrices[AGX_BONE_MAX];           //!< 入力:[ 4 x 15 / 60 :  76 ] ボーンの行列配列
+uniform mediump mat3 uBoneNormalMatrices[AGX_BONE_MAX];     //!< 入力:[ 3 x 15 / 45 : 121 ] ボーンの法線行列配列
+uniform lowp    int  uDirLightCount;                        //!< 入力:[ 1      /  1 : 122 ] 方向ライトの数
+uniform mediump vec4 uDirLightDirAndType0;//!< 入力:[ 1 x  2 /  2 : 124 ] 平行ライトの向く方向
+uniform mediump vec4 uDirLightDirAndType1;//!< 入力:[ 1 x  2 /  2 : 124 ] 平行ライトの向く方向
+uniform mediump vec3 uDirLightColor0;     //!< 入力:[ 1 x  2 /  2 : 126 ] 平行ライトのカラー
+uniform mediump vec3 uDirLightColor1;     //!< 入力:[ 1 x  2 /  2 : 126 ] 平行ライトのカラー
+uniform mediump vec3 uHSLightSkyColor;                      //!< 入力:[ 1      /  1 : 127 ] 半球ライトのスカイカラー
+uniform mediump vec3 uHSLightGroundColor;                   //!< 入力:[ 1      /  1 : 128 ] 半球ライトのグラウンドカラー
+//uniform mediump vec3 cameraPosition;                                //!< 入力:[ 1      /  1 : 129 ] カメラの位置
+// ^^ previously uEyePt
+uniform mediump float uAlpha;                               //!< 入力:[ 1      /  1 : 130 ] アルファ値
+
+// ^^ Commented uniforms are provided by three.js.
+
+// ----------------------------------------
+// フラグメントシェーダーに渡される varying 変数
+varying lowp    vec4    vModelColor;                            //!< 出力:[ 1 : 1 ] モデルの色
+#if !defined(AGX_FEATURE_BUMP_TEXTURE)
+varying mediump vec3    vNormal;                                //!< 出力:[ 1 : 2 ] モデルの法線
+#endif
+#if defined(AGX_FEATURE_ALBEDO_TEXTURE) || defined(AGX_FEATURE_BUMP_TEXTURE) || defined(AGX_FEATURE_MASK_TEXTURE) || defined(AGX_FEATURE_ALPHA_TEXTURE)
+varying mediump vec2    vTexcoord0;                             //!< 出力:[ 1 : 3 ] テクスチャーUV
+#endif
+// camera
+varying mediump vec3    vEyeVecWorldOrTangent;                  //!< 出力:[ 1 : 4 ] 視線ベクトル
+#if !defined(AGX_FEATURE_DISABLE_LIGHT)
+// punctual light
+varying mediump vec3    vPunctualLightDirWorldOrTangent;        //!< 出力:[ 1 : 5 ] ライトの方向
+varying mediump vec3    vPunctualLightHalfVecWorldOrTangent;    //!< 出力:[ 1 : 6 ] カメラとライトのハーフベクトル
+// GI
+varying mediump vec3    vGISpecularLightColor;                  //!< 出力:[ 1 : 7 ] GIフレネルで使用するカラー
+// Lighting Result
+varying mediump vec3    vDiffuseColor;                          //!< 出力:[ 1 : 8 ] ディフューズライティング結果
+#endif
+// Reflect
+#if defined(AGX_FEATURE_SPHERE_MAP_TEXTURE)
+varying lowp    vec3    vReflectDir;                            //!< 出力:[ 1 : 9 ] 環境マップの反射ベクトル
+#endif
+
+// ------------------------------------------------------------
+// 頂点シェーダーのエントリーポイント
+// ------------------------------------------------------------
+void main()
+{
+    // ------------------------------------------------------------
+    // 頂点変換用の処理
+    // ------------------------------------------------------------
+    highp   vec4 position_;  //!< 最終的な頂点
+    mediump vec3 normal_;    //!< 最終的な法線
+    mediump vec3 tangent_;   //!< 最終的な接線
+    highp   vec4 positionWorld; //!< ワールド空間上での頂点
+    
+    // ----------------------------------------
+    if (uBoneCount >= 1)
+    {
+        lowp    ivec4 boneIndex  = ivec4(aBoneIndex);   //!< ボーンのインデックス
+        mediump vec4  boneWeight = aBoneWeight;         //!< ボーンの影響度
+        
+        // ボーンの行列を取得する
+        highp   mat4 boneMatrix = uBoneMatrices[boneIndex.x];
+        mediump mat3 boneNormMatrix = uBoneNormalMatrices[boneIndex.x];
+        
+        // 位置と法線をあらかじめ計算しておく
+        position_ = boneMatrix * vec4(position.xyz, 1.0) * boneWeight.x;
+        normal_   = boneNormMatrix * (normal * boneWeight.x);
+#if defined(AGX_FEATURE_BUMP_TEXTURE)
+        tangent  = boneNormMatrix * (aTangent * boneWeight.x);
+#endif
+        
+        
+        // 他の影響するボーンの行列を取得し、計算していく
+        int iBone = 1;
+        for (; iBone < uBoneCount; ++ iBone)
+        {
+            // ボーンの参照を変更する
+            boneIndex  = boneIndex.yzwx;
+            boneWeight = boneWeight.yzwx;
+            
+            // 新しいボーンの行列を取得
+            boneMatrix = uBoneMatrices[boneIndex.x];
+            boneNormMatrix = uBoneNormalMatrices[boneIndex.x];
+            
+            // 位置と法線を加算していく
+            position_ += boneMatrix * vec4(position.xyz, 1.0) * boneWeight.x;
+            normal_   += boneNormMatrix * (normal * boneWeight.x);
+#if defined(AGX_FEATURE_BUMP_TEXTURE)
+            tangent  += boneNormMatrix * (aTangent * boneWeight.x);
+#endif
+        }
+    }
+    else
+    {
+        // ボーンが存在しない場合は位置と法線に手を加えない
+        position_ = vec4(position.xyz, 1.0);
+        //position = vec4(position.x*0.1, position.y*0.1, position.z*0.1, 1.0);
+        normal_   = normal;
+#if defined(AGX_FEATURE_BUMP_TEXTURE)
+        tangent  = aTangent;
+#endif
+    }
+    
+    // ----------------------------------------
+    // ワールド上での位置を求める
+    positionWorld = modelMatrix * position_;
+    // 最終結果を行う
+    position_ = projectionMatrix * modelViewMatrix * position_;
+    normal_   = normalize(normalMatrix * normal_);
+#if defined(AGX_FEATURE_BUMP_TEXTURE)
+    tangent  = normalize(normalMatrix * tangent);
+#endif
+    
+    // ----------------------------------------
+    // 計算結果を保持させる
+    gl_Position = position_;
+#if !defined(AGX_FEATURE_BUMP_TEXTURE)
+    vNormal     = normal_;
+#endif
+#if defined(AGX_FEATURE_ALBEDO_TEXTURE) || defined(AGX_FEATURE_BUMP_TEXTURE) || defined(AGX_FEATURE_MASK_TEXTURE) || defined(AGX_FEATURE_ALPHA_TEXTURE)
+    // テクスチャー座標を設定する
+    vTexcoord0 = uv;
+#endif
+    // モデルの色を指定する
+#if defined(AGX_FEATURE_VERTEX_COLOR)
+    lowp vec4 modelColor = aColor;
+    
+#else
+    lowp vec4 modelColor = vec4(1.0, 1.0, 1.0, 1.0);
+#endif
+    
+    // プリマルチプライドアルファ
+#if defined(AGX_FEATURE_PREMULTIPLY_ALPHA)
+    modelColor *= uAlpha;
+#else
+    modelColor.a *= uAlpha;
+#endif
+    
+    
+    // ------------------------------------------------------------
+    // ライト用の処理
+    // ------------------------------------------------------------
+    mediump vec3 eyeVecWorld;   //!< ワールド状態での視線ベクトル
+    mediump vec3 eyeVec;        //!< 最終的にフラグメントシェーダーに渡す視線ベクトル（バンプの有無によって、ワールド座標系になったり、タンジェント座標系になったりする）
+    
+    vec4 eye = modelViewMatrix * position_;
+    
+    // 視線ベクトルを取得する
+    //eyeVecWorld = normalize(cameraPosition - positionWorld.xyz);
+    eyeVecWorld = normalize(-(eye.xyz) - positionWorld.xyz);//normalize(cameraPosition - positionWorld.xyz);
+    eyeVec = eyeVecWorld;
+    
+    lowp vec3 diffuseColor = vec3(0.0); // バーテックスシェーダーで計算できるディフューズの色をここに格納する
+    
+#   if defined(AGX_FEATURE_BUMP_TEXTURE)
+    // Normal, Binormal, Tangent を取得する
+    mediump vec3 n = normal;
+    mediump vec3 t = tangent;
+    mediump vec3 b = cross(n, t);
+    // 接空間からローカルへ変換する行列を設定する（mat3(N, T, B)の逆行列）
+    mediump mat3 tangentMatrix = mat3(t.x, b.x, n.x, t.y, b.y, n.y, t.z, b.z, n.z);
+    // 視線ベクトルを接空間へ
+    vEyeVecWorldOrTangent.xyz = tangentMatrix * eyeVec;
+#else
+    vEyeVecWorldOrTangent.xyz = eyeVec;
+#endif
+    
+#if !defined(AGX_FEATURE_DISABLE_LIGHT)
+    // punctual lightの設定
+    if (uDirLightCount > 0)
+    {
+        mediump vec3 lightDir;
+        
+        // 方向ライト
+        if (uDirLightDirAndType0.w < 0.0) { lightDir = uDirLightDirAndType0.xyz; }
+        // 点光源ライト
+        else                                { lightDir = uDirLightDirAndType0.xyz - positionWorld.xyz; }
+        lightDir = normalize(lightDir);
+        
+#   if defined(AGX_FEATURE_BUMP_TEXTURE)
+        // ライトを接空間へ
+        vPunctualLightDirWorldOrTangent.xyz = tangentMatrix * lightDir;
+#   else
+        vPunctualLightDirWorldOrTangent.xyz = lightDir;
+#   endif
+        
+        // Halfベクトルを求める
+        vPunctualLightHalfVecWorldOrTangent.xyz = normalize(vPunctualLightDirWorldOrTangent.xyz + vEyeVecWorldOrTangent.xyz);
+        
+        // Diffuse計算
+        diffuseColor += (uDirLightColor0.rgb * clamp(dot(lightDir, normal), 0.0, 1.0));
+    }
+    if (uDirLightCount > 1)
+    {
+        mediump vec3 lightDir;
+        
+        // 方向ライト
+        if (uDirLightDirAndType1.w < 0.0) { lightDir = uDirLightDirAndType1.xyz; }
+        // 点光源ライト
+        else                                { lightDir = uDirLightDirAndType1.xyz - positionWorld.xyz; }
+        lightDir = normalize(lightDir);
+        
+        diffuseColor += max(dot(lightDir, normal), 0.0) * uDirLightColor1;
+    }
+    // ライトは1.0を超えないように
+    diffuseColor = min(diffuseColor, 1.0);
+#endif
+        
+#if defined(AGX_FEATURE_SPHERE_MAP_TEXTURE)
+    {
+        // キューブ環境マップ用の反射ベクトルを求める
+//        vReflectDir = reflect(normalize(positionWorld.xyz - cameraPosition), normal);
+
+        // スフィア環境マップ用の反射ベクトルを求める
+//        vReflectDir = normalize((uViewMatrix * vec4(normal, 0.0)).xyz) * 0.5 + 0.5;
+        
+        // ビュー座標系での位置と法線を取得
+        mediump vec3 viewNormal   = normalize(mat3(uViewMatrix) * normal);
+        mediump vec4 viewPosition = uViewMatrix * positionWorld;
+        viewPosition = viewPosition / viewPosition.w;
+        // ビュー座標系での頂点ベクトルを取得
+        viewPosition.z = 1.0 - viewPosition.z;
+        mediump vec3 viewPositionVec = normalize(viewPosition.xyz);
+        // ビュー座標系での反射ベクトルを求める
+        mediump vec3 viewReflect  = viewPositionVec - 2.0 * dot(viewPositionVec, viewNormal) * viewNormal;
+        // 両面スフィア環境マップではないので、反射ベクトルを調整
+        viewReflect = normalize(viewReflect - vec3(0.0, 0.0, 1.5));
+        // 反射ベクトルをテクスチャー座標系へ
+        vReflectDir = viewReflect * 0.5 + 0.5;
+        
+        // 公式
+//        mediump vec3  viewPositionVec = normalize(vec3(uViewMatrix * positionWorld));
+//        mediump vec3  viewReflectVec = viewPositionVec - 2.0 * dot(viewPositionVec, normal) * normal;
+//        mediump float m = 2.0 * sqrt(viewReflectVec.x * viewReflectVec.x +
+//                                     viewReflectVec.y * viewReflectVec.y +
+//                                     (viewReflectVec.z + 1.0) * (viewReflectVec.z * 1.0));
+//        vReflectDir = viewReflectVec / m + 0.5;
+        
+        // 別版
+//        mediump vec3 posW = positionWorld.xyz;
+//        mediump vec3 dir  = normalize(mat3(uViewMatrix) * normal);
+//        
+//        mediump float radius     = 75.0;
+//        mediump vec3  posWDir    = dot(dir, posW) * dir;
+//        mediump vec3  posWDirV   = posW - posWDir;
+//        mediump float lengthDir  = sqrt(radius * radius - dot(posWDirV, posWDirV)) - length(posWDir);
+//        vReflectDir = normalize(posW + dir * lengthDir) * 0.5 + 0.5;
+    }
+#endif
+    
+#if !defined(AGX_FEATURE_DISABLE_LIGHT)
+    // GIの計算
+    {
+        mediump vec3 hemiColor;
+        mediump vec3 sky = uHSLightSkyColor;
+        mediump vec3 ground = uHSLightGroundColor;
+        
+        {
+            mediump float skyRatio = (normal.y + 1.0) * 0.5;
+            hemiColor =  (sky * skyRatio + ground * (1.0 - skyRatio));
+            diffuseColor += hemiColor;
+        }
+        
+        {
+//            mediump vec3 reflectDir = -reflect(normal, eyeVecWorld); // おそらくコレで良いはず
+            mediump vec3 reflectDir = 2.0 * dot(eyeVecWorld, normal) * normal - eyeVecWorld; // 多少冗長でも、正しい計算で行なう
+            
+            mediump float skyRatio = (reflectDir.y + 1.0) * 0.5;
+            hemiColor =  (sky * skyRatio + ground * (1.0 - skyRatio));
+            vGISpecularLightColor.rgb = hemiColor;
+        }
+    }
+#endif
+    
+    // モデルの色を設定
+    vModelColor = modelColor;
+#if !defined(AGX_FEATURE_DISABLE_LIGHT)
+    vDiffuseColor.rgb = diffuseColor;
+#endif
+}
+</script>
+
+<!-- Fragment Shader derived from LUT.fsh found in Miitomo. Unmodified. -->
+<script id="LUTShaderFrag" type="x-shader/x-fragment">
+#define AGX_FEATURE_ALBEDO_TEXTURE
+#define AGX_FEATURE_MII
+/**
+ * @file    LUT.fsh
+ * @brief   LUT
+ * @since   2014/10/02
+ *
+ * Copyright (c)2014 Nintendo Co., Ltd. All rights reserved.
+ */
+
+// シェーダーの種類毎に設定されるマクロリスト
+// AGX_FEATURE_VERTEX_COLOR         頂点カラーが有効
+// AGX_FEATURE_ALBEDO_TEXTURE       アルベドテクスチャーが有効
+// AGX_FEATURE_BUMP_TEXTURE         バンプテクスチャーが有効
+// AGX_FEATURE_MASK_TEXTURE         マスクテクスチャーが有効
+// AGX_FEATURE_ALPHA_TEXTURE        アルファテクスチャーが有効
+// AGX_FEATURE_SPHERE_MAP_TEXTURE   スフィア環境マップが有効
+// AGX_FEATURE_SKIN_MASK            肌マスクが有効（uColor0）
+// AGX_FEATURE_HAIR_MASK            髪マスクが有効（uColor1）
+// AGX_FEATURE_ALPHA_TEST           アルファテストが有効
+// AGX_FEATURE_FADE_OUT_COLOR       フェードアウトカラーが有効（uColor2）
+// AGX_FEATURE_DISABLE_LIGHT        ライトが無効
+// AGX_FEATURE_ALPHA_COLOR_FILTER   アルベドアルファによる色替えが有効
+// AGX_FEATURE_ALBEDO_ALPHA         アルベドのアルファをカラーのアルファに適用
+// AGX_FEATURE_PREMULTIPLY_ALPHA    プレマルチプライアルファな描画
+// AGX_FEATURE_MII                  Miiを描画する
+// AGX_FEATURE_MII_CONSTANT         Miiを描画する：Constant
+// AGX_FEATURE_MII_TEXTURE_DIRECT   Miiを描画する：Texture Direct
+// AGX_FEATURE_MII_RGB_LAYERED      Miiを描画する：RGB Layered
+// AGX_FEATURE_MII_ALPHA            Miiを描画する：Alpha
+// AGX_FEATURE_MII_LUMINANCE_ALPHA  Miiを描画する：Luminance Alpha
+// AGX_FEATURE_MII_ALPHA_OPA        Miiを描画する：Alpha Opa
+
+#ifdef GL_ES
+precision mediump float;
+#else
+#   define lowp
+#   define mediump
+#   define highp
+#endif
+
+/// 変調処理のマクロ
+#define FFL_MODULATE_MODE_CONSTANT        0
+#define FFL_MODULATE_MODE_TEXTURE_DIRECT  1
+#define FFL_MODULATE_MODE_RGB_LAYERED     2
+#define FFL_MODULATE_MODE_ALPHA           3
+#define FFL_MODULATE_MODE_LUMINANCE_ALPHA 4
+#define FFL_MODULATE_MODE_ALPHA_OPA       5
+
+// ----------------------------------------
+// フラグメントシェーダーに入力される uniform 変数
+uniform int   uMode;   ///< 描画モード
+uniform bool uAlphaTest;
+uniform bool uLightEnable;
+uniform mediump vec4    uColor0;            //!< 入力:[ 1 : 1 ] カラー0 (OR 肌カラー)
+uniform mediump vec4    uColor1;            //!< 入力:[ 1 : 2 ] カラー1 (OR 髪カラー)
+uniform mediump vec4    uColor2;            //!< 入力:[ 1 : 3 ] カラー2 (OR フェードアウトカラー)
+//#if !defined(AGX_FEATURE_DISABLE_LIGHT)
+uniform mediump vec3    uLightColor;        //!< 入力:[ 1 : 4 ] ライトの色
+//#endif
+
+#if defined(AGX_FEATURE_ALBEDO_TEXTURE)
+uniform sampler2D       uAlbedoTexture;     //!< 入力: テクスチャー
+#endif
+#if defined(AGX_FEATURE_BUMP_TEXTURE)
+uniform sampler2D       uNormalTexture;     //!< 入力: ノーマルマップ
+#endif
+#if defined(AGX_FEATURE_MASK_TEXTURE)
+uniform sampler2D       uMaskTexture;       //!< 入力：マスクテクスチャー
+#endif
+#if defined(AGX_FEATURE_ALPHA_TEXTURE)
+uniform sampler2D       uAlphaTexture;      //!< 入力：アルファテクスチャー
+#endif
+uniform sampler2D       uLUTSpecTexture;    //!< 入力: スペキュラーLUT
+uniform sampler2D       uLUTFresTexture;    //!< 入力: フレネルLUT
+#if defined(AGX_FEATURE_SPHERE_MAP_TEXTURE)
+uniform sampler2D       uSphereMapTexture;  //!< 入力: スフィア環境マップ
+#endif
+
+// ----------------------------------------
+// フラグメントシェーダーに渡される varying 変数
+varying lowp    vec4    vModelColor;                            //!< 出力:[ 1 : 1 ] モデルの色
+#if !defined(AGX_FEATURE_BUMP_TEXTURE)
+varying mediump vec3    vNormal;                                //!< 出力:[ 1 : 2 ] モデルの法線
+#endif
+#if defined(AGX_FEATURE_ALBEDO_TEXTURE) || defined(AGX_FEATURE_BUMP_TEXTURE) || defined(AGX_FEATURE_MASK_TEXTURE) || defined(AGX_FEATURE_ALPHA_TEXTURE)
+varying mediump vec2    vTexcoord0;                             //!< 出力:[ 1 : 3 ] テクスチャーUV
+#endif
+// camera
+varying mediump vec3    vEyeVecWorldOrTangent;                  //!< 出力:[ 1 : 4 ] 視線ベクトル
+//#if !defined(AGX_FEATURE_DISABLE_LIGHT)
+// punctual light
+varying mediump vec3    vPunctualLightDirWorldOrTangent;        //!< 出力:[ 1 : 5 ] ライトの方向
+varying mediump vec3    vPunctualLightHalfVecWorldOrTangent;    //!< 出力:[ 1 : 6 ] カメラとライトのハーフベクトル
+// GI
+varying mediump vec3    vGISpecularLightColor;                  //!< 出力:[ 1 : 7 ] GIフレネルで使用するカラー
+// Lighting Result
+varying mediump vec3    vDiffuseColor;                          //!< 出力:[ 1 : 8 ] ディフューズライティング結果
+//#endif
+// Reflect
+#if defined(AGX_FEATURE_SPHERE_MAP_TEXTURE)
+varying lowp    vec3    vReflectDir;                            //!< 出力:[ 1 : 9 ] 環境マップの反射ベクトル
+#endif
+
+// ------------------------------------------------------------
+// フラグメントシェーダーのエントリーポイント
+// ------------------------------------------------------------
+void main()
+{
+    
+    // ディフューズカラーを取得
+    lowp vec4 albedoColor = vec4(1.0, 1.0, 1.0, 1.0);
+    
+    // ============================================================
+    //  Mii
+    // ============================================================
+#if defined(AGX_FEATURE_MII)
+
+   //#if defined(AGX_FEATURE_MII_CONSTANT)
+    if(uMode == FFL_MODULATE_MODE_CONSTANT)
+    {
+        albedoColor = vec4(uColor0.rgb, 1.0);
+    }
+    //#elif defined(AGX_FEATURE_MII_TEXTURE_DIRECT)
+    else if(uMode == FFL_MODULATE_MODE_TEXTURE_DIRECT)
+    {
+        albedoColor = texture2D(uAlbedoTexture, vTexcoord0);
+    }
+    //#elif defined(AGX_FEATURE_MII_RGB_LAYERED)
+    else if(uMode == FFL_MODULATE_MODE_RGB_LAYERED)
+    {
+        albedoColor = texture2D(uAlbedoTexture, vTexcoord0);
+        albedoColor = vec4(albedoColor.r * uColor0.rgb + albedoColor.g * uColor1.rgb + albedoColor.b * uColor2.rgb,
+                           albedoColor.a);
+    }
+    //#elif defined(AGX_FEATURE_MII_ALPHA)
+    else if(uMode == FFL_MODULATE_MODE_ALPHA)
+    {
+        albedoColor = texture2D(uAlbedoTexture, vTexcoord0);
+        albedoColor = vec4(uColor0.rgb, albedoColor.r);
+    }
+    //#elif defined(AGX_FEATURE_MII_LUMINANCE_ALPHA)
+    else if(uMode == FFL_MODULATE_MODE_LUMINANCE_ALPHA)
+    {
+        albedoColor = texture2D(uAlbedoTexture, vTexcoord0);
+        albedoColor = vec4(albedoColor.g * uColor0.rgb, albedoColor.r);
+    }
+    //#elif defined(AGX_FEATURE_MII_ALPHA_OPA)
+    else if(uMode == FFL_MODULATE_MODE_ALPHA_OPA)
+    {
+        albedoColor = texture2D(uAlbedoTexture, vTexcoord0);
+        albedoColor = vec4(albedoColor.r * uColor0.rgb, 1.0);
+    }
+//#endif
+    
+    albedoColor = albedoColor * vModelColor;
+#endif
+    
+    // ============================================================
+    //  Albedo Texture
+    // ============================================================
+#if !defined(AGX_FEATURE_MII) && defined(AGX_FEATURE_ALBEDO_TEXTURE)
+    albedoColor = texture2D(uAlbedoTexture, vTexcoord0);
+#endif
+#if defined(AGX_FEATURE_ALPHA_TEXTURE)
+    albedoColor.a   = texture2D(uAlphaTexture, vTexcoord0).r;
+#endif
+    
+    // ============================================================
+    //  Color Mask
+    // ============================================================
+    // ----------------------------------------
+    // Deprecated
+#if defined(AGX_FEATURE_ALPHA_COLOR_FILTER)
+    // 一部の場所にColor0を反映する
+    albedoColor.rgb = (albedoColor.rgb * albedoColor.a + uColor0.rgb * (1.0 - albedoColor.a));
+    albedoColor.a = 1.0;
+#elif defined(AGX_FEATURE_MASK_TEXTURE)
+    lowp vec3  maskTextureColor = texture2D(uMaskTexture, vTexcoord0).rgb;
+    
+#   if defined(AGX_FEATURE_SKIN_MASK) && defined(AGX_FEATURE_HAIR_MASK)
+    // 肌と髪両方マスクが存在する
+    lowp float maskColorValue = maskTextureColor.g + maskTextureColor.b;
+    lowp vec3  maskColor      = maskTextureColor.g * uColor0.rgb + maskTextureColor.b * uColor1.rgb;
+    albedoColor.rgb = (albedoColor.rgb * (1.0 - maskColorValue) + maskColor);
+    
+#   elif defined(AGX_FEATURE_SKIN_MASK)
+    // 肌しかマスクが存在しない
+    albedoColor.rgb = (albedoColor.rgb * (1.0 - maskTextureColor.g) + maskTextureColor.g * uColor0.rgb);
+    
+#   elif defined(AGX_FEATURE_HAIR_MASK)
+    // 髪しかマスクが存在しない
+    albedoColor.rgb = (albedoColor.rgb * (1.0 - maskTextureColor.b) + maskTextureColor.b * uColor1.rgb);
+    
+#   endif
+#endif
+    
+    // アルベドに頂点カラーを掛ける
+    albedoColor *= vModelColor;
+    
+    // ============================================================
+    //  Alpha test
+    // ============================================================
+//#if defined(AGX_FEATURE_ALPHA_TEST)
+    if (uAlphaTest && albedoColor.a < 0.5) { discard; }
+//#endif
+    
+    // ============================================================
+    //  Bumpmap
+    // ============================================================
+    // 頂点からの情報
+    lowp vec3 normalWorldOrTangent;
+#if defined(AGX_FEATURE_BUMP_TEXTURE)
+    // バンプマップから法線を取得する
+    mediump vec3 bumpNormal = texture2D(uNormalTexture, vTexcoord0).rgb;
+    
+    // 法線の正規化は処理が重いのでいったん正規化しない様に...
+//    normalWorldOrTangent = normalize(bumpNormal * 2.0 - 1.0);
+    normalWorldOrTangent = bumpNormal * 2.0 - 1.0;
+    
+#else
+    // 法線を正規化して取得する
+    normalWorldOrTangent = normalize(vNormal);
+#endif
+    
+    // ============================================================
+    //  Lighting
+    // ============================================================
+    // 最終的なカラー情報
+    lowp vec4 colorOut = vec4(0.0, 0.0, 0.0, albedoColor.a);  // 最終的に出力される色
+    lowp vec3 fresnel  = vec3(0.0, 0.0, 0.0);   // フレネル
+    lowp vec3 specular = vec3(0.0, 0.0, 0.0);   // スペキュラー
+    
+//#if !defined(AGX_FEATURE_DISABLE_LIGHT)
+if (uLightEnable) {
+    
+    // BRDFの計算を行う（バンプマッピングの場合は接空間）
+    lowp vec3 N = normalWorldOrTangent;
+    lowp vec3 V = vEyeVecWorldOrTangent.xyz;//normalize(vEyeVecWorldOrTangent.xyz);
+    lowp vec3 I = vPunctualLightDirWorldOrTangent.xyz;//normalize(vPunctualLightDirWorldOrTangent.xyz);
+    lowp vec3 H = vPunctualLightHalfVecWorldOrTangent.xyz;//normalize(vPunctualLightHalfVecWorldOrTangent.xyz);
+    
+    
+    // ----------------------------------------
+    // punctual light
+    // 平行光源や点光源などの厳密なライティング計算を行なうもの
+    {
+        lowp float fSpecular = dot(N, H);
+        
+        lowp float specularIntensity = texture2D(uLUTSpecTexture, vec2(fSpecular)).r;
+        specular = (specularIntensity * uLightColor.rgb);
+    }
+    
+    // ----------------------------------------
+    // GI
+    // 半球ライトやIBL、SHのように法線方向に半球積分された結果でライティング計算を行なうもの
+    {
+        lowp float fFresnel = dot(N, V);
+        lowp float fresnelIntensity = texture2D(uLUTFresTexture, vec2(fFresnel)).r;
+        
+        fresnel = (fresnelIntensity * vGISpecularLightColor.rgb);
+    }
+}
+//#endif
+    
+#if defined(AGX_FEATURE_SPHERE_MAP_TEXTURE)
+    // スフィア環境マップ
+    specular += texture2D(uSphereMapTexture, vReflectDir.xy).rgb;
+#endif
+    
+    // ============================================================
+    //  Specular Mask
+    // ============================================================
+#if !defined(AGX_FEATURE_ALPHA_COLOR_FILTER) && defined(AGX_FEATURE_MASK_TEXTURE)
+    // スペキュラーマスク
+    specular = specular * maskTextureColor.r + fresnel;
+#else
+    specular += fresnel;
+#endif
+    
+    // ============================================================
+    //  Output
+    // ============================================================
+//#if !defined(AGX_FEATURE_DISABLE_LIGHT)
+if (uLightEnable)
+    colorOut.rgb = vDiffuseColor.rgb * albedoColor.rgb + specular;
+//#else
+else
+    colorOut.rgb = albedoColor.rgb;
+//#endif
+    
+    // フェードアウトを実装する
+#if defined(AGX_FEATURE_FADE_OUT_COLOR)
+    colorOut.rgb = (colorOut.rgb * (1.0 - uColor2.a)) + (uColor2.rgb * uColor2.a);
+#endif
+    
+    // 色を反映させる
+    gl_FragColor = colorOut;
+}
+</script>
+
+
+
+
+
+<!-- Vertex Shader derived from MiiDefaultShader.vsh found in Miitomo. -->
+<script id="FFLShaderVert" type="x-shader/x-vertex">
 // 頂点シェーダーに入力される attribute 変数
 //attribute vec4 position;       //!< 入力: 位置情報
 //attribute vec2 uv;             //!< 入力: テクスチャー座標
 //attribute vec3 normal;         //!< 入力: 法線ベクトル
+// All provided by three.js ^^
 
-// color is not actually the vertex color, as such
+// vertex color is not actually the color of the shape, as such
 // it is a custom attribute _COLOR in the glTF
 
 attribute vec4 _color;           //!< 入力: 頂点の色
@@ -70,22 +741,75 @@ varying   vec3 v_normal;         //!< 出力: 法線ベクトル
 varying   vec3 v_tangent;        //!< 出力: 異方位
 varying   vec2 v_texCoord;       //!< 出力: テクスチャー座標
 
-// normalMatrix, modelViewMatrix, and projectionMatrix are provided by three.js
 // ユニフォーム
 //uniform mat3 normalMatrix;     //!< ユニフォーム: モデルの法線用行列
 //uniform mat4 modelViewMatrix;  //!< ユニフォーム: プロジェクション行列
 //uniform mat4 projectionMatrix; //!< ユニフォーム: モデル行列
+// All provided by three.js ^^
+
+// skinning_pars_vertex.glsl.js
+#ifdef USE_SKINNING
+    uniform mat4 bindMatrix;
+    uniform mat4 bindMatrixInverse;
+    uniform highp sampler2D boneTexture;
+    mat4 getBoneMatrix( const in float i ) {
+        int size = textureSize( boneTexture, 0 ).x;
+        int j = int( i ) * 4;
+        int x = j % size;
+        int y = j / size;
+        vec4 v1 = texelFetch( boneTexture, ivec2( x, y ), 0 );
+        vec4 v2 = texelFetch( boneTexture, ivec2( x + 1, y ), 0 );
+        vec4 v3 = texelFetch( boneTexture, ivec2( x + 2, y ), 0 );
+        vec4 v4 = texelFetch( boneTexture, ivec2( x + 3, y ), 0 );
+        return mat4( v1, v2, v3, v4 );
+    }
+#endif
 
 void main()
 {
+
+    // begin_vertex.glsl.js
+    vec3 transformed = vec3( position );
+// skinbase_vertex.glsl.js
+#ifdef USE_SKINNING
+    mat4 boneMatX = getBoneMatrix( skinIndex.x );
+    mat4 boneMatY = getBoneMatrix( skinIndex.y );
+    mat4 boneMatZ = getBoneMatrix( skinIndex.z );
+    mat4 boneMatW = getBoneMatrix( skinIndex.w );
+    // skinning_vertex.glsl.js
+    vec4 skinVertex = bindMatrix * vec4( transformed, 1.0 );
+    vec4 skinned = vec4( 0.0 );
+    skinned += boneMatX * skinVertex * skinWeight.x;
+    skinned += boneMatY * skinVertex * skinWeight.y;
+    skinned += boneMatZ * skinVertex * skinWeight.z;
+    skinned += boneMatW * skinVertex * skinWeight.w;
+    transformed = ( bindMatrixInverse * skinned ).xyz;
+#endif
+
 //#ifdef FFL_COORDINATE_MODE_NORMAL
     // 頂点座標を変換
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    v_position = modelViewMatrix * vec4(position, 1.0);
+    v_position = modelViewMatrix * vec4(transformed, 1.0);
+    gl_Position =  projectionMatrix * v_position;
+
+    vec3 objectNormal = normal;
+    vec3 objectTangent = tangent.xyz;
+// skinnormal_vertex.glsl.js
+#ifdef USE_SKINNING
+    mat4 skinMatrix = mat4( 0.0 );
+    skinMatrix += skinWeight.x * boneMatX;
+    skinMatrix += skinWeight.y * boneMatY;
+    skinMatrix += skinWeight.z * boneMatZ;
+    skinMatrix += skinWeight.w * boneMatW;
+    skinMatrix = bindMatrixInverse * skinMatrix * bindMatrix;
+
+    objectNormal = vec4( skinMatrix * vec4( objectNormal, 0.0 ) ).xyz;
+    objectTangent = vec4( skinMatrix * vec4( objectTangent, 0.0 ) ).xyz;
+
+#endif
 
     // 法線も変換
     //v_normal = mat3(inverse(u_mv)) * a_normal;
-    v_normal = normalize(normalMatrix * normal);
+    v_normal = normalize(normalMatrix * objectNormal);
 //#elif defined(FFL_COORDINATE_MODE_NONE)
 //    // 頂点座標を変換
 //    gl_Position = vec4(a_position.x, a_position.y * -1.0, a_position.z, a_position.w);
@@ -96,13 +820,34 @@ void main()
 
      // その他の情報も書き出す
     v_texCoord = uv;
-    v_tangent = normalize(normalMatrix * tangent.xyz);
+    v_tangent = normalMatrix * objectTangent;
+    // ^^ Normalizing tangent (like normal) causes
+    // anisotropic elements (e.g. mask, beard...)
+    // where tangent is usually black, to become white, and
+    // create a half-black bug only that manifests on Safari
+
     v_color = _color;
 }
 </script>
 
-<!-- Fragment Shader derived from MiiDefaultShader.fsh found in Miitomo -->
-<script id="fragmentShader" type="x-shader/x-fragment">
+<!-- Fragment Shader derived from MiiDefaultShader.fsh found in Miitomo. Unmodified. -->
+<script id="FFLShaderFrag" type="x-shader/x-fragment">
+//
+//  sample.flg
+//  Fragment shader
+//  Copyright (c) 2014 Nintendo Co., Ltd. All rights reserved.
+//
+//
+
+#ifdef GL_ES
+precision mediump float;
+#else
+#   define lowp
+#   define mediump
+#   define highp
+#endif
+
+
 //
 //  定数定義ファイル
 //
@@ -235,17 +980,16 @@ mediump float calculateDot(mediump vec3 light, mediump vec3 normal)
 
 // フラグメントシェーダーに入力される varying 変数
 varying mediump vec4 v_color;          //!< 出力: 頂点の色
-varying mediump vec4 v_position;       //!< 出力: 位置情報
-varying mediump vec3 v_normal;         //!< 出力: 法線ベクトル
+varying highp   vec4 v_position;       //!< 出力: 位置情報
+varying highp   vec3 v_normal;         //!< 出力: 法線ベクトル
+// NOTE: ^^ Those two need to be highp to avoid weird black dot issue on Android
 varying mediump vec3 v_tangent;        //!< 出力: 異方位
 varying mediump vec2 v_texCoord;       //!< 出力: テクスチャー座標
 
 /// constカラー
 uniform mediump vec4  u_const1; ///< constカラー1
-/*
 uniform mediump vec4  u_const2; ///< constカラー2
 uniform mediump vec4  u_const3; ///< constカラー3
-*/
 
 /// ライト設定
 uniform mediump vec4 u_light_ambient;  ///< カメラ空間のライト方向
@@ -271,6 +1015,7 @@ uniform mediump float u_rim_power;
 // サンプラー
 uniform sampler2D s_texture;
 
+
 // -------------------------------------------------------
 // メイン文
 void main()
@@ -286,11 +1031,10 @@ void main()
         color = u_const1;
     }
 //#elif defined(FFL_MODULATE_MODE_TEXTURE_DIRECT)
-    else if(u_mode > FFL_MODULATE_MODE_CONSTANT)// == FFL_MODULATE_MODE_TEXTURE_DIRECT)
+    else if(u_mode == FFL_MODULATE_MODE_TEXTURE_DIRECT)
     {
         color = texture2D(s_texture, v_texCoord);
     }
-    /*
 //#elif defined(FFL_MODULATE_MODE_RGB_LAYERED)
     else if(u_mode == FFL_MODULATE_MODE_RGB_LAYERED)
     {
@@ -315,8 +1059,13 @@ void main()
         color = texture2D(s_texture, v_texCoord);
         color = vec4(color.r * u_const1.rgb, 1.0);
     }
-    */
 //#endif
+
+    // avoids little outline around mask elements
+    if(u_mode != FFL_MODULATE_MODE_CONSTANT && color.a == 0.0f)
+    {
+        discard;
+    }
 
 //#ifdef FFL_LIGHT_MODE_ENABLE
     if(u_light_enable)
@@ -329,16 +1078,16 @@ void main()
 
         /// 視線ベクトル
         mediump vec3 eye = normalize(-v_position.xyz);
-
+        
         // ライトの向き
         mediump float fDot = calculateDot(u_light_dir, norm);
 
         /// Diffuse計算
         mediump vec3 diffuse = calculateDiffuseColor(u_light_diffuse.xyz, u_material_diffuse.xyz, fDot);
-
+        
         /// Specular計算
         mediump float specularBlinn = calculateBlinnSpecular(u_light_dir, norm, eye, u_material_specular_power);
-
+        
         /// Specularの値を確保する変数を宣言
         mediump float reflection;
         mediump float strength = v_color.g;
@@ -358,7 +1107,7 @@ void main()
         mediump vec3 specular = calculateSpecularColor(u_light_specular.xyz, u_material_specular.xyz, reflection, strength);
 
         // リムの色を計算
-        mediump vec3 rimColor = calculateRimColor(u_rim_color.rgb, norm.z, v_color.a, u_rim_power);
+        mediump vec3 rimColor = calculateRimColor(u_rim_color.rgb, norm.z, rimWidth, u_rim_power);
 
         // カラーの計算
         color.rgb = (ambient + diffuse) * color.rgb + specular + rimColor;

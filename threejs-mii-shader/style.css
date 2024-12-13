@@ -1,4 +1,4 @@
-body { margin: 0; overflow: hidden; background-color: #E6E6FA; } /* Pastel purple background */
+body { margin: 0; overflow: hidden; }
 canvas { display: block; }
 
 .floating {

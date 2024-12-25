@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        input[type="number"] {
+            width: 60px;
+        }
+        table {
+            border-collapse: collapse;
+            margin-top: 20px;
+            width: 100%;
+            overflow-x: auto;
+        }
+        th, td {
+            border: 1px solid #999;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #eee;
+        }
+        .matrix {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>nn::util::FloatColumnMajor4x3 Array Parser (attempt 1.)</h1>
+
+<label for="fileInput">Upload Binary File:</label>
+<input type="file" id="fileInput" accept=".bin,.dat,.raw"><br><br>
+
+<label for="sizeInput">Number of Matrices (default 25):</label>
+<input type="number" id="sizeInput" min="1" value="25"><br><br>
+
+<button id="parseButton">Parse</button>
+
+<div id="output"></div>
+
+<script>
+    document.getElementById('parseButton').addEventListener('click', () => {
+        const fileInput = document.getElementById('fileInput');
+        const sizeInput = document.getElementById('sizeInput');
+        const output = document.getElementById('output');
+
+        if (fileInput.files.length === 0) {
+            alert('Please select a binary file to upload.');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const desiredSize = parseInt(sizeInput.value) || 25;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const arrayBuffer = event.target.result;
+            const floatArray = new Float32Array(arrayBuffer);
+
+            const floatsPerMatrix = 12; // 4 columns x 3 rows
+            const matrices = [];
+
+            const totalMatricesInFile = Math.floor(floatArray.length / floatsPerMatrix);
+
+            for (let i = 0; i < Math.min(desiredSize, totalMatricesInFile); i++) {
+                const offset = i * floatsPerMatrix;
+                const matrix = [];
+
+                // Initialize a 3x4 matrix (3 rows x 4 columns)
+                for (let row = 0; row < 3; row++) {
+                    matrix[row] = [0, 0, 0, 0]; // 4 columns: X, Y, Z, W
+                }
+
+                // Populate the matrix
+                // Data is stored in column-major order: 4 columns x 3 rows
+                // Mapping to 3 rows x 4 columns
+                for (let col = 0; col < 4; col++) { // 4 columns: X, Y, Z, W
+                    for (let row = 0; row < 3; row++) { // 3 rows
+                        matrix[row][col] = floatArray[offset + col * 3 + row];
+                    }
+                }
+
+                matrices.push(matrix);
+            }
+
+            // If not enough matrices, pad with zero matrices
+            while (matrices.length < desiredSize) {
+                const zeroMatrix = [
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0]
+                ];
+                matrices.push(zeroMatrix);
+            }
+
+            // Display the matrices
+            output.innerHTML = ''; // Clear previous output
+
+            matrices.forEach((matrix, index) => {
+                const matrixDiv = document.createElement('div');
+                matrixDiv.className = 'matrix';
+
+                const title = document.createElement('h3');
+                title.textContent = `Matrix ${index}`;
+                matrixDiv.appendChild(title);
+
+                const table = document.createElement('table');
+
+                // Create table headers
+                const headerRow = document.createElement('tr');
+                ['Row/Col', '0', '1', '2', '3'].forEach(text => {
+                    const th = document.createElement('th');
+                    th.textContent = text;
+                    headerRow.appendChild(th);
+                });
+                table.appendChild(headerRow);
+
+                // Create table rows
+                matrix.forEach((rowData, rowIndex) => {
+                    const tr = document.createElement('tr');
+                    
+                    const rowHeader = document.createElement('th');
+                    rowHeader.textContent = `Row ${rowIndex}`;
+                    tr.appendChild(rowHeader);
+
+                    rowData.forEach(value => {
+                        const td = document.createElement('td');
+                        td.textContent = value.toFixed(4);
+                        tr.appendChild(td);
+                    });
+
+                    table.appendChild(tr);
+                });
+
+                matrixDiv.appendChild(table);
+                output.appendChild(matrixDiv);
+            });
+        };
+
+        reader.onerror = function() {
+            alert('Error reading the file.');
+        };
+
+        reader.readAsArrayBuffer(file);
+    });
+</script>
+
+</body>
+</html>

@@ -1,5 +1,16 @@
 <h1>miitomo &quot;mii_data&quot; decode toy</h1>
-<p>how do you get this? like this: <a target="_blank" href="https://mii-unsecure.ariankordi.net/miitomo_get_player_data/44324e285f30b11b?namespace=own_mii">https://mii-unsecure.ariankordi.net/miitomo_get_player_data/44324e285f30b11b?target_player_id=54e266a127cd44a4</a></p>
+<p>how do you find that data?
+    <ul>
+        <li>like this: <a target="_blank" href="https://mii-unsecure.ariankordi.net/miitomo_get_player_data/44324e285f30b11b?namespace=own_mii">https://mii-unsecure.ariankordi.net/miitomo_get_player_data/44324e285f30b11b?namespace=own_mii</a>
+            <ul><li>the id after <code>miitomo_get_player_data/</code> is the same one, as the first hex code, in your friend invite link, after <code>friend_code/</code></li></ul>
+        </li>
+        <li>look at <code>own_mii</code> or <code>stock_mii</code> in your miitomo cache folder, each file in there is json</li>
+        <br>
+        <li>fields beginning with underscores are unknown</li>
+        <li>negative values mean unset</li>
+        <li>topsState: 2 = untucked, 1 = tucked (i think)</li>
+    </ul>
+</p>
 <form onsubmit="decodeAndDisplay(event)">
     <input id="dataInput" type="text" style="width: 600px" value="AwAAAAAAAhAlZ_____87AzIDEwA5A9MAWQMCUClVJBMDBgIHBwMCAMkAvQA9ATUBAAAA4A">
     <br>

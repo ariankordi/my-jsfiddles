@@ -46,7 +46,7 @@ function decodeToObject(data) {
 
     return {
         _0: `0x${readS32(0).toString(16).padStart(8, '0')}`,
-        _4_4: readU8(4) & 0xf,
+        //_4_4: readU8(4) & 0xf,
         allColor: readU8(4) >> 4,
         topslongColor: readU8(5) & 0xf,
         topsColor: readU8(5) >> 4,
@@ -75,7 +75,7 @@ function decodeToObject(data) {
         _2c: readS16(44),
         _2e: readU8(46),
         _2f: readU8(47),
-        _30: readU16(48),
+        //_30: readU16(48),
         birthYear: readS16(50)
     };
 }

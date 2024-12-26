@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <title>nn::util::FloatColumnMajor4x3 Array Parser</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -12,6 +13,9 @@
         }
         input[type="number"] {
             width: 60px;
+        }
+        select {
+            margin-left: 10px;
         }
         table {
             border-collapse: collapse;
@@ -34,13 +38,19 @@
 </head>
 <body>
 
-<h1>nn::util::FloatColumnMajor4x3 Array Parser (attempt 1.)</h1>
+<h1>nn::util::FloatColumnMajor4x3 Array Parser</h1>
 
 <label for="fileInput">Upload Binary File:</label>
 <input type="file" id="fileInput" accept=".bin,.dat,.raw"><br><br>
 
 <label for="sizeInput">Number of Matrices (default 25):</label>
 <input type="number" id="sizeInput" min="1" value="25"><br><br>
+
+<label for="modeSelect">Select Parsing Mode:</label>
+<select id="modeSelect">
+    <option value="column-major" selected>Column-Major</option>
+    <option value="row-major">Row-Major</option>
+</select><br><br>
 
 <button id="parseButton">Parse</button>
 
@@ -50,6 +60,7 @@
     document.getElementById('parseButton').addEventListener('click', () => {
         const fileInput = document.getElementById('fileInput');
         const sizeInput = document.getElementById('sizeInput');
+        const modeSelect = document.getElementById('modeSelect');
         const output = document.getElementById('output');
 
         if (fileInput.files.length === 0) {
@@ -59,13 +70,14 @@
 
         const file = fileInput.files[0];
         const desiredSize = parseInt(sizeInput.value) || 25;
+        const mode = modeSelect.value;
 
         const reader = new FileReader();
         reader.onload = function(event) {
             const arrayBuffer = event.target.result;
             const floatArray = new Float32Array(arrayBuffer);
 
-            const floatsPerMatrix = 12; // 4 columns x 3 rows
+            const floatsPerMatrix = 12; // 3 rows x 4 columns or 4 columns x 3 rows
             const matrices = [];
 
             const totalMatricesInFile = Math.floor(floatArray.length / floatsPerMatrix);
@@ -79,12 +91,19 @@
                     matrix[row] = [0, 0, 0, 0]; // 4 columns: X, Y, Z, W
                 }
 
-                // Populate the matrix
-                // Data is stored in column-major order: 4 columns x 3 rows
-                // Mapping to 3 rows x 4 columns
-                for (let col = 0; col < 4; col++) { // 4 columns: X, Y, Z, W
+                if (mode === 'column-major') {
+                    // Column-Major Parsing
+                    for (let col = 0; col < 4; col++) { // 4 columns: X, Y, Z, W
+                        for (let row = 0; row < 3; row++) { // 3 rows
+                            matrix[row][col] = floatArray[offset + col * 3 + row];
+                        }
+                    }
+                } else if (mode === 'row-major') {
+                    // Row-Major Parsing
                     for (let row = 0; row < 3; row++) { // 3 rows
-                        matrix[row][col] = floatArray[offset + col * 3 + row];
+                        for (let col = 0; col < 4; col++) { // 4 columns: X, Y, Z, W
+                            matrix[row][col] = floatArray[offset + row * 4 + col];
+                        }
                     }
                 }
 
@@ -109,14 +128,14 @@
                 matrixDiv.className = 'matrix';
 
                 const title = document.createElement('h3');
-                title.textContent = `Matrix ${index + 1}`;
+                title.textContent = `Matrix ${index} (${mode})`;
                 matrixDiv.appendChild(title);
 
                 const table = document.createElement('table');
 
                 // Create table headers
                 const headerRow = document.createElement('tr');
-                ['Row/Col', '0', '1', '2', '3'].forEach(text => {
+                ['Row/Col', 'X', 'Y', 'Z', 'W'].forEach(text => {
                     const th = document.createElement('th');
                     th.textContent = text;
                     headerRow.appendChild(th);

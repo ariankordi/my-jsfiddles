@@ -1,64 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>nn::util::FloatColumnMajor4x3 Array Parser</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        h1 {
-            color: #333;
-        }
-        input[type="number"] {
-            width: 60px;
-        }
-        select {
-            margin-left: 10px;
-        }
-        table {
-            border-collapse: collapse;
-            margin-top: 20px;
-            width: 100%;
-            overflow-x: auto;
-        }
-        th, td {
-            border: 1px solid #999;
-            padding: 8px;
-            text-align: center;
-        }
-        th {
-            background-color: #eee;
-        }
-        .matrix {
-            margin-bottom: 20px;
-        }
-    </style>
-</head>
-<body>
+<link rel="stylesheet" href="style.css">
+<h1>nn::util::Float(Column/Row)Major4x3 Array Parser</h1>
 
-<h1>nn::util::FloatColumnMajor4x3 Array Parser</h1>
+<form id="parseForm">
 
-<label for="fileInput">Upload Binary File:</label>
-<input type="file" id="fileInput" accept=".bin,.dat,.raw"><br><br>
+    <label for="fileInput">Upload Binary File:</label>
+    <input type="file" id="fileInput" accept=".bin,.dat,.raw"><br><br>
 
-<label for="sizeInput">Number of Matrices (default 25):</label>
-<input type="number" id="sizeInput" min="1" value="25"><br><br>
+    <label for="sizeInput">Number of Matrices (default 25):</label>
+    <input type="number" id="sizeInput" min="1" value="25"><br><br>
 
-<label for="modeSelect">Select Parsing Mode:</label>
-<select id="modeSelect">
-    <option value="column-major" selected>Column-Major</option>
-    <option value="row-major">Row-Major</option>
-</select><br><br>
+    <label for="modeSelect">Select Parsing Mode:</label>
+    <select id="modeSelect">
+        <option value="column-major" selected>Column-Major</option>
+        <option value="row-major">Row-Major</option>
+    </select><br><br>
 
-<button id="parseButton">Parse</button>
+    <button>Parse</button>
+</form>
 
 <div id="output"></div>
-
-<script>
-</script>
-
 <script src="script.js"></script>
-</body>
-</html>

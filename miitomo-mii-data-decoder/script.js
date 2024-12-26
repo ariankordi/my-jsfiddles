@@ -1,5 +1,9 @@
 /*
-struct mii_data { // note that a dataset of 32463 of these scraped from kaerutomo outfit/sidekick central has been used to guess constant/unused fields. unused = it has never been seen as non-zero in my dataset
+#pragma pack(push, 1)
+typedef struct mii_data {
+    // note that a dataset of 32463 of these scraped from kaerutomo
+    // outfit/sidekick central has been used to guess constant/unused fields.
+    // unused = it has never been seen as non-zero in my dataset
     uint32_t _0; // always 03000000, only LSB is used
     uint8_t _4_4:4; // unused
     uint8_t allColor:4;
@@ -31,8 +35,8 @@ struct mii_data { // note that a dataset of 32463 of these scraped from kaerutom
     uint8_t _2e; // 5% used?
     uint8_t _2f; // last 4 bits used 1% / first 4 unused
     uint16_t _30; // unused
-    uint16_t birthYear; // unset=0, min. 1900, birth day/month are in StoreData(?)
-};
+    int16_t birthYear; // unset=0, min. 1900, birth day/month are in StoreData(?)
+} mii_data;
 */
 function decodeToObject(data) {
     const readS16 = (offset) => (data[offset] | (data[offset + 1] << 8)) << 16 >> 16; // Signed 16-bit

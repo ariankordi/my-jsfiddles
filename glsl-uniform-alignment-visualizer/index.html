@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GLSL Uniform Block Visualizer (std140)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            font-size: 14px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .block-container {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 600px;
+            box-sizing: border-box;
+        }
+        .member, .padding {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .padding {
+            background-color: #fdd;
+            color: #900;
+            font-style: italic;
+        }
+        .block-header, .block-footer {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .total-size {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h1>GLSL Uniform Block Visualizer (std140)</h1>
+<textarea id="uniformInput" placeholder="Enter your GLSL uniform block here...">
+uniform MyUniformBlock {
+    mat4 model;
+    vec3 lightPosition;
+    float intensity;
+    int count;
+    vec2 offsets[3];
+};
+</textarea>
+<br>
+<button onclick="visualizeUniform()">Visualize Uniform Block</button>
+
+<div id="visualization" class="block-container"></div>
+
+<script>
+    // Define type sizes and alignments based on std140
+    const typeInfo = {
+        // Scalars
+        'float': { size: 4, alignment: 4 },
+        'int': { size: 4, alignment: 4 },
+        'bool': { size: 4, alignment: 4 }, // std140 treats bool as 4 bytes
+
+        // Vectors
+        'vec2': { size: 8, alignment: 8 },
+        'ivec2': { size: 8, alignment: 8 },
+        'bvec2': { size: 8, alignment: 8 },
+        'vec3': { size: 16, alignment: 16 }, // std140 rounds up to 16
+        'ivec3': { size: 16, alignment: 16 },
+        'bvec3': { size: 16, alignment: 16 },
+        'vec4': { size: 16, alignment: 16 },
+        'ivec4': { size: 16, alignment: 16 },
+        'bvec4': { size: 16, alignment: 16 },
+
+        // Matrices (treated as arrays of column vectors)
+        'mat2': { size: 16, alignment: 16 }, // 2 * vec2, each vec2 padded to vec4
+        'mat3': { size: 48, alignment: 16 }, // 3 * vec4
+        'mat4': { size: 64, alignment: 16 }, // 4 * vec4
+
+        // Arrays (base alignment is same as base alignment of element, rounded up to 16)
+        // Handled dynamically
+
+        // Structs (base alignment to be calculated based on members)
+        // Handled dynamically
+    };
+
+    // Store structs definitions
+    const structs = {};
+
+    // Function to remove comments
+    function removeComments(code) {
+        // Remove single-line comments (// ...) and multi-line comments (/* ... */)
+        return code.replace(/\/\/.*$/gm, '') // Remove single-line comments
+                   .replace(/\/\*[\s\S]*?\*\//g, ''); // Remove multi-line comments
+    }
+
+    // Function to parse the uniform block
+    function parseUniform(input) {
+        input = removeComments(input).trim();
+
+        // Regex to match uniform blocks
+        const uniformRegex = /uniform\s+(\w+)\s*\{\s*([^}]+)\s*\}\s*;/;
+        const match = input.match(uniformRegex);
+        if (!match) {
+            alert('Invalid uniform block definition.');
+            return null;
+        }
+
+        const blockName = match[1];
+        const membersStr = match[2].trim();
+        const membersLines = membersStr.split(';').map(line => line.trim()).filter(line => line.length > 0);
+
+        const members = [];
+
+        membersLines.forEach(line => {
+            // Handle array declarations
+            const arrayMatch = line.match(/(.+?)\s+(\w+)\s*\[\s*(\d+)\s*\]/);
+            if (arrayMatch) {
+                const type = arrayMatch[1].trim();
+                const name = arrayMatch[2].trim();
+                const arraySize = parseInt(arrayMatch[3], 10);
+                members.push({ type, name, arraySize });
+            } else {
+                // Handle struct types or simple types
+                const parts = line.split(/\s+/);
+                if (parts.length >= 2) {
+                    const type = parts.slice(0, -1).join(' ');
+                    const name = parts[parts.length - 1];
+                    members.push({ type, name });
+                }
+            }
+        });
+
+        return { name: blockName, members };
+    }
+
+    // Function to resolve struct types
+    function resolveStruct(type) {
+        if (structs[type]) {
+            return structs[type];
+        }
+        return null;
+    }
+
+    // Function to calculate layout based on std140
+    function calculateLayout(structure) {
+        let offset = 0;
+        let totalSize = 0;
+        const visualization = [];
+        let maxAlignment = 0;
+
+        structure.members.forEach(member => {
+            let type = member.type;
+            let size, alignment;
+
+            // Check if the type is a struct
+            const structDef = resolveStruct(type);
+            if (structDef) {
+                // Calculate struct's base alignment
+                const structLayout = calculateLayout(structDef);
+                size = structLayout.totalSize;
+                alignment = structLayout.maxAlignment;
+            } else {
+                // Check if type is an array
+                if (member.arraySize) {
+                    const baseType = type;
+                    if (!typeInfo[baseType]) {
+                        alert(`Unknown type: ${baseType}`);
+                        return;
+                    }
+                    size = typeInfo[baseType].size * member.arraySize;
+                    alignment = 16; // Arrays have base alignment of 16
+                    type = `${baseType}[${member.arraySize}]`;
+                } else {
+                    if (!typeInfo[type]) {
+                        alert(`Unknown type: ${type}`);
+                        return;
+                    }
+                    size = typeInfo[type].size;
+                    alignment = typeInfo[type].alignment;
+                }
+            }
+
+            // Update max alignment for the block
+            if (alignment > maxAlignment) {
+                maxAlignment = alignment;
+            }
+
+            // Calculate padding
+            const padding = (alignment - (offset % alignment)) % alignment;
+            if (padding > 0) {
+                visualization.push({ name: `Padding (${padding} bytes)`, size: padding, padding: true, offset });
+                offset += padding;
+                totalSize += padding;
+            }
+
+            // Add member
+            visualization.push({ name: member.name, type, size, padding: false, offset });
+            offset += size;
+            totalSize += size;
+        });
+
+        // Round up the total size to the nearest multiple of maxAlignment
+        const finalPadding = (maxAlignment - (totalSize % maxAlignment)) % maxAlignment;
+        if (finalPadding > 0) {
+            visualization.push({ name: `Padding (${finalPadding} bytes)`, size: finalPadding, padding: true, offset: totalSize });
+            totalSize += finalPadding;
+        }
+
+        return { visualization, totalSize, maxAlignment };
+    }
+
+    // Function to visualize the uniform block
+    function visualizeUniform() {
+        const input = document.getElementById('uniformInput').value;
+        const uniform = parseUniform(input);
+        if (!uniform) return;
+
+        // First pass: collect struct definitions if any
+        // For simplicity, assume structs are defined before uniform blocks
+        const lines = input.split('\n');
+        lines.forEach(line => {
+            const structRegex = /struct\s+(\w+)\s*\{\s*([^}]+)\s*\}\s*;/;
+            const match = line.match(structRegex);
+            if (match) {
+                const structName = match[1];
+                const structMembersStr = match[2].trim();
+                const structMembersLines = structMembersStr.split(';').map(l => l.trim()).filter(l => l.length > 0);
+                const structMembers = [];
+
+                structMembersLines.forEach(sLine => {
+                    const arrayMatch = sLine.match(/(.+?)\s+(\w+)\s*\[\s*(\d+)\s*\]/);
+                    if (arrayMatch) {
+                        const type = arrayMatch[1].trim();
+                        const name = arrayMatch[2].trim();
+                        const arraySize = parseInt(arrayMatch[3], 10);
+                        structMembers.push({ type, name, arraySize });
+                    } else {
+                        const parts = sLine.split(/\s+/);
+                        if (parts.length >= 2) {
+                            const type = parts.slice(0, -1).join(' ');
+                            const name = parts[parts.length - 1];
+                            structMembers.push({ type, name });
+                        }
+                    }
+                });
+
+                structs[structName] = { name: structName, members: structMembers };
+            }
+        });
+
+        // Calculate layout
+        const layout = calculateLayout(uniform);
+
+        // Render visualization
+        const container = document.getElementById('visualization');
+        container.innerHTML = `<div class="block-header">Uniform ${uniform.name} {</div>`;
+        layout.visualization.forEach(item => {
+            const div = document.createElement('div');
+            div.className = item.padding ? 'padding' : 'member';
+            div.innerHTML = `<span>${item.name}</span><span>Offset: ${item.offset}</span>`;
+            container.appendChild(div);
+        });
+        container.innerHTML += `<div class="block-footer">};</div>`;
+        container.innerHTML += `<div class="total-size">Total Size: ${layout.totalSize} bytes</div>`;
+    }
+</script>
+
+</body>
+</html>

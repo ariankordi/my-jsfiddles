@@ -1,0 +1,46 @@
+<link rel="stylesheet" href="style.css">
+<div class="character-container">
+    <div id="speech-bubble">
+        <span class="message" id="message-default" style="display: initial;">
+            Hello! It's-a me, Mario!<br>
+            I will tell you when your Mii™ was created if you give me your data below!<br>
+            Cons include... you'll find out! Wahoo!<br>
+        </span>
+        <span class="message" id="message-invalid">Mamma Mia, that is not valid Mii™ data!</span>
+        <span class="message" id="message-version-1">
+            Wii data detected! (Untested)<br>
+            CreateID Hex: <span id="createid-result-v1"></span><br>
+            <!--Flags: <span id="createid-flags-v1"></span><br>-->
+            MAC Address: <span id="createid-base-v1"></span><br>
+            Created On(?): <span id="createid-date-v1"></span>
+        </span>
+        <span class="message" id="message-version-3">
+            3DS/Wii U data detected!<br>
+            CreateID Hex: <span id="createid-result-v3"></span><br>
+            <!--Flags: <span id="createid-flags-v3"></span><br>-->
+            MAC Address (CreateIDBase): <span id="createid-base-v3"></span><br>
+            <b>Created On: <span id="createid-date-v3"></span></b>
+        </span>
+        <span class="message" id="message-version-4">Switch data detected! CreateID (Hex): <span id="createid-result-v4"></span>
+            Switch data does not have date information in the CreateID. Therefore, this information is Lost Media.
+        </span>
+        <span class="message" id="message-studio">
+            Mii Studio data lacks a CreateID field, so you will never ever know when it this Mii™ was made.
+        </span>
+        <span class="message" id="message-miic">
+            The Mii Creator app never included date information in the CreateID field.
+        </span>
+        <span class="message" id="message-exception">
+            <span id="exception-message"></span>
+        </span>
+    </div>
+    <img id="character-normal" src="https://cdn3.emoji.gg/emojis/Mario.png" alt="Happy Character" style="display: initial;">
+    <img id="character-sad" src="https://www.mariowiki.com/images/6/64/Mario_sad_-_SMRS.png" alt="Sad Character" style="display: none;">
+</div>
+
+<form id="data-form">
+    <input type="text" id="data-input" placeholder="Paste your hex or base64 data here!" required>
+    <button type="submit">Check Data</button>
+</form>
+
+<p>(warning like as usual for pretty much everything i make: 1. ai slop, 2. unfinished and untested. for me to consider this finished i think i should: 1. test and make sure it works with wii. 2. check for out of bounds dates and show a specific message, within the same vain test miitomo and switch behavior with fflstoreData. 3. more fancily format flags, and mac address, and keep a list of nintendo ouis and flag if that mac address may not be a mac address, or point out it is just the create id base, once again switch and miitomo case. 4. polish, (more responsive design?), look throughout the code and make more preferable decisions. ok? we good? even though im probably neeveerrr going back to this LOOOOOLLLLL)</p><script src="script.js"></script>

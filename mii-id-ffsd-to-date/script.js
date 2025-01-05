@@ -44,12 +44,14 @@ const miiDataTable = [
     {
         lengths: [72, 92, 96],
         version: 3,
-        extractCreateID: (data) => data.slice(12, 22)
+        extractCreateID: (data) => data.slice(12, 22),
+        birthPlatform: (data) => data[3] >> 4 & 7
     },
     {
         lengths: [74, 76],
         version: 1,
         extractCreateID: (data) => data.slice(24, 34),
+        birthPlatform: () => 1,
         sad: true
     },
     {
@@ -126,12 +128,21 @@ function analyzeData(data) {
             if (entry.extractCreateID !== undefined) {
                 const createIDBytes = entry.extractCreateID(dataBytes);
                 const createIDObject = createIDParsers[entry.version](createIDBytes);
+                const birthPlatform = entry.birthPlatform(dataBytes);
 
                 // Displaying parsed data dynamically
                 let el = document.getElementById(`createid-result-v${entry.version}`); if (el) el.textContent = uint8ArrayToHex(createIDBytes);
                 //document.getElementById(`createid-flags-v${entry.version}`).textContent = uint8ArrayToHex(createIDObject.flag);
-                el = document.getElementById(`createid-base-v${entry.version}`); if (el) el.textContent = formatMacAddress(createIDObject.base);
+                el = document.getElementById(`createid-base-v${entry.version}`);
+                // Conditionally print MAC address
+                if (birthPlatform <= 3) {
+                    if (el) el.textContent = 
+                        `Base/MAC Address: ${formatMacAddress(createIDBytes.slice(-6))}`;
+                } else {
+                    if (el) el.textContent = '';
+                }
                 el = document.getElementById(`createid-date-v${entry.version}`); if (el) el.textContent = createIDObject.date.toUTCString();
+
             }
 
             showMessage(`message-version-${entry.version}`);

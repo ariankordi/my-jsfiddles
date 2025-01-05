@@ -11,11 +11,7 @@ body {
 
 #character-normal, #character-sad {
     margin-right: 200px;
-    width: 249px;
-    height: 290px;
-}
-#character-sad {
-    padding-right: 2px;
+    width: 200px;
 }
 
 #speech-bubble {

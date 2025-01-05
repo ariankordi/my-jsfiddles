@@ -3,32 +3,33 @@
     <div id="speech-bubble">
         <span class="message" id="message-default" style="display: initial;">
             Hello! It's-a me, Mario!<br>
-            I will tell you when your Mii™ was created if you give me its data below!<br>
+            I will tell you when your Mii™ was created if you give me your data below!<br>
             Cons include... you'll find out! Wahoo!<br>
         </span>
         <span class="message" id="message-invalid">Mamma Mia, that is not valid Mii™ data!</span>
         <span class="message" id="message-version-1">
-            Wii data detected! (Untested)<br>
-            CreateID: <span id="createid-result-v1"></span><br>
-            <!--Flags: <span id="createid-flags-v1"></span><br>-->
+            Wii data detected!<br>
+            CreateID Hex: <span id="createid-result-v1"></span><br>
+            <!--Flags: <span id="createid-flags-v1"></span><br>
             MAC Address: <span id="createid-base-v1"></span><br>
             Created On(?): <span id="createid-date-v1"></span>
+            --> We are Sorry this is not implemented :(
         </span>
         <span class="message" id="message-version-3">
             3DS/Wii U data detected!<br>
-            CreateID: <span id="createid-result-v3"></span><br>
+            CreateID Hex: <span id="createid-result-v3"></span><br>
             <!--Flags: <span id="createid-flags-v3"></span><br>-->
-            <span id="createid-base-v3"></span><br>
+            MAC Address (CreateIDBase): <span id="createid-base-v3"></span><br>
             <b>Created On: <span id="createid-date-v3"></span></b>
         </span>
         <span class="message" id="message-version-4">Switch data detected! CreateID (Hex): <span id="createid-result-v4"></span>
-            Switch data does not have date information in the CreateID. Therefore, this information is Lost Media. Mamma Mia.
+            Switch data does not have date information in the CreateID. Therefore, this information is Lost Media.
         </span>
         <span class="message" id="message-studio">
-            Mamma Mia... Mii Studio data lacks a CreateID field, so you will never ever know when it this Mii™ was made.
+            Mii Studio data lacks a CreateID field, so you will never ever know when it this Mii™ was made.
         </span>
         <span class="message" id="message-miic">
-            Mamma Mia... the <a target="_blank" href="https://mii.nxw.pw/">Mii Creator app</a> doesn't include a date in the CreateID field.
+            The Mii Creator app never included date information in the CreateID field.
         </span>
         <span class="message" id="message-exception">
             <span id="exception-message"></span>
@@ -39,7 +40,7 @@
 </div>
 
 <form id="data-form">
-    <input type="text" id="data-input" placeholder="Hex or Base64 Mii data, can obtain it from mii-unsecure.ariankordi.net" required>
+    <input type="text" id="data-input" placeholder="Paste your hex or base64 data here!" required>
     <button type="submit">Check Data</button>
 </form>
 

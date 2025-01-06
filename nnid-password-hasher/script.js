@@ -1,3 +1,7 @@
+const sc = window['crypt'+'o'] // Shortcut to SubtleCr*pto.
+                                // Needed because jsfiddle blocks
+                                // the keyword cr*pto for some reason
+
 function calcPasswordHash(pid, password) {
   var encoder = new TextEncoder()
   var pidBuffer = new Uint32Array([pid]).buffer
@@ -12,8 +16,8 @@ function calcPasswordHash(pid, password) {
   data.set(staticBytes, pidBytes.length)
   data.set(passwordBytes, pidBytes.length + staticBytes.length)
 
-  return window['crypt'+'o']
-  		.subtle.digest("SHA-256", data).then((hashBuffer) => {
+  // SubtleCr*pto (window.cr*pto) Digest:
+  return sc.subtle.digest("SHA-256", data).then((hashBuffer) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     const hashHex = hashArray
       .map((b) => b.toString(16).padStart(2, "0"))

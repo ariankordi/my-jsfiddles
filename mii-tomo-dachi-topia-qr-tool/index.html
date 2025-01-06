@@ -13,7 +13,7 @@
 
   <!-- rudimentary js error handling text -->
   <div id="error-container" style="display: none;">
-    <h1>😭 JavaScript Error!!! 😭</h1>
+    <h1>😭 JavaScript Error!! 😭</h1>
     <p id="error-message" style="color: red;"></p>
     <pre id="error-stacktrace" style="display: none;"></pre>
     <pre id="error-at">At <span></span></pre>
@@ -113,6 +113,7 @@
       
       <button onclick="downloadStoreData()">download StoreData (.cfsd)</button>
       <div>
+        <div id="extra-data-warning" style="display:none;">exception while decrypting AES-CTR data, showing original as hex: <span id="extra-data-warning-inner"></span></div>
         <table id="hex-editor-decrypt-extra" style="display:none;" border>
           <tr>
             <td></td>
@@ -367,5 +368,6 @@
         }
       }
     </script>
-  </body>
+  <script src="script.js"></script>
+</body>
 </html>

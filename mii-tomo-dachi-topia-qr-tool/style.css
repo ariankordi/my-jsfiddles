@@ -41,3 +41,6 @@ table, table * {
 .ascii-output {
   overflow: hidden;
 }
+#extra-data-warning {
+    color: red;
+}

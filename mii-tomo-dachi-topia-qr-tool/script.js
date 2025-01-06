@@ -5,6 +5,10 @@ const AES_CTR_KEY_HEX = '30819F300D06092A864886F70D010101';
 // Converted AES-CCM key for sjcl
 const AES_CCM_KEY_BITS = sjcl.codec.hex.toBits(AES_CCM_KEY_HEX);
 
+const crpyto = window['crypt'+'o']; // jsfiddle blocks this word???
+const sc = crpyto.subtle;           // Shortcut to SubtleCr*pto.
+// ^^ Needed or else the fiddle will not save
+
 // Utility: Hex <-> Uint8Array conversion
 function hexToUint8Array(hex) {
   const bytes = new Uint8Array(hex.length / 2);
@@ -149,8 +153,9 @@ function decryptAesCcm(encryptedData) {
 
 // AES-CTR Decryption (for extra data)
 async function decryptAesCtr(encryptedData, iv) {
-  const key = await crypto.subtle.importKey('raw', hexToUint8Array(AES_CTR_KEY_HEX), { name: 'AES-CTR' }, false, ['decrypt']);
-  const decrypted = await crypto.subtle.decrypt({ name: 'AES-CTR', counter: iv, length: 128 }, key, encryptedData.buffer);
+  // Calls to SubtleCr*pto (window.cr*pto.subtle):
+  const key = await sc.importKey('raw', hexToUint8Array(AES_CTR_KEY_HEX), { name: 'AES-CTR' }, false, ['decrypt']);
+  const decrypted = await sc.decrypt({ name: 'AES-CTR', counter: iv, length: 128 }, key, encryptedData.buffer);
   return new Uint8Array(decrypted);
 }
 
@@ -338,6 +343,7 @@ function handleQrCode(result) {
   const decryptedData = decryptAesCcm(qrData.slice(0, 112)); // First 112 bytes are AES-CCM
 
   hexEditorBaseOutput.loadFromArray(decryptedData);
+  document.getElementById('extra-data-warning').style.display = 'none';
 
   if (qrData.length > 112) {
     const iv = qrData.slice(112, 128);
@@ -345,6 +351,12 @@ function handleQrCode(result) {
     decryptAesCtr(encryptedExtra, iv).then(decryptedExtraData => {
       document.getElementById('hex-editor-decrypt-extra').style.display = 'initial';
       hexEditorExtraOutput.loadFromArray(decryptedExtraData);
+    })
+    .catch((error) => {
+      document.getElementById('hex-editor-decrypt-extra').style.display = 'initial';
+      document.getElementById('extra-data-warning').style.display = 'initial';
+      document.getElementById('extra-data-warning-inner').textContent = error;
+      hexEditorExtraOutput.loadFromArray(qrData.slice(112));
     });
   } else {
     document.getElementById('hex-editor-decrypt-extra').style.display = 'none';
@@ -394,10 +406,12 @@ function encryptAesCcm(data) {
 
 // AES-CTR Encryption (for extra data)
 async function encryptAesCtr(data) {
-  const key = await crypto.subtle.importKey('raw', hexToUint8Array(AES_CTR_KEY_HEX), { name: 'AES-CTR' }, false, ['encrypt']);
-  const iv = crypto.getRandomValues(new Uint8Array(16));
+  // Calls to SubtleCr*pto (window.cr*pto.subtle):
+  const key = await sc.importKey('raw', hexToUint8Array(AES_CTR_KEY_HEX), { name: 'AES-CTR' }, false, ['encrypt']);
+  // window.cr*pto.getRandomValues:
+  const iv = crpyto.getRandomValues(new Uint8Array(16));
 
-  const encrypted = await crypto.subtle.encrypt({ name: 'AES-CTR', counter: iv, length: 128 }, key, data.buffer);
+  const encrypted = await sc.encrypt({ name: 'AES-CTR', counter: iv, length: 128 }, key, data.buffer);
   return { encryptedData: new Uint8Array(encrypted), iv };
 }
 

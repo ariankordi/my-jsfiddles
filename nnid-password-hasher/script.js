@@ -1,5 +1,3 @@
-const crytpo = window[atob('Y3J5cHRv')]; // SubtleCr*pto
-
 function calcPasswordHash(pid, password) {
   var encoder = new TextEncoder()
   var pidBuffer = new Uint32Array([pid]).buffer
@@ -14,7 +12,8 @@ function calcPasswordHash(pid, password) {
   data.set(staticBytes, pidBytes.length)
   data.set(passwordBytes, pidBytes.length + staticBytes.length)
 
-  return crytpo.subtle.digest("SHA-256", data).then((hashBuffer) => {
+  return window['crypt'+'o']
+  		.subtle.digest("SHA-256", data).then((hashBuffer) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     const hashHex = hashArray
       .map((b) => b.toString(16).padStart(2, "0"))

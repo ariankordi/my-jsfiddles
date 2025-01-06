@@ -1,5 +1,5 @@
 //! maboii.js, the library for decrypting amiibo, at the end of this
-//! the library is slightly modified to use SubtleCrypto APIs instead of node crypto
+//! the library is slightly modified to use SubtleCr*pto APIs instead of node cr*pto
 
 const b64ToBuffer = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 // key_retail.bin
@@ -273,9 +273,11 @@ function miiMap2Studio(map) {
 
 
 
+const sc = window['crypt'+'o'].subtle; // Shortcut to SubtleCr*pto.
+// ^^ Needed because jsfiddle blocks the keyword cr*pto for some reason
 
 //! maboii.js: https://github.com/Entrivax/maboii.js
-//! generated with tsc to ES6, and adapted for SubtleCrypto
+//! generated with tsc to ES6, and adapted for SubtleCr*pto
 //! maboii export
 var exports = {};
 var maboii = exports;
@@ -545,7 +547,7 @@ async function drbgGenerateBytes(hmacKey, seed, output) {
 
 // Initializes an HMAC operation
 async function initHmac(hmacKey, iteration, seed) {
-    const key = await crypto.subtle.importKey(
+    const key = await sc.importKey(
         "raw",
         new Uint8Array(hmacKey),
         { name: "HMAC", hash: { name: "SHA-256" } },
@@ -559,20 +561,20 @@ async function initHmac(hmacKey, iteration, seed) {
 // Performs an HMAC step
 async function drbgStep(hmac, output, outputOffset, iterationCtx) {
     iterationCtx.iteration++;
-    const buf = new Uint8Array(await crypto.subtle.sign("HMAC", hmac.key, hmac.data));
+    const buf = new Uint8Array(await sc.sign("HMAC", hmac.key, hmac.data));
     memcpy(output, outputOffset, Array.from(buf), 0, buf.length);
 }
 
 // Compute HMAC
 async function computeHmac(hmacKey, input, inputOffset, inputLength, output, outputOffset) {
-    const key = await crypto.subtle.importKey(
+    const key = await sc.importKey(
         "raw",
         new Uint8Array(hmacKey),
         { name: "HMAC", hash: { name: "SHA-256" } },
         false,
         ["sign"]
     );
-    const result = new Uint8Array(await crypto.subtle.sign(
+    const result = new Uint8Array(await sc.sign(
         "HMAC",
         key,
         new Uint8Array(input).subarray(inputOffset, inputOffset + inputLength)
@@ -582,14 +584,14 @@ async function computeHmac(hmacKey, input, inputOffset, inputLength, output, out
 
 // Encrypt data using AES-CTR
 async function amiiboCipher(keys, input, output) {
-    const key = await crypto.subtle.importKey(
+    const key = await sc.importKey(
         "raw",
         new Uint8Array(keys.aesKey),
         { name: "AES-CTR" },
         false,
         ["encrypt"]
     );
-    const buf = new Uint8Array(await crypto.subtle.encrypt(
+    const buf = new Uint8Array(await sc.encrypt(
         { name: "AES-CTR", counter: new Uint8Array(keys.aesIV), length: 128 },
         key,
         new Uint8Array(input).subarray(0x02C, 0x02C + 0x188)

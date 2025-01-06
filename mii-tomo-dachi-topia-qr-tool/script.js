@@ -1,9 +1,17 @@
-// AES keys
-const AES_CCM_KEY_HEX = '59FC817E6446EA6190347B20E9BDCE52';
-const AES_CTR_KEY_HEX = '30819F300D06092A864886F70D010101';
+// AES keys.
+const AES_CCM_KEYSLOT_0x31_HEX     = '59FC817E6446EA6190347B20E9BDCE52'; // Type 2, slot 0x31
+                                                                          // https://www.3dbrew.org/wiki/PSPXI:EncryptDecryptAes#Key_Types
+const AES_CCM_KEYSLOT_0x31_DEV_HEX = '12DF92B6FFD438AB291C4FD4D7CE256D'; // Dev variant of above key.
 
-// Converted AES-CCM key for sjcl
-const AES_CCM_KEY_BITS = sjcl.codec.hex.toBits(AES_CCM_KEY_HEX);
+const AES_CTR_KEY_HEX              = '30819F300D06092A864886F70D010101';
+
+// Converted AES-CCM keys for sjcl
+const AES_CCM_KEYSLOT_0x31_BITS     = sjcl.codec.hex.toBits(AES_CCM_KEYSLOT_0x31_HEX);
+const AES_CCM_KEYSLOT_0x31_DEV_BITS = sjcl.codec.hex.toBits(AES_CCM_KEYSLOT_0x31_DEV_HEX);
+
+let gAESCCMKeyPrimary = AES_CCM_KEYSLOT_0x31_BITS; // Reassigned to dev/prod.
+const toggleAESCCMKeyMode = isDev => // true controls whether is dev or not
+	{ gAESCCMKeyPrimary = isDev ? AES_CCM_KEYSLOT_0x31_DEV_BITS : AES_CCM_KEYSLOT_0x31_BITS };
 
 const crpyto = window['crypt'+'o']; // jsfiddle blocks this word???
 const sc = crpyto.subtle;           // Shortcut to SubtleCr*pto.
@@ -130,7 +138,7 @@ function decryptAesCcm(encryptedData) {
   const nonce = encryptedData.slice(0, 8);
   const encryptedContent = encryptedData.slice(8);
 
-  const cipher = new sjcl.cipher.aes(AES_CCM_KEY_BITS);
+  const cipher = new sjcl.cipher.aes(gAESCCMKeyPrimary);
 
   const encryptedBits = sjcl.codec.bytes.toBits(Array.from(encryptedContent));
   const nonceBits = sjcl.codec.bytes.toBits([...nonce, 0, 0, 0, 0]);
@@ -373,6 +381,11 @@ function showTab(tabId) {
 }
 */
 
+document.getElementById('use-dev-key').addEventListener('change', event => {
+  toggleAESCCMKeyMode(event.target.checked);
+  console.log('current key: ' + gAESCCMKeyPrimary);
+});
+
 // AES-CCM Encryption (for Mii QR code data)
 function encryptAesCcm(data) {
   // effectively changes birth platform to 3ds
@@ -387,7 +400,7 @@ function encryptAesCcm(data) {
   let newChecksum = crc16(new Uint8Array(checksumContent));
   content = [...content.slice(0, -2), ...toByteArray(newChecksum)];
 
-  const cipher = new sjcl.cipher.aes(AES_CCM_KEY_BITS);
+  const cipher = new sjcl.cipher.aes(gAESCCMKeyPrimary);
 
   let paddedContent = new Uint8Array([...content, ...new Array(8).fill(0)]);
   let paddedContentBits = sjcl.codec.bytes.toBits(Array.from(paddedContent));

@@ -24,6 +24,27 @@ var SWAP_ENDIAN_DESC = [
 ];
 
 /**
+  * Swap the endianness of a 16-bit unsigned integer.
+  * @param {number} value - The 16-bit unsigned integer.
+  * @return {number} - The endian-swapped 16-bit unsigned integer.
+  */
+function swapEndian16(value) {
+    return ((value & 0xFF) << 8) | ((value & 0xFF00) >> 8);
+}
+
+/**
+  * Swap the endianness of a 32-bit unsigned integer.
+  * @param {number} value - The 32-bit unsigned integer.
+  * @return {number} - The endian-swapped 32-bit unsigned integer.
+  */
+function swapEndian32(value) {
+    return ((value & 0xFF) << 24) |
+        ((value & 0xFF00) << 8) |
+        ((value & 0xFF0000) >> 8) |
+        ((value & 0xFF000000) >>> 24);
+}
+
+/**
   * Swap the endianness of an array of integers.
   * @param {Uint8Array} data - The byte array to swap.
   * @param {number} start - The starting offset in the array.
@@ -233,7 +254,7 @@ function displayMiis(miis) {
         // Add inner bullet with image
         var innerUl = document.createElement('ul');
         var innerLi = document.createElement('li');
-        innerLi.innerHTML = '<img src="https://mii-unsecure.ariankordi.net/miis/image.png?width=96&data=' + encodeURIComponent(miis[i].base64) + '"><br>';
+        innerLi.innerHTML = '<img loading="lazy" src="https://mii-unsecure.ariankordi.net/miis/image.png?width=96&data=' + encodeURIComponent(miis[i].base64) + '"><br>';
         innerUl.appendChild(innerLi);
         li.appendChild(innerUl);
 

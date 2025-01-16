@@ -1,3 +1,12 @@
+const DATA_LENGTH = 74; // sizeof(RFLCharData)
+const NAME_OFFSET = 0x2; // name offset in RFLCharData
+const MAX_NAME_LENGTH = 0x14; // 20 bytes/10 utf16 chars
+
+// Constants for DeSmuME save state parsing
+const DST_MAGIC_BYTES = new Uint8Array([0x44, 0x65, 0x53, 0x6D, 0x75, 0x4D, 0x45, 0x20]); // "DeSmuME SState"
+const DST_ZLIB_OFFSET = 0x20; // Offset where zlib data starts
+const DST_ZLIB_SIGNATURE = 0x78; // The first byte of zlib data
+
 // Constants for endian swap types
 const FFLI_SWAP_ENDIAN_TYPE_U8 = 0;
 const FFLI_SWAP_ENDIAN_TYPE_U16 = 1;
@@ -114,10 +123,45 @@ function padTo74Bytes(data) {
 }
 
 /**
+ * Check if the file is a compressed DeSmuME save state.
+ * @param {Uint8Array} data - The file data.
+ * @return {boolean} - True if the file is compressed, false otherwise.
+ */
+function isCompressedDeSmuMESave(data) {
+    // Check for the magic bytes at the start of the file
+    for (let i = 0; i < DST_MAGIC_BYTES.length; i++) {
+        if (data[i] !== DST_MAGIC_BYTES[i]) {
+            return false;
+        }
+    }
+
+    // Check for the zlib signature at the specified offset
+    return data[DST_ZLIB_OFFSET] === DST_ZLIB_SIGNATURE;
+}
+
+/**
+ * Decompress zlib-compressed data using CompressionStream.
+ * @param {Uint8Array} data - The compressed data.
+ * @return {Promise<Uint8Array>} - The decompressed data as a Uint8Array.
+ */
+async function decompressDSTZlib(data) {
+    if (!window.CompressionStream) {
+        throw new Error('CompressionStream is not supported in this browser.');
+    }
+
+    const compressed = data.slice(DST_ZLIB_OFFSET); // Extract the zlib-compressed part
+    const cs = new DecompressionStream('deflate');
+    const stream = new Response(compressed).body.pipeThrough(cs);
+    const decompressed = await new Response(stream).arrayBuffer();
+    return new Uint8Array(decompressed);
+}
+
+
+/**
   * Handle the form submission.
   * @param {Event} event - The form submit event.
   */
-function processData(event) {
+async function processData(event) {
     event.preventDefault();
 
     const fileInput = document.getElementById('fileInput');
@@ -127,14 +171,26 @@ function processData(event) {
         const file = fileInput.files[0];
         const reader = new FileReader();
 
-        reader.onload = function(e) {
+        reader.onload = async function (e) {
             const arrayBuffer = e.target.result;
-            const rawData = new Uint8Array(arrayBuffer);
-            const paddedData = padTo74Bytes(rawData);
-            processAndDisplaySwappedData(paddedData);
+            let rawData = new Uint8Array(arrayBuffer);
+            // Check for compression
+            if (isCompressedDeSmuMESave(rawData)) {
+                rawData = await decompressDSTZlib(rawData);
+            }
+
+
+            // If the data length exceeds 74 bytes, treat it as a database
+            if (rawData.length > DATA_LENGTH) {
+                processSave(rawData.buffer);
+            } else {
+                // Otherwise, process as a single Mii
+                const paddedData = padTo74Bytes(rawData);
+                processAndDisplaySwappedData([paddedData]);
+            }
         };
 
-        reader.onerror = function() {
+        reader.onerror = function () {
             alert('Error reading file.');
         };
 
@@ -142,8 +198,9 @@ function processData(event) {
     } else if (miiDataInput.value.trim() !== '') {
         try {
             const decodedData = detectAndDecodeInput(miiDataInput.value);
+
             const paddedData = padTo74Bytes(decodedData);
-            processAndDisplaySwappedData(paddedData);
+            processAndDisplaySwappedData([paddedData]);
         } catch (error) {
             alert(error.message);
             return;
@@ -159,13 +216,13 @@ function processData(event) {
 }
 
 /**
- * Extract UTF-16 LE Mii name from data at the specified offset.
+ * Extract UTF-16 BE Mii name from data at the specified offset.
  * @param {Uint8Array} data - The data array containing the name.
  * @param {number} offset - The starting offset for the name.
  * @param {number} maxLength - The maximum length of the name in bytes.
  * @return {string} - The decoded name.
  */
-function extractName(data, offset = 0x2, maxLength = 0x14) {
+function extractName(data, offset = NAME_OFFSET, maxLength = MAX_NAME_LENGTH) {
     let endPosition = offset;
 
     // Find the position of the null terminator (0x00 0x00)
@@ -173,7 +230,7 @@ function extractName(data, offset = 0x2, maxLength = 0x14) {
         if (data[endPosition] === 0x00 && data[endPosition + 1] === 0x00) {
             break;
         }
-        endPosition += 2; // Move in 2-byte increments (UTF-16 LE)
+        endPosition += 2; // Move in 2-byte increments (UTF-16 BE)
     }
 
     // Extract and decode the name
@@ -193,19 +250,35 @@ function getRandomPastelColor() {
 }
 
 /**
- * Perform endian swapping and display the result, including extracted name.
- * @param {Uint8Array} data - The input data to process.
+ * Perform endian swapping and display the results for multiple Miis.
+ * @param {Uint8Array[]} miiDataBlocks - Array of Mii data blocks to process.
  */
-function processAndDisplaySwappedData(data) {
-    const swappedData = new Uint8Array(data); // Create a copy
-    swapEndian(swappedData, SWAP_ENDIAN_DESC_RFL);
-    const hexString = bytesToHex(swappedData);
+function processAndDisplaySwappedData(miiDataBlocks) {
+    const ul = document.getElementById('outputList');
+    //ul.innerHTML = ''; // Clear previous results
 
-    // Extract the name from the data
-    const extractedName = extractName(swappedData);
+    miiDataBlocks.forEach(block => {
+        const swappedData = new Uint8Array(block); // Create a copy
+        swapEndian(swappedData, SWAP_ENDIAN_DESC_RFL);
+        const hexString = bytesToHex(swappedData);
 
-    // Append to the list with a random pastel background
-    appendToList(hexString, extractedName);
+        // Extract the name from the data
+        const extractedName = extractName(swappedData);
+
+        // Append to the list with formatted display
+        appendToList(hexString, extractedName);
+    });
+
+    // Inform the user if no valid Miis were found
+    if (miiDataBlocks.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = 'No valid Mii data found.';
+        if (ul.firstChild) {
+            ul.insertBefore(li, ul.firstChild);
+        } else {
+            ul.appendChild(li);
+        }
+    }
 }
 
 /**
@@ -223,6 +296,13 @@ function appendToList(hexData, name) {
     li.textContent = name;
     li.appendChild(pre);
 
+    // Add inner bullet with image
+    const innerUl = document.createElement('ul');
+    const innerLi = document.createElement('li');
+    innerLi.innerHTML = `<img loading="lazy" src="https://mii-unsecure.ariankordi.net/miis/image.png?width=96&data=${encodeURIComponent(hexData)}"><br>`;
+    innerUl.appendChild(innerLi);
+    li.appendChild(innerUl);
+
     // Apply a random pastel color to the `li`
     li.style.color = getRandomPastelColor();
 
@@ -230,33 +310,143 @@ function appendToList(hexData, name) {
 }
 
 /**
+ * Check if a Mii block is valid.
+ * @param {Uint8Array} block - The Mii data block to validate.
+ * @return {boolean} - True if the block is valid, false otherwise.
+ */
+function isValidMiiBlock(block) {
+    // Hex sequence for ASCII string "tsumanogosakata"
+    // This is a string that is right after our
+    // desired "MaaMiiMuuMeeMoo" in the game ROM.
+    // This is checked against in case someone
+    // passes in a save state containing the game code
+    // and it mistakenly finds the string IN THE CODE
+    // and treats the string defined after that as
+    // actual data and jumpscares them nononono
+    const invalidPrefix = [0x74, 0x73, 0x75, 0x6D, 0x61, 0x6E, 0x6F, 0x67, 0x6F, 0x73, 0x61, 0x6B, 0x61, 0x74, 0x61];
+
+    // Check if the block is all zeros
+    if (areAllZeros(block)) {
+        return false;
+    }
+
+    // Check if the block starts with "tsumanogosakata" and invalidate it
+    let matchesInvalidPrefix = true;
+    for (let i = 0; i < invalidPrefix.length; i++) {
+        if (block[i] !== invalidPrefix[i]) {
+            matchesInvalidPrefix = false;
+            break;
+        }
+    }
+    if (matchesInvalidPrefix) {
+    	return false;
+    }
+
+    return true; // Passed all checks
+}
+
+
+/**
+ * Search the data for the signature sequence and extract RFL data blocks.
+ * @param {Uint8Array} data - The entire file data.
+ * @return {Uint8Array[]} - Array of extracted RFL data blocks.
+ */
+function extractMiiDataBlocks(data) {
+    const signature = [0x4D, 0x61, 0x61, 0x4D, 0x69, 0x69, 0x4D, 0x75, 0x75, 0x4D, 0x65, 0x65, 0x4D, 0x6F, 0x6F, 0x00];
+    const signatureLength = signature.length;
+    const miiDataLength = 74;
+    const miiDataBlocks = [];
+
+    for (let i = 0; i <= data.length - signatureLength - miiDataLength; i++) {
+        // Check for the signature sequence
+        let match = true;
+        for (let j = 0; j < signatureLength; j++) {
+            if (data[i + j] !== signature[j]) {
+                match = false;
+                break;
+            }
+        }
+
+        if (match) {
+            const miiStart = i + signatureLength;
+            const miiEnd = miiStart + miiDataLength;
+            const miiBlock = data.slice(miiStart, miiEnd);
+
+            // Validate the Mii block
+            if (isValidMiiBlock(miiBlock)) {
+                miiDataBlocks.push(miiBlock);
+            }
+
+            // Move the index past this Mii block to avoid overlapping matches
+            i = miiEnd - 1;
+        }
+    }
+
+    return miiDataBlocks;
+}
+
+/**
+ * Deduplicate an array of Uint8Array based on their hex representation.
+ * @param {Uint8Array[]} miiDataBlocks - Array of Mii data blocks.
+ * @return {Uint8Array[]} - Deduplicated array of Mii data blocks.
+ */
+function deduplicateMiis(miiDataBlocks) {
+    const seen = new Set();
+    const uniqueMiis = [];
+
+    miiDataBlocks.forEach(block => {
+        const hex = bytesToHex(block);
+        if (!seen.has(hex)) {
+            seen.add(hex);
+            uniqueMiis.push(block);
+        }
+    });
+
+    return uniqueMiis;
+}
+
+/**
+  * Check if all elements in an array are zero.
+  * @param {Array} arr - The array to check.
+  * @return {boolean} - True if all elements are zero, else false.
+  */
+function areAllZeros(arr) {
+    for (var i = 0; i < arr.length; i++) {
+        if (arr[i] !== 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Process the save file and display valid Mii data.
+ * @param {ArrayBuffer} arrayBuffer - The file data as ArrayBuffer.
+ */
+function processSave(arrayBuffer) {
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    // Search for signature and extract Mii data blocks
+    let miiDataBlocks = extractMiiDataBlocks(uint8Array);
+
+    // Deduplicate the Mii data blocks
+    miiDataBlocks = deduplicateMiis(miiDataBlocks);
+
+    // Process and display the deduplicated Mii data
+    processAndDisplaySwappedData(miiDataBlocks);
+}
+
+
+/**
   * Initialize event listeners after DOM is loaded.
   */
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('dataForm');
     form.addEventListener('submit', processData);
+ 
+    const fileInput = document.getElementById('fileInput');
+
+    fileInput.addEventListener('change', function () {
+        processData(new Event('submit')); // Call the existing function
+    });
 });
-
-// Polyfill for atob if not available (optional)
-if (!window.atob) {
-    window.atob = function (input) {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-        let str = input.replace(/=+$/, '');
-        let output = '';
-
-        if (str.length % 4 === 1) {
-            throw new Error("'atob' failed: The string to be decoded is not correctly encoded.");
-        }
-        for (
-            let bc = 0, bs = 0, buffer, i = 0;
-            buffer = str.charAt(i++);
-            ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer,
-                        bc++ % 4) ?
-            output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) :
-            0
-        ) {
-            buffer = chars.indexOf(buffer);
-        }
-        return output;
-    };
-}

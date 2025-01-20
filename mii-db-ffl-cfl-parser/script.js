@@ -1,9 +1,11 @@
-// Constants for FFL_ODB.dat structure
-var FFLI_DATABASE_MAGIC_OFFSET = 0; // u32
-var FFLI_DATABASE_MIIDATA_OFFSET = 8; // Start of m_MiiDataOfficial array
+// read the bottom of the file for official CFL structs!
+var CFL_DB_IDENTIFIER = 'CFOG';
+var FFL_ODB_IDENTIFIER = 'FFOC';
+var DATABASE_MIIDATA_OFFSET = 8; // Start of m_MiiDataOfficial array, same for CFL_DB.dat as well.
 var FFLI_MII_DATA_OFFICIAL_SIZE = 92; // 0x5C bytes
 var FFLI_CREATE_ID_SIZE = 16; // 0x10 bytes
 var TOTAL_MIIS = 3000; // Number of FFLiMiiDataOfficial entries
+var TOTAL_MIIS_CFL = 100;
 var NAME_OFFSET = 0x1A; // Starting offset for the name
 var MAX_NAME_LENGTH = 10; // Maximum name length in characters
 
@@ -156,8 +158,32 @@ function areAllZeros(arr) {
 function processFFLODB(arrayBuffer) {
     var uint8Array = new Uint8Array(arrayBuffer);
 
+	// Will change depending on CFL_ODB or not:
+    var isLittleEndian;
+    var totalMiis;
+
+	// Verify the identifier, which is the first 4 bytes.
+    var first4Bytes = uint8Array.subarray(0, 4);
+    var magic = '';
+    for (var i = 0; i < first4Bytes.length; i++) magic += String.fromCharCode(first4Bytes[i]);
+
+	if (magic === FFL_ODB_IDENTIFIER) {
+    	isLittleEndian = false;
+        totalMiis = TOTAL_MIIS;
+    } else if (magic === CFL_DB_IDENTIFIER) {
+    	isLittleEndian = true;
+        totalMiis = TOTAL_MIIS_CFL;
+        // NOTE that CFL_DB.dat also contains the
+        // structures: CFLiHiddenHeader, CFLiRecentDBFile
+    } else {
+    	// Unknown magic
+        alert('Invalid FFL_ODB.dat/CFL_DB.dat file magic. Expected FFOC/CFOG, actual magic: ' + magic);
+        return;
+    }
+    
+
     // Calculate the total size expected for m_MiiDataOfficial
-    var expectedSize = FFLI_DATABASE_MIIDATA_OFFSET + (TOTAL_MIIS * FFLI_MII_DATA_OFFICIAL_SIZE);
+    var expectedSize = DATABASE_MIIDATA_OFFSET + (totalMiis * FFLI_MII_DATA_OFFICIAL_SIZE);
     if (uint8Array.length < expectedSize) {
         alert('Invalid FFL_ODB.dat file size. Actual size: ' + uint8Array.length);
         return;
@@ -165,30 +191,32 @@ function processFFLODB(arrayBuffer) {
 
     var validMiis = [];
 
-    for (var i = 0; i < TOTAL_MIIS; i++) {
-        var offset = FFLI_DATABASE_MIIDATA_OFFSET + (i * FFLI_MII_DATA_OFFICIAL_SIZE);
+    for (var i = 0; i < totalMiis; i++) {
+        var offset = DATABASE_MIIDATA_OFFSET + (i * FFLI_MII_DATA_OFFICIAL_SIZE);
         var miiData = uint8Array.subarray(offset, offset + FFLI_MII_DATA_OFFICIAL_SIZE);
 
         // Perform endian swapping
-        var swappedData = swapFFLiMiiDataOfficial(miiData);
+        if (!isLittleEndian) {
+        	miiData = swapFFLiMiiDataOfficial(miiData);
+        }
 
         // Extract FFLCreateID (bytes 4 to 20 within FFLiMiiDataOfficial)
         var createId = [];
         for (var j = 4; j < 20; j++) {
-            createId.push(swappedData[j]);
+            createId.push(miiData[j]);
         }
 
         // Check if FFLCreateID is all zeros
         if (!areAllZeros(createId)) {
             // Decode UTF-16 name
-            var name = decodeUTF16Name(swappedData, NAME_OFFSET, MAX_NAME_LENGTH, true);
+            var name = decodeUTF16Name(miiData, NAME_OFFSET, MAX_NAME_LENGTH, true);
 
             // Extract roomIndex (4 bits) and positionInRoom (4 bits)
-            //var roomIndex = (swappedData[3] >> 4) & 0x0F; // Upper 4 bits of byte 3
-            //var positionInRoom = swappedData[3] & 0x0F;   // Lower 4 bits of byte 3
+            //var roomIndex = (miiData[3] >> 4) & 0x0F; // Upper 4 bits of byte 3
+            //var positionInRoom = miiData[3] & 0x0F;   // Lower 4 bits of byte 3
 
             // Encode Mii data to Base64
-            var base64Mii = bytesToBase64(swappedData);
+            var base64Mii = bytesToBase64(miiData);
 
             // Add entry to the validMiis array as formatted text
             validMiis.push({
@@ -374,3 +402,56 @@ document.addEventListener('DOMContentLoaded', function () {
         fileInput.attachEvent('onchange', handleFileSelect);
     }
 });
+
+// NOTE that CFL_DB.dat contains more interesting data!!!!
+/*
+struct CFLiIDTableData {
+    struct CFLCreateID mCreateID; // 10 bytes
+    u16 mNext:15;
+    u16 mGender:1;
+    u16 mPrev:15;
+    u16 padding_0:1;
+};
+
+struct CFLiHiddenHeader {
+    u32 identifier; // magic: CFHE (0x45484643)
+    s16 mHead;
+    s16 mTail;
+    struct CFLiIDTableData data[3000];
+};
+
+struct CFLiCharDatabase {
+    u32 identifier; // magic: CFOG (0x474f4643)
+    u32 myMiiIndex:8;
+    u32 isolation:1;
+    u32 padding_0:23;
+    struct CFLiPackedMiiDataOfficial rawdata[100]; // 92 bytes
+    struct CFLiHiddenHeader hidden;
+    u8 padding_1[14];
+    u16 crc;
+};
+
+struct CFLiRecentDBFile {
+    u32 mIdentifier; // magic: CFRA (0x41524643)
+    s32 mDataSize;
+    u8 mIndexArray[100];
+    struct CFLiPackedMiiDataCore mDataArray[100]; // 72 bytes
+    GLboolean mIsChanged;
+    u8 padding_0[17];
+    u16 crc;
+};
+
+// For reference, from FFL decomp
+class FFLiDatabaseFileOfficial
+{
+...
+private:
+    u32                 m_Magic; // magic: FFOC (0x46464f43)
+    u32                 m_SaveCount;
+    FFLiMiiDataOfficial m_MiiDataOfficial[3000]; // 92 bytes
+    FFLCreateID         m_CreateID[50]; // 10 bytes
+    // Not written to by Mii Maker(?):
+    u16                 _4381c[34 / sizeof(u16)];
+    u16                 m_Crc;
+}
+*/

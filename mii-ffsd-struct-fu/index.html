@@ -1,372 +1,519 @@
 <img id="image" data-src="https://mii-unsecure.ariankordi.net/miis/image.png?verifyCRC16=0&type=all_body_sugar&shaderType=switch&data=">
 
-<script type="module">
-import { Buffer } from 'https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm';
-import _ from 'https://cdn.jsdelivr.net/npm/struct-fu@1.2.1/+esm';
+<!-- struct-fu library ported to browser -->
+<!-- original source: https://github.com/natevw/struct-fu/blob/master/lib.js -->
+<!-- fork: https://github.com/ariankordi/struct-fu/blob/ab4d95109c41539eeb2b0a3b096255de28685788/lib.js -->
+<script>
+var _ = {};
 
-function assertField(fieldName, actual, expected) {
-    if (actual === expected) {
-        console.log(`%c${fieldName}: Expected ${expected}, Got ${actual} ✅`, 'color: green; font-weight: bold;');
-    } else {
-        console.error(`%c${fieldName}: Expected ${expected}, Got ${actual} ❌`, 'color: red; font-weight: bold;');
-    }
-}
-
-//const base64ToUint8Array = base64 => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-const stripSpaces = str => str.replace(/\s+/g, '');
-const hexToUint8Array = hex => new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-const base64ToUint8Array = base64 => {
-  // Replace URL-safe Base64 characters
-  const normalizedBase64 = base64.replace(/-/g, '+').replace(/_/g, '/');
-  // Add padding if necessary
-  const paddedBase64 = normalizedBase64.padEnd(normalizedBase64.length + (4 - (normalizedBase64.length % 4)) % 4, '=');
-  return Uint8Array.from(atob(paddedBase64), c => c.charCodeAt(0));
-};
-const uint8ArrayToBase64 = data => btoa(String.fromCharCode.apply(null, data));
-
-const parseHexOrB64TextStringToUint8Array = text => {
-  let inputData;
-  // decode it to a uint8array whether it's hex or base64
-  const textData = stripSpaces(text);
-  // check if it's base 16 exclusively, otherwise assume base64
-  if (/^[0-9a-fA-F]+$/.test(textData))
-    inputData = hexToUint8Array(textData);
-  else
-    inputData = base64ToUint8Array(textData);
-
-  return inputData;
-};
-const byteToHex = num => num.toString(16).padStart(2, '0');
-const jasmineU8 = parseHexOrB64TextStringToUint8Array(
-// BE:
-//'QAAAAwIAAATtsJuT3abq1g4nWEQAAAAAXVkASgBhAHMAbQBpAG4AZQAAAAAAABw3EBIBe24hHENkDRjHCACCHgANQTBbs22CAAAAbwBzAGkAZwBvAG4AYQBsAAA',
-// LE:
-'AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAABvAHMAaQBnAG8AbgBhAGwAAAAAAJA6'
-);
-const jasmineB = Buffer.from(jasmineU8);
-
-// CFLiCreateID, CFLiAuthorID
-
-var CFLiCreateID = _.struct('CFLiCreateID', [
-    _.ubit('flag_normal', 1),
-    _.ubit('flag_1', 1),
-    _.ubit('flag_temporary', 1),
-    _.ubit('flag_3', 1),
-    _.ubit('create_date1', 14), // 28-bit field
-    _.ubit('create_date2', 14), // 28-bit field
-    _.byte('base', 6),
-]);
-
-// Define CFLiAuthorID Struct
-var CFLiAuthorID = _.struct('CFLiAuthorID', [
-    _.byte('data', 8)
-]);
-
-
-// endian swap ------------------------------
-
-// Enums for endian swap types
-var FFLI_SWAP_ENDIAN_TYPE_U8 = 0;
-var FFLI_SWAP_ENDIAN_TYPE_U16 = 1;
-var FFLI_SWAP_ENDIAN_TYPE_U32 = 2;
-
-// Swap descriptor for FFLiMiiDataCore (from FFLiSwapEndianDesc)
-var SWAP_ENDIAN_DESC = [
-    { type: FFLI_SWAP_ENDIAN_TYPE_U32, count: 1 },  // miiVersion + bitfield fields
-    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 8 },  // authorID (8 bytes)
-    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 10 }, // createID (10 bytes)
-    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 2 },  // reserved
-    { type: FFLI_SWAP_ENDIAN_TYPE_U16, count: 11 },// gender, birthDate, favoriteColor, name (10 UTF-16 chars)
-    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 2 },  // reserved
-    { type: FFLI_SWAP_ENDIAN_TYPE_U16, count: 12 } // creatorName (10 UTF-16 chars)
-];
-
-/**
-  * Swap the endianness of a 16-bit unsigned integer.
-  * @param {number} value - The 16-bit unsigned integer.
-  * @return {number} - The endian-swapped 16-bit unsigned integer.
-  */
-function swapEndian16(value) {
-    return ((value & 0xFF) << 8) | ((value & 0xFF00) >> 8);
-}
-
-/**
-  * Swap the endianness of a 32-bit unsigned integer.
-  * @param {number} value - The 32-bit unsigned integer.
-  * @return {number} - The endian-swapped 32-bit unsigned integer.
-  */
-function swapEndian32(value) {
-    return ((value & 0xFF) << 24) |
-        ((value & 0xFF00) << 8) |
-        ((value & 0xFF0000) >> 8) |
-        ((value & 0xFF000000) >>> 24);
-}
-
-/**
-  * Swap the endianness of an array of integers.
-  * @param {Uint8Array} data - The byte array to swap.
-  * @param {number} start - The starting offset in the array.
-  * @param {number} count - The number of elements to swap.
-  * @param {number} type - The type of elements (FFLI_SWAP_ENDIAN_TYPE_U8, U16, or U32).
-  */
-function swapEndianArray(data, start, count, type) {
-    var size = type === FFLI_SWAP_ENDIAN_TYPE_U8 ? 1 :
-    type === FFLI_SWAP_ENDIAN_TYPE_U16 ? 2 :
-    4; // U32
-
-    for (var i = 0; i < count; i++) {
-        var index = start + (i * size);
-        if (type === FFLI_SWAP_ENDIAN_TYPE_U16) {
-            var value = (data[index] << 8) | data[index + 1];
-            data[index] = value & 0xFF;
-            data[index + 1] = (value >> 8) & 0xFF;
-        } else if (type === FFLI_SWAP_ENDIAN_TYPE_U32) {
-            var byte0 = data[index];       // First byte
-            var byte1 = data[index + 1];   // Second byte
-            var byte2 = data[index + 2];   // Third byte
-            var byte3 = data[index + 3];   // Fourth byte
-
-            // Rearrange bytes in place
-            data[index] = byte3;
-            data[index + 1] = byte2;
-            data[index + 2] = byte1;
-            data[index + 3] = byte0;
+// Add ECMA262-5 method binding if not supported natively
+// https://github.com/ReactNativeNews/react-native-newsletter/blob/93016f62af32d97cc009f991d4f7c3c7155a4f26/ie.js#L8
+if (!('bind' in Function.prototype)) {
+    Function.prototype.bind = function (owner) {
+        var that = this;
+        if (arguments.length <= 1) {
+            return function () {
+                return that.apply(owner, arguments);
+            };
+        } else {
+            var args = Array.prototype.slice.call(arguments, 1);
+            return function () {
+                return that.apply(owner, arguments.length === 0 ? args : args.concat(Array.prototype.slice.call(arguments)));
+            };
         }
-        // U8 requires no swapping
-    }
+    };
 }
 
-/**
-  * Perform endian swapping on FFLiMiiDataCore and its fields based on SWAP_ENDIAN_DESC.
-  * @param {Uint8Array} data - The byte array containing FFLiMiiDataOfficial.
-  * @return {Uint8Array} - The endian-swapped data.
-  */
-function swapFFLiMiiDataCore(data) {
-    var offset = 0;
+function newBuffer(size) {
+    return new Uint8Array(new ArrayBuffer(size));
+}
 
-    // Process the rest of the fields in the descriptor
-    for (var i = 0; i < SWAP_ENDIAN_DESC.length; i++) {
-        var desc = SWAP_ENDIAN_DESC[i];
-        swapEndianArray(data, offset, desc.count, desc.type);
-        offset += desc.count * (desc.type === FFLI_SWAP_ENDIAN_TYPE_U8 ? 1 : desc.type === FFLI_SWAP_ENDIAN_TYPE_U16 ? 2 : 4);
+function extend(obj) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    args.forEach(function (ext) {
+        Object.keys(ext).forEach(function (key) {
+            obj[key] = ext[key];
+        });
+    });
+    return obj;
+}
+
+function addField(ctr, f) {
+    if ('width' in f) {
+        ctr.bits = (ctr.bits || 0) + f.width;
+        while (ctr.bits > 7) {
+            ctr.bytes += 1;
+            ctr.bits -= 8;
+        }
+    } else if (!ctr.bits) {
+        ctr.bytes += f.size;
+    } else {
+        throw Error("Improperly aligned bitfield before field: "+f.name);
     }
+    return ctr;
+}
 
-    return data; // Swapped data
+function arrayizeField(f, count) {
+    var f2 = (typeof count === 'number') ? extend({
+        name: f.name,
+        field: f,
+        valueFromBytes: function (buf, off) {
+            off || (off = {bytes:0, bits:0});
+            var arr = new Array(count);
+            for (var idx = 0, len = arr.length; idx < len; idx += 1) {
+                arr[idx] = f.valueFromBytes(buf, off);
+            }
+            return arr;
+        },
+        bytesFromValue: function (arr, buf, off) {
+            arr || (arr = new Array(count));
+            buf || (buf = newBuffer(this.size));
+            off || (off = {bytes:0, bits:0});
+            for (var idx = 0, len = Math.min(arr.length, count); idx < len; idx += 1) {
+                f.bytesFromValue(arr[idx], buf, off);
+            }
+            while (idx++ < count) addField(off, f);
+            return buf;
+        }
+    }, ('width' in f) ? {width: f.width * count} : {size: f.size * count}) : f;
+    f2.pack = f2.bytesFromValue;
+    f2.unpack = f2.valueFromBytes;
+    return f2;
+}
+
+_.struct = function (name, fields, count) {
+    if (typeof name !== 'string') {
+        count = fields;
+        fields = name;
+        name = null;
+    }
+    
+    var _size = {bytes:0, bits:0},
+        _padsById = Object.create(null),
+        fieldsObj = fields.reduce(function (obj, f) {
+            if ('_padTo' in f) {
+                // HACK: we really should just make local copy of *all* fields
+                f._id || (f._id = 'id' + Math.random().toFixed(20).slice(2)); // WORKAROUND: https://github.com/tessel/runtime/issues/716
+                var _f = _padsById[f._id] = (_size.bits) ? {
+                    width: 8*(f._padTo - _size.bytes) - _size.bits
+                } : {
+                    size: f._padTo - _size.bytes
+                };
+                if ((_f.width !== undefined && _f.width < 0) || (_f.size !== undefined && _f.size < 0)) {
+                    var xtraMsg = (_size.bits) ? (" and " + _size.bits + " bits") : '';
+                    throw Error("Invalid .padTo(" + f._padTo + ") field, struct is already " + _size.bytes + " byte(s)" + xtraMsg + "!");
+                }
+                f = _f;
+            }
+            else if (f._hoistFields) {
+                Object.keys(f._hoistFields).forEach(function (name) {
+                    var _f = Object.create(f._hoistFields[name]);
+                    if ('width' in _f) {
+                        _f.offset = { bytes: _f.offset.bytes + _size.bytes, bits: _f.offset.bits };
+                    } else {
+                        _f.offset += _size.bytes;
+                    }
+                    obj[name] = _f;
+                });
+            }
+            else if (f.name) {
+                f = Object.create(f);           // local overrides
+                f.offset = ('width' in f) ? {bytes:_size.bytes,bits:_size.bits} : _size.bytes,
+                obj[f.name] = f;
+            }
+            addField(_size, f);
+            return obj;
+        }, {});
+    if (_size.bits) throw Error("Improperly aligned bitfield at end of struct: "+name);
+    
+    return arrayizeField({
+        valueFromBytes: function (buf, off) {
+            off || (off = {bytes:0, bits:0});
+            var obj = new Object();
+            fields.forEach(function (f) {
+                if ('_padTo' in f) return addField(off, _padsById[f._id]);
+                
+                var value = f.valueFromBytes(buf, off);
+                if (f.name) obj[f.name] = value;
+                else if (typeof value === 'object') extend(obj, value);
+            });
+            return obj;
+        },
+        bytesFromValue: function (obj, buf, off) {
+            obj || (obj = {});
+            buf || (buf = newBuffer(this.size));
+            off || (off = {bytes:0, bits:0});
+            fields.forEach(function (f) {
+                if ('_padTo' in f) return addField(off, _padsById[f._id]);
+                
+                var value = (f.name) ? obj[f.name] : obj;
+                f.bytesFromValue(value, buf, off);
+            });
+            return buf;
+        },
+        _hoistFields: (!name) ? fieldsObj : null,
+        fields: fieldsObj,
+        size: _size.bytes,
+        name: name
+    }, count);
+};
+
+function truncatedReadUInt32BE(buffer, offset) {
+    var bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : buffer;
+    var availableBytes = bytes.length - offset;
+    var view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+    if (availableBytes >= 4) {
+        return view.getUint32(offset, false);
+    } else if (availableBytes === 3) {
+        var first = view.getUint16(offset, false);
+        var second = view.getUint8(offset + 2);
+        return ((first << 8) + second) << 8 >>> 0;
+    } else if (availableBytes === 2) {
+        return view.getUint16(offset, false) << 16 >>> 0;
+    } else if (availableBytes === 1) {
+        return view.getUint8(offset) << 24 >>> 0;
+    } else {
+        return 0x0;
+    }
+}
+function truncatedWriteUInt32BE(buffer, offset, data) {
+    var bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : buffer;
+    var availableBytes = bytes.length - offset;
+    var view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+    if (availableBytes >= 4) {
+        view.setUint32(offset, data, false);
+    } else if (availableBytes === 3) {
+        view.setUint16(offset, data >>> 16, false);
+        view.setUint8(offset + 2, (data >>> 8) & 0xff);
+    } else if (availableBytes === 2) {
+        view.setUint16(offset, data >>> 16, false);
+    } else if (availableBytes === 1) {
+        view.setUint8(offset, data >>> 24);
+    }
+}
+_.padTo = function (off) {
+    return {_padTo:off};
+};
+
+
+// NOTE: bitfields must be embedded in a struct (C/C++ share this limitation)
+
+var FULL = 0xFFFFFFFF;
+function bitfield(name, width, count) {
+    width || (width = 1);
+    // NOTE: width limitation is so all values will align *within* a 4-byte word
+    if (width > 24) throw Error("Bitfields support a maximum width of 24 bits.");
+    var impl = this,
+        mask = FULL >>> (32 - width);
+    return arrayizeField({
+        valueFromBytes: function (buf, off) {
+            off || (off = {bytes:0, bits:0});
+            var end = (off.bits || 0) + width,
+                word = truncatedReadUInt32BE(buf, off.bytes) || 0,
+                over = word >>> (32 - end);
+            addField(off, this);
+            return impl.b2v.call(this, over & mask);
+        },
+        bytesFromValue: function (val, buf, off) {
+            val = impl.v2b.call(this, val || 0);
+            off || (off = {bytes:0, bits:0});
+            var end = (off.bits || 0) + width,
+                word = truncatedReadUInt32BE(buf, off.bytes) || 0,
+                zero = mask << (32 - end),
+                over = (val & mask) << (32 - end);
+            word &= ~zero;
+            word |= over;
+            word >>>= 0;      // WORKAROUND: https://github.com/tessel/runtime/issues/644
+            truncatedWriteUInt32BE(buf, off.bytes, word);
+            addField(off, this);
+            return buf;
+        },
+        width: width,
+        name: name
+    }, count);
+}
+
+function swapBits(n, w) {
+    var o = 0;
+    while (w--) {
+        o <<= 1;
+        o |= n & 1;
+        n >>>= 1;
+    }
+    return o;
 }
 
 
-// ---------------------------------------
+_.bool = function (name, count) {
+    return bitfield.call({
+        b2v: function (b) { return Boolean(b); },
+        v2b: function (v) { return (v) ? FULL : 0; }
+    }, name, 1, count);
+
+};
+_.ubit = bitfield.bind({
+    b2v: function (b) { return b; },
+    v2b: function (v) { return v; }
+});
+_.ubitLE = bitfield.bind({
+    b2v: function (b) { return swapBits(b, this.width); },
+    v2b: function (v) { return swapBits(v, this.width); }
+});
+_.sbit = bitfield.bind({        // TODO: handle sign bit…
+    b2v: function (b) {
+        var m = 1 << (this.width-1),
+            s = b & m;
+        return (s) ? -(b &= ~m) : b;
+    },
+    v2b: function (v) {
+        var m = 1 << (this.width-1),
+            s = (v < 0);
+        return (s) ? (-v | m) : v;
+    }
+});
 
 
+function bytefield(name, size, count) {
+    if (typeof name !== 'string') {
+        count = size;
+        size = name;
+        name = null;
+    }
+    size = (typeof size === 'number') ? size : 1;
+    var impl = this;
+    return arrayizeField({
+        valueFromBytes: function (buf, off) {
+            off || (off = {bytes:0, bits:0});
+            var bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
+            var val = bytes.subarray(off.bytes, off.bytes + this.size);
+            addField(off, this);
+            return impl.b2v.call(this, val);
+            //return impl.b2v.call(this, val.buffer.slice(val.byteOffset, val.byteOffset + val.byteLength)); // Returns ArrayBuffer usually
+        },
+        bytesFromValue: function (val, buf, off) {
+            buf || (buf = newBuffer(this.size));
+            off || (off = { bytes: 0, bits: 0 });
+            var bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
+            var blk = bytes.subarray(off.bytes, off.bytes + this.size);
+            impl.vTb.call(this, val, blk);
+            addField(off, this);
+            return buf;
+        },
+        size: size,
+        name: name
+    }, count);
+}
 
+// http://stackoverflow.com/a/7460958/72637
+function swapBytesPairs(fromBuffer, toBuffer) {
+    toBuffer = toBuffer || fromBuffer;
+    var l = fromBuffer.length;
+    for (var i = 1; i < l; i += 2) {
+        var a = fromBuffer[i - 1];
+        toBuffer[i - 1] = fromBuffer[i];
+        toBuffer[i] = a;
+    }
+    return toBuffer;
+}
 
-// CFLiCreateID, CFLiAuthorID
-var CFLiCreateID = _.struct('CFLiCreateID', [
-    _.ubit('flag_normal', 1),
-    _.ubit('flag_1', 1),
-    _.ubit('flag_temporary', 1),
-    _.ubit('flag_3', 1),
-    _.ubit('create_date1', 14), // 28-bit field
-    _.ubit('create_date2', 14), // 28-bit field
-    _.byte('base', 6),
-]);
+_.byte = bytefield.bind({
+    b2v: function (b) { return b; },
+    vTb: function (v, b) { if (!v) return 0; b.set(new Uint8Array(v)); return v.byteLength; }
+});
 
-// Define CFLiAuthorID Struct
-var CFLiAuthorID = _.struct('CFLiAuthorID', [
-    _.byte('data', 8)
-]);
+_.char = bytefield.bind({
+    b2v: function (b) {
+        var decoder;
+        if (typeof TextDecoder !== 'undefined') {
+            decoder = new TextDecoder('utf-8');
+        } else {
+            var TextDecoder = function() { };
+            TextDecoder.prototype.decode = function(buffer) {
+                var bytes = new Uint8Array(buffer);
+                var str = '';
+                for (var i = 0; i < bytes.length; i ++) {
+                    str += String.fromCharCode(bytes[i]);
+                }
+                return str;
+            };
+            decoder = new TextDecoder();
+        }
+        var v = decoder.decode(b);
+        var z = v.indexOf('\0');
+        return (~z) ? v.slice(0, z) : v;
+    },
+    vTb: function (v,b) {
+        v || (v = '');
+        var encoder;
+        if (typeof TextEncoder !== 'undefined') {
+            encoder = new TextEncoder('utf-8');
+        } else {
+            var TextEncoder = function() { };
+            TextEncoder.prototype.encode = function (str) {
+                var bytes = new Uint8Array(str.length);
+                for (var i = 0; i < str.length; i++) {
+                    bytes[i] = str.charCodeAt(i);
+                }
+                return bytes;
+            };
+            encoder = new TextEncoder();
+        }
+        var encoded = encoder.encode(v);
+        for (var i = 0; i < encoded.length && i < b.length; i++) {
+            b[i] = encoded[i];
+        }
+        return encoded.length;
+    }
+});
 
-var FFLiMiiDataCore = _.struct('FFLiMiiDataCore', [
-    // 0x00: 32 bits
-    _.struct([
-        _.ubit('mii_version', 8),     // LSB
-        _.ubit('copyable', 1),
-        _.ubit('ng_word', 1),
-        _.ubit('region_move', 2),
-        _.ubit('font_region', 2),
-        _.ubit('reserved_0', 2),  // Unused padding
-        _.ubit('room_index', 4),
-        _.ubit('position_in_room', 4),
-        _.ubit('author_type', 4),  // _0_24_27
-        _.ubit('birth_platform', 3),
-        _.ubit('reserved_1')  // Unused (MSB)
-    ].reverse()),
+_.char16le = bytefield.bind({
+    b2v: function (b) {
+        var decoder;
+        if (typeof TextDecoder !== 'undefined') {
+            decoder = new TextDecoder('utf-16le');
+        } else {
+            var TextDecoder = function() { };
+            TextDecoder.prototype.decode = function(buffer) {
+                var bytes = new Uint8Array(buffer);
+                var str = '';
+                for (var i = 0; i < bytes.length; i += 2) {
+                    var charCode = bytes[i] | (bytes[i + 1] << 8);
+                    str += String.fromCharCode(charCode);
+                }
+                return str;
+            };
+            decoder = new TextDecoder();
+        }
+        var v = decoder.decode(b);
+        var z = v.indexOf('\0');
+        return (~z) ? v.slice(0, z) : v;
+    },
+    vTb: function (v,b) {
+        v || (v = '');
+        var bytesWritten = 0;
+        for (var i = 0; i < v.length && bytesWritten + 1 < b.length; i++) {
+            var charCode = v.charCodeAt(i);
+            b[bytesWritten++] = charCode & 0xFF;
+            b[bytesWritten++] = (charCode >> 8) & 0xFF;
+        }
+        return bytesWritten;
+    }
+});
 
-    // 0x04: author_id (8 bytes)
-    _.byte('author_id', 8),
+_.char16be = bytefield.bind({
+    b2v: function (b) {
+        var temp = new Uint8Array(b);
+        swapBytesPairs(temp);
+        var decoder;
+        if (typeof TextDecoder !== 'undefined') {
+            decoder = new TextDecoder('utf-16le');
+        } else {
+            var TextDecoder = function() { };
+            TextDecoder.prototype.decode = function(buffer) {
+                var bytes = new Uint8Array(buffer);
+                var str = '';
+                for (var i = 0; i < bytes.length; i += 2) {
+                    var charCode = bytes[i] | (bytes[i + 1] << 8);
+                    str += String.fromCharCode(charCode);
+                }
+                return str;
+            };
+            decoder = new TextDecoder();
+        }
+        var v = decoder.decode(temp.buffer);
+        var z = v.indexOf('\0');
+        return (~z) ? v.slice(0, z) : v;
+    },
+    vTb: function (v,b) {
+        v || (v = '');
+        var temp = new Uint8Array(b.length);
+        var bytesWritten = 0;
+        for (var i = 0; i < v.length && bytesWritten + 1 < temp.length; i++) {
+            var charCode = v.charCodeAt(i);
+            temp[bytesWritten++] = charCode & 0xFF;
+            temp[bytesWritten++] = (charCode >> 8) & 0xFF;
+        }
+        swapBytesPairs(temp, b);
+        return bytesWritten;
+    }
+});
 
-    // 0x0C: creator_id (10 bytes)
-    //_.byte('create_id', 10),
-    _.struct('create_id', Object.values(CFLiCreateID.fields)),
+function standardField(sig, size, littleEndian) {
+    var read = 'get' + sig,
+        dump = 'set' + sig;
+    size || (size = +sig.match(/\d+/)[0] / 8);
+    return function (name, count) {
+        if (typeof name !== 'string') {
+            count = name;
+            name = null;
+        }
+        return arrayizeField({
+            valueFromBytes: function (buf, off) {
+                off || (off = {bytes:0});
+                var bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
+                var view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+                var val = view[read](off.bytes, littleEndian);
+                addField(off, this);
+                return val;
+            },
+            bytesFromValue: function (val, buf, off) {
+                val || (val = 0);
+                buf || (buf = newBuffer(this.size));
+                off || (off = {bytes:0});
+                var bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
+                var view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+                view[dump](off.bytes, val, littleEndian);
+                addField(off, this);
+                return buf;
+            },
+            size: size,
+            name: name
+        }, count);
+    };
+}
 
-    // 0x16: padding (2 bytes)
-    _.byte('reserved_2', 2),
+_.uint8 = standardField('Uint8', 1, false);
+_.uint16 = standardField('Uint16', 2, false);
+_.uint32 = standardField('Uint32', 4, false);
+_.uint16le = standardField('Uint16', 2, true);
+_.uint32le = standardField('Uint32', 4, true);
 
-    // 0x18: 16 bits for birthday and favorite
-    _.struct([
-        _.ubit('gender', 1),         // LSB
-        _.ubit('birth_month', 4),
-        _.ubit('birth_day', 5),
-        _.ubit('favorite_color', 4),
-        _.ubit('favorite', 1),
-        _.ubit('padding_0', 1)               // Placeholder (MSB)
-    ].reverse()),
+_.int8 = standardField('Int8', 1, false);
+_.int16 = standardField('Int16', 2, false);
+_.int32 = standardField('Int32', 4, false);
+_.int16le = standardField('Int16', 2, true);
+_.int32le = standardField('Int32', 4, true);
 
-    // 0x1A: name (UTF-16LE, 20 bytes)
-    _.char16be('name', 20),
+_.float32 = standardField('Float32', 4, false);
+_.float64 = standardField('Float64', 8, false);
+_.float32le = standardField('Float32', 4, true);
+_.float64le = standardField('Float64', 8, true);
 
-    // 0x2E: height and build
-    _.uint8('height'),
-    _.uint8('build'),
+_.derive = function (orig, pack, unpack) {
+    return function (name, count) {
+        if (typeof name !== 'string') {
+            count = name;
+            name = null;
+        }
+        return arrayizeField(extend({
+            valueFromBytes: function (buf, off) {
+                return unpack(orig.valueFromBytes(buf, off));
+            },
+            bytesFromValue: function (val, buf, off) {
+                return orig.bytesFromValue(pack(val), buf, off);
+            },
+            name: name
+        }, ('width' in orig) ? {width:orig.width} : {size:orig.size}), count);
+    };
+};
 
-    // 0x30: 16 bits for face data
-    _.struct([
-        _.ubit('localonly', 1),      // LSB
-        _.ubit('face_type', 4),
-        _.ubit('face_color', 3),
-        _.ubit('face_tex', 4),
-        _.ubit('face_make', 4)    // MSB
-    ].reverse()),
-
-    // 0x32: 16 bits for hair data
-    _.struct([
-        _.ubit('hair_type', 8),      // LSB
-        _.ubit('hair_color', 3),
-        _.ubit('hair_flip', 1),
-        _.ubit('padding_1', 4)                   // Unused padding (MSB)
-    ].reverse()),
-
-    // 0x34: 16 bits for eye data
-    _.struct([
-        _.ubit('eye_type', 6),       // LSB
-        _.ubit('eye_color', 3),
-        _.ubit('eye_scale', 4),
-        _.ubit('eye_aspect', 3)    // MSB
-    ].reverse()),
-
-    // 0x36: 16 bits for eye positioning
-    _.struct([
-        _.ubit('eye_rotate', 5),     // LSB
-        _.ubit('eye_x', 4),
-        _.ubit('eye_y', 5),
-        _.ubit('padding_2', 2)                   // Unused padding (MSB)
-    ].reverse()),
-
-    // 0x38: 16 bits for eyebrow data
-    _.struct([
-        _.ubit('eyebrow_type', 5),   // LSB
-        _.ubit('eyebrow_color', 3),
-        _.ubit('eyebrow_scale', 4),
-        _.ubit('eyebrow_aspect', 3),
-        _.ubit('padding_3', 1)                   // Unused padding (MSB)
-    ].reverse()),
-
-    // 0x3A: 16 bits for eyebrow positioning
-    _.struct([
-        _.ubit('eyebrow_rotate', 5), // LSB
-        _.ubit('eyebrow_x', 4),
-        _.ubit('eyebrow_y', 5),
-        _.ubit('padding_4', 2)                   // Unused padding (MSB)
-    ].reverse()),
-
-    // 0x3C: 16 bits for nose data
-    _.struct([
-        _.ubit('nose_type', 5),      // LSB
-        _.ubit('nose_scale', 4),
-        _.ubit('nose_y', 5),
-        _.ubit('padding_5', 2)                   // Unused padding (MSB)
-    ].reverse()),
-
-    // 0x3E: 16 bits for mouth data
-    _.struct([
-        _.ubit('mouth_type', 6),     // LSB
-        _.ubit('mouth_color', 3),
-        _.ubit('mouth_scale', 4),
-        _.ubit('mouth_aspect', 3)  // MSB
-    ].reverse()),
-
-    // 0x40: 16 bits for mustache/mouth position
-    _.struct([
-        _.ubit('mouth_y', 5), // LSB
-        _.ubit('mustache_type', 3),
-        _.ubit('padding_6', 8)                     // Unused padding (MSB)
-    ].reverse()),
-
-    // 0x42: 16 bits for mustache/beard data
-    _.struct([
-        _.ubit('beard_type', 3),       // LSB
-        _.ubit('beard_color', 3),
-        _.ubit('beard_scale', 4),
-        _.ubit('beard_y', 5),
-        _.ubit('padding_7', 1)                      // Unused padding (MSB)
-    ].reverse()),
-
-    // 0x44: 16 bits for glasses data
-    _.struct([
-        _.ubit('glasses_type', 4),     // LSB
-        _.ubit('glasses_color', 3),
-        _.ubit('glasses_scale', 4),
-        _.ubit('glass_y', 5) // MSB
-    ].reverse()),
-
-    // 0x46: 16 bits for mole data
-    _.struct([
-        _.ubit('mole_type', 1),        // LSB
-        _.ubit('mole_scale', 4),
-        _.ubit('mole_x', 5),
-        _.ubit('mole_y', 5),
-        _.ubit('padding_8', 1)                      // Unused padding (MSB)
-    ].reverse())
-]);
-
-//Buffer.from(jasmineU8BE)
-//Buffer.from(jasmineU8LE)
-
-//var unpacked = FFLiMiiDataCore.unpack(jasmineU8BE);
-//console.log('jasmine BE unpacked:', unpacked);
-//var unpacked = FFLiMiiDataCoreLE.unpack(jasmineU8LE);
-//var unpacked = FFLiMiiDataCore.unpack(jasmineU8LE);
-
-var unpacked = FFLiMiiDataCore.unpack(swapFFLiMiiDataCore(jasmineB));
-//var unpacked = FFLiMiiDataCore.unpack(Buffer.from(new Uint8Array(swapFFLiMiiDataCore(jasmineU8LE))));
-//var unpacked = FFLiMiiDataCoreLE.unpack(jasmineU8LE)
-
-console.log('jasmine LE swapped and unpacked', unpacked);
-console.log(FFLiMiiDataCore.fields.mii_version.offset)
-console.log(FFLiMiiDataCore.fields)
-
-
-assertField('miiVersion', unpacked.mii_version, 3);
-assertField('regionMove', unpacked.region_move, 0);
-assertField('fontRegion', unpacked.font_region, 0);
-assertField('roomIndex', unpacked.room_index, 0);
-assertField('positionInRoom', unpacked.position_in_room, 0);
-assertField('authorType', unpacked.author_type, 0);
-assertField('birthPlatform', unpacked.birth_platform, 4);
-
-assertField('birthMonth', unpacked.birth_month, 12);
-assertField('birthDay', unpacked.birth_day, 10);
-
-assertField('build', unpacked.build, 55);
-
-assertField('favoriteColor', unpacked.favorite_color, 11);
-assertField('hairType', unpacked.hair_type, 123);
-//assertField('beardColor', unpacked.beard_color, 6);
-assertField('glassY', unpacked.glass_y, 0xb);
-
-var hex = [...new Uint8Array(swapFFLiMiiDataCore(
-      new Uint8Array(
-        FFLiMiiDataCore.pack(unpacked)
-      )
-  )
-)].map(byteToHex).join('')
-
-console.log(hex)
-document.getElementById('image').src = document.getElementById('image').getAttribute('data-src') + hex
-
-unpacked = FFLiMiiDataCore.unpack(FFLiMiiDataCore.pack(unpacked))
-console.log(unpacked)
-
-//debugger
-
-</script>
+// Export for Node.js environments
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = _;
+} else {
+    // Export to global scope for browsers
+    window._ = _;
+}
+</script><script src="script.js"></script>

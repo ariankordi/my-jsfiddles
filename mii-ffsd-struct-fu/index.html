@@ -1,3 +1,5 @@
+<img id="image" data-src="https://mii-unsecure.ariankordi.net/miis/image.png?verifyCRC16=0&type=all_body_sugar&shaderType=switch&data=">
+
 <script type="module">
 import { Buffer } from 'https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm';
 import _ from 'https://cdn.jsdelivr.net/npm/struct-fu@1.2.1/+esm';
@@ -34,6 +36,7 @@ const parseHexOrB64TextStringToUint8Array = text => {
 
   return inputData;
 };
+const byteToHex = num => num.toString(16).padStart(2, '0');
 const jasmineU8 = parseHexOrB64TextStringToUint8Array(
 // BE:
 //'QAAAAwIAAATtsJuT3abq1g4nWEQAAAAAXVkASgBhAHMAbQBpAG4AZQAAAAAAABw3EBIBe24hHENkDRjHCACCHgANQTBbs22CAAAAbwBzAGkAZwBvAG4AYQBsAAA',
@@ -60,238 +63,309 @@ var CFLiAuthorID = _.struct('CFLiAuthorID', [
 ]);
 
 
-var CFLiPackedMiiDataCore = _.struct('CFLiPackedMiiDataCore', [
-    // u32
-    _.ubit('miiVersion', 8),     // 0x0
-    _.ubit('copyable', 1),       // 0x1
-    _.ubit('ngWord', 1),
-    _.ubit('regionMove', 2),
-    _.ubit('fontRegion', 2),
-    _.ubit('reserved_0', 2),
+// endian swap ------------------------------
 
-    _.ubit('roomIndex', 4),      // 0x2
-    _.ubit('positionInRoom', 4),
+// Enums for endian swap types
+var FFLI_SWAP_ENDIAN_TYPE_U8 = 0;
+var FFLI_SWAP_ENDIAN_TYPE_U16 = 1;
+var FFLI_SWAP_ENDIAN_TYPE_U32 = 2;
 
-    _.ubit('authorType', 4),     // 0x3
-    _.ubit('birthPlatform', 3),
-    _.ubit('reserved_1', 1),
+// Swap descriptor for FFLiMiiDataCore (from FFLiSwapEndianDesc)
+var SWAP_ENDIAN_DESC = [
+    { type: FFLI_SWAP_ENDIAN_TYPE_U32, count: 1 },  // miiVersion + bitfield fields
+    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 8 },  // authorID (8 bytes)
+    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 10 }, // createID (10 bytes)
+    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 2 },  // reserved
+    { type: FFLI_SWAP_ENDIAN_TYPE_U16, count: 11 },// gender, birthDate, favoriteColor, name (10 UTF-16 chars)
+    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 2 },  // reserved
+    { type: FFLI_SWAP_ENDIAN_TYPE_U16, count: 12 } // creatorName (10 UTF-16 chars)
+];
 
-    // 0x4
-    _.struct('createID', Object.values(CFLiCreateID.fields)),
-    // 0xc
-    _.struct('authorID', Object.values(CFLiAuthorID.fields)),
+/**
+  * Swap the endianness of a 16-bit unsigned integer.
+  * @param {number} value - The 16-bit unsigned integer.
+  * @return {number} - The endian-swapped 16-bit unsigned integer.
+  */
+function swapEndian16(value) {
+    return ((value & 0xFF) << 8) | ((value & 0xFF00) >> 8);
+}
 
-    // 0x16
-    _.struct('reserved_2', [
-        _.uint8('reserved_2_0'),
-        _.uint8('reserved_2_1'),
-    ]),
+/**
+  * Swap the endianness of a 32-bit unsigned integer.
+  * @param {number} value - The 32-bit unsigned integer.
+  * @return {number} - The endian-swapped 32-bit unsigned integer.
+  */
+function swapEndian32(value) {
+    return ((value & 0xFF) << 24) |
+        ((value & 0xFF00) << 8) |
+        ((value & 0xFF0000) >> 8) |
+        ((value & 0xFF000000) >>> 24);
+}
 
-    // u16
-    _.ubit('gender', 1),         // 0x18
-    _.ubit('birthMonth', 4),
-    _.ubit('birthDay', 5),
-    _.ubit('favoriteColor', 4),  // 0x19 bit offset 3
-    _.ubit('favorite', 1),
-    _.ubit('padding_0', 1),
+/**
+  * Swap the endianness of an array of integers.
+  * @param {Uint8Array} data - The byte array to swap.
+  * @param {number} start - The starting offset in the array.
+  * @param {number} count - The number of elements to swap.
+  * @param {number} type - The type of elements (FFLI_SWAP_ENDIAN_TYPE_U8, U16, or U32).
+  */
+function swapEndianArray(data, start, count, type) {
+    var size = type === FFLI_SWAP_ENDIAN_TYPE_U8 ? 1 :
+    type === FFLI_SWAP_ENDIAN_TYPE_U16 ? 2 :
+    4; // U32
 
-    // Name Array (u16[10])      // 0x1a
-    _.char16le('name', 20),
+    for (var i = 0; i < count; i++) {
+        var index = start + (i * size);
+        if (type === FFLI_SWAP_ENDIAN_TYPE_U16) {
+            var value = (data[index] << 8) | data[index + 1];
+            data[index] = value & 0xFF;
+            data[index + 1] = (value >> 8) & 0xFF;
+        } else if (type === FFLI_SWAP_ENDIAN_TYPE_U32) {
+            var byte0 = data[index];       // First byte
+            var byte1 = data[index + 1];   // Second byte
+            var byte2 = data[index + 2];   // Third byte
+            var byte3 = data[index + 3];   // Fourth byte
 
-    // Height and Build          // 0x2e
-    _.uint8('height'),
-    _.uint8('build'),            // 0x2f
+            // Rearrange bytes in place
+            data[index] = byte3;
+            data[index + 1] = byte2;
+            data[index + 2] = byte1;
+            data[index + 3] = byte0;
+        }
+        // U8 requires no swapping
+    }
+}
 
-    // u16
-    _.ubit('localonly', 1),      // 0x30
-    _.ubit('faceType', 4),
-    _.ubit('faceColor', 3),
-    _.ubit('faceTex', 4),        // 0x31
-    _.ubit('faceMake', 4),
+/**
+  * Perform endian swapping on FFLiMiiDataCore and its fields based on SWAP_ENDIAN_DESC.
+  * @param {Uint8Array} data - The byte array containing FFLiMiiDataOfficial.
+  * @return {Uint8Array} - The endian-swapped data.
+  */
+function swapFFLiMiiDataCore(data) {
+    var offset = 0;
 
-    _.ubit('hairType', 8),       // 0x32
-    _.ubit('hairColor', 3),      // 0x33
-    _.ubit('hairFlip', 1),
-    _.ubit('padding_1', 4),
+    // Process the rest of the fields in the descriptor
+    for (var i = 0; i < SWAP_ENDIAN_DESC.length; i++) {
+        var desc = SWAP_ENDIAN_DESC[i];
+        swapEndianArray(data, offset, desc.count, desc.type);
+        offset += desc.count * (desc.type === FFLI_SWAP_ENDIAN_TYPE_U8 ? 1 : desc.type === FFLI_SWAP_ENDIAN_TYPE_U16 ? 2 : 4);
+    }
 
-    _.ubit('eyeType', 6),        // 0x34
-    _.ubit('eyeColor', 3),
-    _.ubit('eyeScale', 4),       // 0x35 bit offset 1
-    _.ubit('eyeAspect', 3),
-    _.ubit('eyeRotate', 5),      // 0x36
-    _.ubit('eyeX', 4),
-    _.ubit('eyeY', 5),
-    _.ubit('padding_2', 2),
-
-    _.ubit('eyebrowType', 5),
-    _.ubit('eyebrowColor', 3),
-    _.ubit('eyebrowScale', 4),
-    _.ubit('eyebrowAspect', 3),
-    _.ubit('padding_3', 1),
-
-    _.ubit('eyebrowRotate', 5),
-    _.ubit('eyebrowX', 4),
-    _.ubit('eyebrowY', 5),
-    _.ubit('padding_4', 2),
-
-    _.ubit('noseType', 5),
-    _.ubit('noseScale', 4),
-    _.ubit('noseY', 5),
-    _.ubit('padding_5', 2),
-
-    _.ubit('mouthType', 6),
-    _.ubit('mouthColor', 3),
-    _.ubit('mouthScale', 4),
-    _.ubit('mouthAspect', 3),
-    _.ubit('mouthY', 5),
-
-    _.ubit('mustacheType', 3),
-    _.ubit('padding_6', 8),
-
-    _.ubit('beardType', 3),
-    _.ubit('beardColor', 3),
-    _.ubit('beardScale', 4),
-    _.ubit('beardY', 5),
-    _.ubit('padding_7', 1),
-
-    _.ubit('glassType', 4),
-    _.ubit('glassColor', 3),
-    _.ubit('glassScale', 4),
-    _.ubit('glassY', 5),
-
-    _.ubit('moleType', 1),
-    _.ubit('moleScale', 4),
-    _.ubit('moleX', 5),
-    _.ubit('moleY', 5),
-    _.ubit('padding_8', 1),
-].reverse());
+    return data; // Swapped data
+}
 
 
-var CFLiPackedMiiDataCoreSwap = _.struct('CFLiPackedMiiDataCore', [
-    // 32-bit bitfields.
-    _.ubitLE('miiVersion', 8),
-    _.ubitLE('copyable', 1),
-    _.ubitLE('ngWord', 1),
-    _.ubitLE('regionMove', 2),
-    _.ubitLE('fontRegion', 2),
-    _.ubitLE('reserved_0', 2),
-    _.ubitLE('roomIndex', 4),
-    _.ubitLE('positionInRoom', 4),
-    _.ubitLE('authorType', 4),
-    _.ubitLE('birthPlatform', 3),
-    _.ubitLE('reserved_1', 1),
+// ---------------------------------------
 
-    _.struct('createID', Object.values(CFLiCreateID.fields)),
-    _.struct('authorID', Object.values(CFLiAuthorID.fields)),
 
-    // Reserved Array (u8[2])
-    _.struct('reserved_2', [
-        _.uint8('reserved_2_0'),
-        _.uint8('reserved_2_1'),
-    ]),
 
-    // 16-bit Bitfields
-    _.ubitLE('gender', 1),
-    _.ubitLE('birthMonth', 4),
-    _.ubitLE('birthDay', 5),
-    _.ubitLE('favoriteColor', 4),
-    _.ubitLE('favorite', 1),
-    _.ubitLE('padding_0', 1),
 
-    // Name Array (u16[10])
-    _.char16le('name', 20),
+// CFLiCreateID, CFLiAuthorID
+var CFLiCreateID = _.struct('CFLiCreateID', [
+    _.ubit('flag_normal', 1),
+    _.ubit('flag_1', 1),
+    _.ubit('flag_temporary', 1),
+    _.ubit('flag_3', 1),
+    _.ubit('create_date1', 14), // 28-bit field
+    _.ubit('create_date2', 14), // 28-bit field
+    _.byte('base', 6),
+]);
 
-    // Height and Build (u8 each)
+// Define CFLiAuthorID Struct
+var CFLiAuthorID = _.struct('CFLiAuthorID', [
+    _.byte('data', 8)
+]);
+
+var FFLiMiiDataCore = _.struct('FFLiMiiDataCore', [
+    // 0x00: 32 bits
+    _.struct([
+        _.ubit('mii_version', 8),     // LSB
+        _.ubit('copyable', 1),
+        _.ubit('ng_word', 1),
+        _.ubit('region_move', 2),
+        _.ubit('font_region', 2),
+        _.ubit('reserved_0', 2),  // Unused padding
+        _.ubit('room_index', 4),
+        _.ubit('position_in_room', 4),
+        _.ubit('author_type', 4),  // _0_24_27
+        _.ubit('birth_platform', 3),
+        _.ubit('reserved_1')  // Unused (MSB)
+    ].reverse()),
+
+    // 0x04: author_id (8 bytes)
+    _.byte('author_id', 8),
+
+    // 0x0C: creator_id (10 bytes)
+    //_.byte('create_id', 10),
+    _.struct('create_id', Object.values(CFLiCreateID.fields)),
+
+    // 0x16: padding (2 bytes)
+    _.byte('reserved_2', 2),
+
+    // 0x18: 16 bits for birthday and favorite
+    _.struct([
+        _.ubit('gender', 1),         // LSB
+        _.ubit('birth_month', 4),
+        _.ubit('birth_day', 5),
+        _.ubit('favorite_color', 4),
+        _.ubit('favorite', 1),
+        _.ubit('padding_0', 1)               // Placeholder (MSB)
+    ].reverse()),
+
+    // 0x1A: name (UTF-16LE, 20 bytes)
+    _.char16be('name', 20),
+
+    // 0x2E: height and build
     _.uint8('height'),
     _.uint8('build'),
 
-    // More 16-bit Bitfields
-    _.ubitLE('localonly', 1),
-    _.ubitLE('faceType', 4),
-    _.ubitLE('faceColor', 3),
-    _.ubitLE('faceTex', 4),
-    _.ubitLE('faceMake', 4),
+    // 0x30: 16 bits for face data
+    _.struct([
+        _.ubit('localonly', 1),      // LSB
+        _.ubit('face_type', 4),
+        _.ubit('face_color', 3),
+        _.ubit('face_tex', 4),
+        _.ubit('face_make', 4)    // MSB
+    ].reverse()),
 
-    _.ubitLE('hairType', 8),
-    _.ubitLE('hairColor', 3),
-    _.ubitLE('hairFlip', 1),
-    _.ubitLE('padding_1', 4),
+    // 0x32: 16 bits for hair data
+    _.struct([
+        _.ubit('hair_type', 8),      // LSB
+        _.ubit('hair_color', 3),
+        _.ubit('hair_flip', 1),
+        _.ubit('padding_1', 4)                   // Unused padding (MSB)
+    ].reverse()),
 
-    _.ubitLE('eyeType', 6),
-    _.ubitLE('eyeColor', 3),
-    _.ubitLE('eyeScale', 4),
-    _.ubitLE('eyeAspect', 3),
-    _.ubitLE('eyeRotate', 5),
-    _.ubitLE('eyeX', 4),
-    _.ubitLE('eyeY', 5),
-    _.ubitLE('padding_2', 2),
+    // 0x34: 16 bits for eye data
+    _.struct([
+        _.ubit('eye_type', 6),       // LSB
+        _.ubit('eye_color', 3),
+        _.ubit('eye_scale', 4),
+        _.ubit('eye_aspect', 3)    // MSB
+    ].reverse()),
 
-    _.ubitLE('eyebrowType', 5),
-    _.ubitLE('eyebrowColor', 3),
-    _.ubitLE('eyebrowScale', 4),
-    _.ubitLE('eyebrowAspect', 3),
-    _.ubitLE('padding_3', 1),
+    // 0x36: 16 bits for eye positioning
+    _.struct([
+        _.ubit('eye_rotate', 5),     // LSB
+        _.ubit('eye_x', 4),
+        _.ubit('eye_y', 5),
+        _.ubit('padding_2', 2)                   // Unused padding (MSB)
+    ].reverse()),
 
-    _.ubitLE('eyebrowRotate', 5),
-    _.ubitLE('eyebrowX', 4),
-    _.ubitLE('eyebrowY', 5),
-    _.ubitLE('padding_4', 2),
+    // 0x38: 16 bits for eyebrow data
+    _.struct([
+        _.ubit('eyebrow_type', 5),   // LSB
+        _.ubit('eyebrow_color', 3),
+        _.ubit('eyebrow_scale', 4),
+        _.ubit('eyebrow_aspect', 3),
+        _.ubit('padding_3', 1)                   // Unused padding (MSB)
+    ].reverse()),
 
-    _.ubitLE('noseType', 5),
-    _.ubitLE('noseScale', 4),
-    _.ubitLE('noseY', 5),
-    _.ubitLE('padding_5', 2),
+    // 0x3A: 16 bits for eyebrow positioning
+    _.struct([
+        _.ubit('eyebrow_rotate', 5), // LSB
+        _.ubit('eyebrow_x', 4),
+        _.ubit('eyebrow_y', 5),
+        _.ubit('padding_4', 2)                   // Unused padding (MSB)
+    ].reverse()),
 
-    _.ubitLE('mouthType', 6),
-    _.ubitLE('mouthColor', 3),
-    _.ubitLE('mouthScale', 4),
-    _.ubitLE('mouthAspect', 3),
-    _.ubitLE('mouthY', 5),
+    // 0x3C: 16 bits for nose data
+    _.struct([
+        _.ubit('nose_type', 5),      // LSB
+        _.ubit('nose_scale', 4),
+        _.ubit('nose_y', 5),
+        _.ubit('padding_5', 2)                   // Unused padding (MSB)
+    ].reverse()),
 
-    _.ubitLE('mustacheType', 3),
-    _.ubitLE('padding_6', 8),
+    // 0x3E: 16 bits for mouth data
+    _.struct([
+        _.ubit('mouth_type', 6),     // LSB
+        _.ubit('mouth_color', 3),
+        _.ubit('mouth_scale', 4),
+        _.ubit('mouth_aspect', 3)  // MSB
+    ].reverse()),
 
-    _.ubitLE('beardType', 3),
-    _.ubitLE('beardColor', 3),
-    _.ubitLE('beardScale', 4),
-    _.ubitLE('beardY', 5),
-    _.ubitLE('padding_7', 1),
+    // 0x40: 16 bits for mustache/mouth position
+    _.struct([
+        _.ubit('mouth_y', 5), // LSB
+        _.ubit('mustache_type', 3),
+        _.ubit('padding_6', 8)                     // Unused padding (MSB)
+    ].reverse()),
 
-    _.ubitLE('glassType', 4),
-    _.ubitLE('glassColor', 3),
-    _.ubitLE('glassScale', 4),
-    _.ubitLE('glassY', 5),
+    // 0x42: 16 bits for mustache/beard data
+    _.struct([
+        _.ubit('beard_type', 3),       // LSB
+        _.ubit('beard_color', 3),
+        _.ubit('beard_scale', 4),
+        _.ubit('beard_y', 5),
+        _.ubit('padding_7', 1)                      // Unused padding (MSB)
+    ].reverse()),
 
-    _.ubitLE('moleType', 1),
-    _.ubitLE('moleScale', 4),
-    _.ubitLE('moleX', 5),
-    _.ubitLE('moleY', 5),
-    _.ubitLE('padding_8', 1),
-].reverse());
+    // 0x44: 16 bits for glasses data
+    _.struct([
+        _.ubit('glasses_type', 4),     // LSB
+        _.ubit('glasses_color', 3),
+        _.ubit('glasses_scale', 4),
+        _.ubit('glass_y', 5) // MSB
+    ].reverse()),
 
-//const unpacked = CFLiPackedMiiDataCore.unpack(jasmineB);
-const unpacked = CFLiPackedMiiDataCoreSwap.unpack(jasmineB);
+    // 0x46: 16 bits for mole data
+    _.struct([
+        _.ubit('mole_type', 1),        // LSB
+        _.ubit('mole_scale', 4),
+        _.ubit('mole_x', 5),
+        _.ubit('mole_y', 5),
+        _.ubit('padding_8', 1)                      // Unused padding (MSB)
+    ].reverse())
+]);
 
-console.log(unpacked);
-console.log(CFLiPackedMiiDataCore.fields.miiVersion.offset)
+//Buffer.from(jasmineU8BE)
+//Buffer.from(jasmineU8LE)
 
-assertField('miiVersion', unpacked.miiVersion, 3);
-assertField('regionMove', unpacked.regionMove, 0);
-assertField('fontRegion', unpacked.fontRegion, 0);
-assertField('roomIndex', unpacked.roomIndex, 0);
-assertField('positionInRoom', unpacked.positionInRoom, 0);
-assertField('authorType', unpacked.authorType, 0);
-assertField('birthPlatform', unpacked.birthPlatform, 4);
+//var unpacked = FFLiMiiDataCore.unpack(jasmineU8BE);
+//console.log('jasmine BE unpacked:', unpacked);
+//var unpacked = FFLiMiiDataCoreLE.unpack(jasmineU8LE);
+//var unpacked = FFLiMiiDataCore.unpack(jasmineU8LE);
 
-assertField('birthMonth', unpacked.birthMonth, 12);
-assertField('birthDay', unpacked.birthDay, 10);
+var unpacked = FFLiMiiDataCore.unpack(swapFFLiMiiDataCore(jasmineB));
+//var unpacked = FFLiMiiDataCore.unpack(Buffer.from(new Uint8Array(swapFFLiMiiDataCore(jasmineU8LE))));
+//var unpacked = FFLiMiiDataCoreLE.unpack(jasmineU8LE)
+
+console.log('jasmine LE swapped and unpacked', unpacked);
+console.log(FFLiMiiDataCore.fields.mii_version.offset)
+console.log(FFLiMiiDataCore.fields)
 
 
-assertField('favoriteColor', unpacked.favoriteColor, 11);
-assertField('hairType', unpacked.hairType, 123);
-//assertField('beardColor', unpacked.beardColor, 6);
-assertField('glassY', unpacked.glassY, 0xb);
+assertField('miiVersion', unpacked.mii_version, 3);
+assertField('regionMove', unpacked.region_move, 0);
+assertField('fontRegion', unpacked.font_region, 0);
+assertField('roomIndex', unpacked.room_index, 0);
+assertField('positionInRoom', unpacked.position_in_room, 0);
+assertField('authorType', unpacked.author_type, 0);
+assertField('birthPlatform', unpacked.birth_platform, 4);
 
+assertField('birthMonth', unpacked.birth_month, 12);
+assertField('birthDay', unpacked.birth_day, 10);
+
+assertField('build', unpacked.build, 55);
+
+assertField('favoriteColor', unpacked.favorite_color, 11);
+assertField('hairType', unpacked.hair_type, 123);
+//assertField('beardColor', unpacked.beard_color, 6);
+assertField('glassY', unpacked.glass_y, 0xb);
+
+var hex = [...new Uint8Array(swapFFLiMiiDataCore(
+      new Uint8Array(
+        FFLiMiiDataCore.pack(unpacked)
+      )
+  )
+)].map(byteToHex).join('')
+
+console.log(hex)
+document.getElementById('image').src = document.getElementById('image').getAttribute('data-src') + hex
+
+unpacked = FFLiMiiDataCore.unpack(FFLiMiiDataCore.pack(unpacked))
+console.log(unpacked)
 
 //debugger
 

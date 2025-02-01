@@ -1,0 +1,298 @@
+<script type="module">
+import { Buffer } from 'https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm';
+import _ from 'https://cdn.jsdelivr.net/npm/struct-fu@1.2.1/+esm';
+
+function assertField(fieldName, actual, expected) {
+    if (actual === expected) {
+        console.log(`%c${fieldName}: Expected ${expected}, Got ${actual} ✅`, 'color: green; font-weight: bold;');
+    } else {
+        console.error(`%c${fieldName}: Expected ${expected}, Got ${actual} ❌`, 'color: red; font-weight: bold;');
+    }
+}
+
+//const base64ToUint8Array = base64 => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+const stripSpaces = str => str.replace(/\s+/g, '');
+const hexToUint8Array = hex => new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+const base64ToUint8Array = base64 => {
+  // Replace URL-safe Base64 characters
+  const normalizedBase64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+  // Add padding if necessary
+  const paddedBase64 = normalizedBase64.padEnd(normalizedBase64.length + (4 - (normalizedBase64.length % 4)) % 4, '=');
+  return Uint8Array.from(atob(paddedBase64), c => c.charCodeAt(0));
+};
+const uint8ArrayToBase64 = data => btoa(String.fromCharCode.apply(null, data));
+
+const parseHexOrB64TextStringToUint8Array = text => {
+  let inputData;
+  // decode it to a uint8array whether it's hex or base64
+  const textData = stripSpaces(text);
+  // check if it's base 16 exclusively, otherwise assume base64
+  if (/^[0-9a-fA-F]+$/.test(textData))
+    inputData = hexToUint8Array(textData);
+  else
+    inputData = base64ToUint8Array(textData);
+
+  return inputData;
+};
+const jasmineU8 = parseHexOrB64TextStringToUint8Array(
+// BE:
+//'QAAAAwIAAATtsJuT3abq1g4nWEQAAAAAXVkASgBhAHMAbQBpAG4AZQAAAAAAABw3EBIBe24hHENkDRjHCACCHgANQTBbs22CAAAAbwBzAGkAZwBvAG4AYQBsAAA',
+// LE:
+'AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAABvAHMAaQBnAG8AbgBhAGwAAAAAAJA6'
+);
+const jasmineB = Buffer.from(jasmineU8);
+
+// CFLiCreateID, CFLiAuthorID
+
+var CFLiCreateID = _.struct('CFLiCreateID', [
+    _.ubit('flag_normal', 1),
+    _.ubit('flag_1', 1),
+    _.ubit('flag_temporary', 1),
+    _.ubit('flag_3', 1),
+    _.ubit('create_date1', 14), // 28-bit field
+    _.ubit('create_date2', 14), // 28-bit field
+    _.byte('base', 6),
+]);
+
+// Define CFLiAuthorID Struct
+var CFLiAuthorID = _.struct('CFLiAuthorID', [
+    _.byte('data', 8)
+]);
+
+
+var CFLiPackedMiiDataCore = _.struct('CFLiPackedMiiDataCore', [
+    // u32
+    _.ubit('miiVersion', 8),     // 0x0
+    _.ubit('copyable', 1),       // 0x1
+    _.ubit('ngWord', 1),
+    _.ubit('regionMove', 2),
+    _.ubit('fontRegion', 2),
+    _.ubit('reserved_0', 2),
+
+    _.ubit('roomIndex', 4),      // 0x2
+    _.ubit('positionInRoom', 4),
+
+    _.ubit('authorType', 4),     // 0x3
+    _.ubit('birthPlatform', 3),
+    _.ubit('reserved_1', 1),
+
+    // 0x4
+    _.struct('createID', Object.values(CFLiCreateID.fields)),
+    // 0xc
+    _.struct('authorID', Object.values(CFLiAuthorID.fields)),
+
+    // 0x16
+    _.struct('reserved_2', [
+        _.uint8('reserved_2_0'),
+        _.uint8('reserved_2_1'),
+    ]),
+
+    // u16
+    _.ubit('gender', 1),         // 0x18
+    _.ubit('birthMonth', 4),
+    _.ubit('birthDay', 5),
+    _.ubit('favoriteColor', 4),  // 0x19 bit offset 3
+    _.ubit('favorite', 1),
+    _.ubit('padding_0', 1),
+
+    // Name Array (u16[10])      // 0x1a
+    _.char16le('name', 20),
+
+    // Height and Build          // 0x2e
+    _.uint8('height'),
+    _.uint8('build'),            // 0x2f
+
+    // u16
+    _.ubit('localonly', 1),      // 0x30
+    _.ubit('faceType', 4),
+    _.ubit('faceColor', 3),
+    _.ubit('faceTex', 4),        // 0x31
+    _.ubit('faceMake', 4),
+
+    _.ubit('hairType', 8),       // 0x32
+    _.ubit('hairColor', 3),      // 0x33
+    _.ubit('hairFlip', 1),
+    _.ubit('padding_1', 4),
+
+    _.ubit('eyeType', 6),        // 0x34
+    _.ubit('eyeColor', 3),
+    _.ubit('eyeScale', 4),       // 0x35 bit offset 1
+    _.ubit('eyeAspect', 3),
+    _.ubit('eyeRotate', 5),      // 0x36
+    _.ubit('eyeX', 4),
+    _.ubit('eyeY', 5),
+    _.ubit('padding_2', 2),
+
+    _.ubit('eyebrowType', 5),
+    _.ubit('eyebrowColor', 3),
+    _.ubit('eyebrowScale', 4),
+    _.ubit('eyebrowAspect', 3),
+    _.ubit('padding_3', 1),
+
+    _.ubit('eyebrowRotate', 5),
+    _.ubit('eyebrowX', 4),
+    _.ubit('eyebrowY', 5),
+    _.ubit('padding_4', 2),
+
+    _.ubit('noseType', 5),
+    _.ubit('noseScale', 4),
+    _.ubit('noseY', 5),
+    _.ubit('padding_5', 2),
+
+    _.ubit('mouthType', 6),
+    _.ubit('mouthColor', 3),
+    _.ubit('mouthScale', 4),
+    _.ubit('mouthAspect', 3),
+    _.ubit('mouthY', 5),
+
+    _.ubit('mustacheType', 3),
+    _.ubit('padding_6', 8),
+
+    _.ubit('beardType', 3),
+    _.ubit('beardColor', 3),
+    _.ubit('beardScale', 4),
+    _.ubit('beardY', 5),
+    _.ubit('padding_7', 1),
+
+    _.ubit('glassType', 4),
+    _.ubit('glassColor', 3),
+    _.ubit('glassScale', 4),
+    _.ubit('glassY', 5),
+
+    _.ubit('moleType', 1),
+    _.ubit('moleScale', 4),
+    _.ubit('moleX', 5),
+    _.ubit('moleY', 5),
+    _.ubit('padding_8', 1),
+].reverse());
+
+
+var CFLiPackedMiiDataCoreSwap = _.struct('CFLiPackedMiiDataCore', [
+    // 32-bit bitfields.
+    _.ubitLE('miiVersion', 8),
+    _.ubitLE('copyable', 1),
+    _.ubitLE('ngWord', 1),
+    _.ubitLE('regionMove', 2),
+    _.ubitLE('fontRegion', 2),
+    _.ubitLE('reserved_0', 2),
+    _.ubitLE('roomIndex', 4),
+    _.ubitLE('positionInRoom', 4),
+    _.ubitLE('authorType', 4),
+    _.ubitLE('birthPlatform', 3),
+    _.ubitLE('reserved_1', 1),
+
+    _.struct('createID', Object.values(CFLiCreateID.fields)),
+    _.struct('authorID', Object.values(CFLiAuthorID.fields)),
+
+    // Reserved Array (u8[2])
+    _.struct('reserved_2', [
+        _.uint8('reserved_2_0'),
+        _.uint8('reserved_2_1'),
+    ]),
+
+    // 16-bit Bitfields
+    _.ubitLE('gender', 1),
+    _.ubitLE('birthMonth', 4),
+    _.ubitLE('birthDay', 5),
+    _.ubitLE('favoriteColor', 4),
+    _.ubitLE('favorite', 1),
+    _.ubitLE('padding_0', 1),
+
+    // Name Array (u16[10])
+    _.char16le('name', 20),
+
+    // Height and Build (u8 each)
+    _.uint8('height'),
+    _.uint8('build'),
+
+    // More 16-bit Bitfields
+    _.ubitLE('localonly', 1),
+    _.ubitLE('faceType', 4),
+    _.ubitLE('faceColor', 3),
+    _.ubitLE('faceTex', 4),
+    _.ubitLE('faceMake', 4),
+
+    _.ubitLE('hairType', 8),
+    _.ubitLE('hairColor', 3),
+    _.ubitLE('hairFlip', 1),
+    _.ubitLE('padding_1', 4),
+
+    _.ubitLE('eyeType', 6),
+    _.ubitLE('eyeColor', 3),
+    _.ubitLE('eyeScale', 4),
+    _.ubitLE('eyeAspect', 3),
+    _.ubitLE('eyeRotate', 5),
+    _.ubitLE('eyeX', 4),
+    _.ubitLE('eyeY', 5),
+    _.ubitLE('padding_2', 2),
+
+    _.ubitLE('eyebrowType', 5),
+    _.ubitLE('eyebrowColor', 3),
+    _.ubitLE('eyebrowScale', 4),
+    _.ubitLE('eyebrowAspect', 3),
+    _.ubitLE('padding_3', 1),
+
+    _.ubitLE('eyebrowRotate', 5),
+    _.ubitLE('eyebrowX', 4),
+    _.ubitLE('eyebrowY', 5),
+    _.ubitLE('padding_4', 2),
+
+    _.ubitLE('noseType', 5),
+    _.ubitLE('noseScale', 4),
+    _.ubitLE('noseY', 5),
+    _.ubitLE('padding_5', 2),
+
+    _.ubitLE('mouthType', 6),
+    _.ubitLE('mouthColor', 3),
+    _.ubitLE('mouthScale', 4),
+    _.ubitLE('mouthAspect', 3),
+    _.ubitLE('mouthY', 5),
+
+    _.ubitLE('mustacheType', 3),
+    _.ubitLE('padding_6', 8),
+
+    _.ubitLE('beardType', 3),
+    _.ubitLE('beardColor', 3),
+    _.ubitLE('beardScale', 4),
+    _.ubitLE('beardY', 5),
+    _.ubitLE('padding_7', 1),
+
+    _.ubitLE('glassType', 4),
+    _.ubitLE('glassColor', 3),
+    _.ubitLE('glassScale', 4),
+    _.ubitLE('glassY', 5),
+
+    _.ubitLE('moleType', 1),
+    _.ubitLE('moleScale', 4),
+    _.ubitLE('moleX', 5),
+    _.ubitLE('moleY', 5),
+    _.ubitLE('padding_8', 1),
+].reverse());
+
+//const unpacked = CFLiPackedMiiDataCore.unpack(jasmineB);
+const unpacked = CFLiPackedMiiDataCoreSwap.unpack(jasmineB);
+
+console.log(unpacked);
+console.log(CFLiPackedMiiDataCore.fields.miiVersion.offset)
+
+assertField('miiVersion', unpacked.miiVersion, 3);
+assertField('regionMove', unpacked.regionMove, 0);
+assertField('fontRegion', unpacked.fontRegion, 0);
+assertField('roomIndex', unpacked.roomIndex, 0);
+assertField('positionInRoom', unpacked.positionInRoom, 0);
+assertField('authorType', unpacked.authorType, 0);
+assertField('birthPlatform', unpacked.birthPlatform, 4);
+
+assertField('birthMonth', unpacked.birthMonth, 12);
+assertField('birthDay', unpacked.birthDay, 10);
+
+
+assertField('favoriteColor', unpacked.favoriteColor, 11);
+assertField('hairType', unpacked.hairType, 123);
+//assertField('beardColor', unpacked.beardColor, 6);
+assertField('glassY', unpacked.glassY, 0xb);
+
+
+//debugger
+
+</script>

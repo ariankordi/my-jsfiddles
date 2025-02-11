@@ -669,4 +669,4 @@ createColorTable(commonColorTable, 10, 10, "Common Colors");
 
 createColorTable(facelineColorTable, 2, 5, "Faceline Colors");
 
-createColorTable(favoriteColorTable, 2, 5, "Favorite Colors");
+createColorTable(favoriteColorTable, 2, 6, "Favorite Colors");

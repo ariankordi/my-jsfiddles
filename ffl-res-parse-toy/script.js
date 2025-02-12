@@ -20,7 +20,7 @@ const FFLiResourceHeader_MagicU32 = 0x46465241;
  *   FFLiResourceHeader: Object
  * }} An object containing FFLiResource* structures configured with the endianness provided.
  */
-const createFFLiResourceStructs = (littleEndian, _useAFL_2_3TextureHeader) => {
+const createFFLiResourceStructs = (littleEndian, isAFL_2_3TextureHeader) => {
     // Define uint32bi as uint32 but endian-specific.
     // Meant for this context only.
     Object.defineProperty(_, 'uint32bi', {
@@ -47,8 +47,8 @@ const createFFLiResourceStructs = (littleEndian, _useAFL_2_3TextureHeader) => {
     // NOTE: This is for AFLResHigh_2_3.dat
     // ACCURACY?: see DWARF for nn::mii::detail::ResourceTextureHeader
     const FFLiResourceTextureHeader = (() => {
-        // Use anonymous alias for useAFL_2_3TextureHeader.
-        const afl = _useAFL_2_3TextureHeader;
+        // Use anonymous alias for isAFL_2_3TextureHeader.
+        const afl = isAFL_2_3TextureHeader;
         return _.struct([
             _.uint32bi("partsMaxSize", 11),
             _.struct("partsInfoBeard", [FFLiResourcePartsInfo], 3),
@@ -138,7 +138,7 @@ const charFromU32 = (i) => String.fromCharCode(
 	console.log(`🫣 peeked at magic (0x${magicU32.toString(16)}) = "${magic}"`);
 
     // Set endianness based on the value of magic.
-    let littleEndian = false;
+    let littleEndian;
     if (magic === FFLiResourceHeader_MagicBE) {
 	    littleEndian = false;
     	console.log("🔧 parsing in big-endian...");

@@ -17,11 +17,8 @@ const FFLiResourceHeader_MagicU32 = 0x46465241;
  * @param {boolean} littleEndian - If true, parse the structures in little-endian, otherwise use big-endian.
  * @param {boolean} useAFL_2_3TextureHeader - If true, parse the structs using the texture header specification for AFLResHigh_2_3.dat.
  * @returns {{
- *   FFLiResourcePartsInfo: Object,
- *   FFLiResourceTextureHeader: Object,
- *   FFLiResourceShapeHeader: Object,
  *   FFLiResourceHeader: Object
- * }} An object containing FFL resource structures configured with the endianness provided.
+ * }} An object containing FFLiResource* structures configured with the endianness provided.
  */
 const createFFLiResourceStructs = (littleEndian, _useAFL_2_3TextureHeader) => {
     // Define uint32bi as uint32 but endian-specific.
@@ -93,7 +90,6 @@ const createFFLiResourceStructs = (littleEndian, _useAFL_2_3TextureHeader) => {
     ]);
 
     // For each shape PartsInfo, the data is FFLiResourceShapeDataHeader:
-    // with the last 12 bytes corresponding to FFLiResourceTextureFooter:
     // Gets read here: https://github.com/aboood40091/ffl/blob/73fe9fc70c0f96ebea373122e50f6d3acc443180/src/detail/FFLiResourceShape.cpp#L19
     // Definition here: https://github.com/aboood40091/ffl/blob/73fe9fc70c0f96ebea373122e50f6d3acc443180/include/nn/ffl/detail/FFLiResourceShape.h#L88
 
@@ -111,8 +107,10 @@ const createFFLiResourceStructs = (littleEndian, _useAFL_2_3TextureHeader) => {
     ]);
 
     return {
-    	// Export FFLiResourceHeader.
+    	// Export FFLiResourceHeader only for now.
         FFLiResourceHeader,
+        // If FFLiResourceTextureFooter, FFLiResourceShapeDataHeader...
+        // were ported as well, those should be exported too.
     };
 }
 

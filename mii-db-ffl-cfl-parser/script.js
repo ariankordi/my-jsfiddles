@@ -1,9 +1,11 @@
+// @ts-check
+
 // read the bottom of the file for official CFL structs!
 var CFL_DB_IDENTIFIER = 'CFOG';
 var FFL_ODB_IDENTIFIER = 'FFOC';
 var DATABASE_MIIDATA_OFFSET = 8; // Start of m_MiiDataOfficial array, same for CFL_DB.dat as well.
 var FFLI_MII_DATA_OFFICIAL_SIZE = 92; // 0x5C bytes
-var FFLI_CREATE_ID_SIZE = 16; // 0x10 bytes
+var FFL_CREATE_ID_SIZE = 10; // 0xA bytes
 var TOTAL_MIIS = 3000; // Number of FFLiMiiDataOfficial entries
 var TOTAL_MIIS_CFL = 100;
 var NAME_OFFSET = 0x1A; // Starting offset for the name
@@ -17,25 +19,25 @@ var FFLI_SWAP_ENDIAN_TYPE_U32 = 2;
 // Swap descriptor for FFLiMiiDataCore (from FFLiSwapEndianDesc)
 var SWAP_ENDIAN_DESC = [
     { type: FFLI_SWAP_ENDIAN_TYPE_U32, count: 1 },  // miiVersion + bitfield fields
-    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 8 },  // authorID (8 bytes)
-    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 10 }, // createID (10 bytes)
-    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 2 },  // reserved
-    { type: FFLI_SWAP_ENDIAN_TYPE_U16, count: 11 },// gender, birthDate, favoriteColor, name (10 UTF-16 chars)
-    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 2 },  // reserved
-    { type: FFLI_SWAP_ENDIAN_TYPE_U16, count: 12 } // creatorName (10 UTF-16 chars)
+    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 8 },   // authorID (8 bytes)
+    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: FFL_CREATE_ID_SIZE }, // createID (10 bytes)
+    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 2 },   // reserved
+    { type: FFLI_SWAP_ENDIAN_TYPE_U16, count: 11 }, // gender, birthDate, favoriteColor, name (10 UTF-16 chars)
+    { type: FFLI_SWAP_ENDIAN_TYPE_U8, count: 2 },   // reserved
+    { type: FFLI_SWAP_ENDIAN_TYPE_U16, count: 12 }  // creatorName (10 UTF-16 chars)
 ];
 
 /**
-  * Swap the endianness of an array of integers.
-  * @param {Uint8Array} data - The byte array to swap.
-  * @param {number} start - The starting offset in the array.
-  * @param {number} count - The number of elements to swap.
-  * @param {number} type - The type of elements (FFLI_SWAP_ENDIAN_TYPE_U8, U16, or U32).
-  */
+ * Swap the endianness of an array of integers.
+ * @param {Uint8Array} data - The byte array to swap.
+ * @param {number} start - The starting offset in the array.
+ * @param {number} count - The number of elements to swap.
+ * @param {number} type - The type of elements (FFLI_SWAP_ENDIAN_TYPE_U8, U16, or U32).
+ */
 function swapEndianArray(data, start, count, type) {
     var size = type === FFLI_SWAP_ENDIAN_TYPE_U8 ? 1 :
-    type === FFLI_SWAP_ENDIAN_TYPE_U16 ? 2 :
-    4; // U32
+        type === FFLI_SWAP_ENDIAN_TYPE_U16 ? 2 :
+            4; // U32
 
     for (var i = 0; i < count; i++) {
         var index = start + (i * size);
@@ -60,10 +62,10 @@ function swapEndianArray(data, start, count, type) {
 }
 
 /**
-  * Perform endian swapping on FFLiMiiDataCore and its fields based on SWAP_ENDIAN_DESC.
-  * @param {Uint8Array} data - The byte array containing FFLiMiiDataOfficial.
-  * @return {Uint8Array} - The endian-swapped data.
-  */
+ * Perform endian swapping on FFLiMiiDataCore and its fields based on SWAP_ENDIAN_DESC.
+ * @param {Uint8Array} data - The byte array containing FFLiMiiDataOfficial.
+ * @returns {Uint8Array} - The endian-swapped data.
+ */
 function swapFFLiMiiDataCore(data) {
     var offset = 0;
 
@@ -79,15 +81,15 @@ function swapFFLiMiiDataCore(data) {
 
 
 /**
-  * Perform endian swapping on FFLiMiiDataOfficial.
-  * @param {Uint8Array} data - The 92-byte FFLiMiiDataOfficial data.
-  * @return {Uint8Array} - The endian-swapped data.
-  */
+ * Perform endian swapping on FFLiMiiDataOfficial.
+ * @param {Uint8Array} data - The 92-byte FFLiMiiDataOfficial data.
+ * @returns {Uint8Array} - The endian-swapped data.
+ */
 function swapFFLiMiiDataOfficial(data) {
     // Create a copy of the data to modify
     var swapped = new Uint8Array(data);
 
-    // Swap FFLiMiiDataCore fields using the description            
+    // Swap FFLiMiiDataCore fields using the description
     swapFFLiMiiDataCore(swapped);
 
     // Swap m_CreatorName (UTF-16, 10 elements at offset 0x48)
@@ -96,10 +98,10 @@ function swapFFLiMiiDataOfficial(data) {
     return swapped;
 }
 /**
-  * Convert a Uint8Array to a Base64 string.
-  * @param {Uint8Array} bytes - The byte array to convert.
-  * @return {string} - The Base64 encoded string.
-  */
+ * Convert a Uint8Array to a Base64 string.
+ * @param {Uint8Array} bytes - The byte array to convert.
+ * @returns {string} - The Base64 encoded string.
+ */
 function bytesToBase64(bytes) {
     var binary = '';
     for (var i = 0; i < bytes.length; i++) {
@@ -109,13 +111,13 @@ function bytesToBase64(bytes) {
 }
 
 /**
-  * Convert a UTF-16 encoded name to a string.
-  * @param {Uint8Array} data - The byte array containing the UTF-16 name.
-  * @param {number} offset - The offset where the name starts.
-  * @param {number} maxLength - The maximum length of the name in characters.
-  * @param {boolean} isLittleEndian - Whether the data is in little-endian format.
-  * @return {string} - The decoded UTF-16 name as a string.
-  */
+ * Convert a UTF-16 encoded name to a string.
+ * @param {Uint8Array} data - The byte array containing the UTF-16 name.
+ * @param {number} offset - The offset where the name starts.
+ * @param {number} maxLength - The maximum length of the name in characters.
+ * @param {boolean} isLittleEndian - Whether the data is in little-endian format.
+ * @returns {string} - The decoded UTF-16 name as a string.
+ */
 function decodeUTF16Name(data, offset, maxLength, isLittleEndian) {
     var name = '';
     for (var i = 0; i < maxLength; i++) {
@@ -138,10 +140,10 @@ function decodeUTF16Name(data, offset, maxLength, isLittleEndian) {
 }
 
 /**
-  * Check if all elements in an array are zero.
-  * @param {Array} arr - The array to check.
-  * @return {boolean} - True if all elements are zero, else false.
-  */
+ * Check if all elements in an array are zero.
+ * @param {Array<number>} arr - The array to check.
+ * @returns {boolean} - True if all elements are zero, else false.
+ */
 function areAllZeros(arr) {
     for (var i = 0; i < arr.length; i++) {
         if (arr[i] !== 0) {
@@ -152,40 +154,44 @@ function areAllZeros(arr) {
 }
 
 /**
-  * Process the uploaded FFL_ODB.dat file and display valid Mii data.
-  * @param {ArrayBuffer} arrayBuffer - The file data as ArrayBuffer.
-  */
+ * Process the uploaded FFL_ODB.dat file and display valid Mii data.
+ * @param {ArrayBuffer|null} arrayBuffer - The file data as ArrayBuffer.
+ */
 function processFFLODB(arrayBuffer) {
+    if (!arrayBuffer) {
+        console.log('processFFLODB: arrayBuffer is null.');
+        return;
+    }
     var uint8Array = new Uint8Array(arrayBuffer);
 
-	// Will change depending on CFL_ODB or not:
+  	// Will change depending on CFL_ODB or not:
     var isLittleEndian;
     var totalMiis;
 
-	// Verify the identifier, which is the first 4 bytes.
+  	// Verify the identifier, which is the first 4 bytes.
     var first4Bytes = uint8Array.subarray(0, 4);
     var magic = '';
     for (var i = 0; i < first4Bytes.length; i++) magic += String.fromCharCode(first4Bytes[i]);
 
-	if (magic === FFL_ODB_IDENTIFIER) {
-    	isLittleEndian = false;
+    if (magic === FFL_ODB_IDENTIFIER) {
+     	  isLittleEndian = false;
         totalMiis = TOTAL_MIIS;
     } else if (magic === CFL_DB_IDENTIFIER) {
-    	isLittleEndian = true;
+     	  isLittleEndian = true;
         totalMiis = TOTAL_MIIS_CFL;
         // NOTE that CFL_DB.dat also contains the
         // structures: CFLiHiddenHeader, CFLiRecentDBFile
     } else {
-    	// Unknown magic
-        alert('Invalid FFL_ODB.dat/CFL_DB.dat file magic. Expected FFOC/CFOG, actual magic: ' + magic);
+     	  // Unknown magic
+        alert('processFFLODB: Invalid FFL_ODB.dat/CFL_DB.dat file magic. Expected FFOC/CFOG, actual magic: ' + magic);
         return;
     }
-    
+
 
     // Calculate the total size expected for m_MiiDataOfficial
     var expectedSize = DATABASE_MIIDATA_OFFSET + (totalMiis * FFLI_MII_DATA_OFFICIAL_SIZE);
     if (uint8Array.length < expectedSize) {
-        alert('Invalid FFL_ODB.dat file size. Actual size: ' + uint8Array.length);
+        alert('processFFLODB: Invalid FFL_ODB.dat file size. Actual size: ' + uint8Array.length);
         return;
     }
 
@@ -197,7 +203,7 @@ function processFFLODB(arrayBuffer) {
 
         // Perform endian swapping
         if (!isLittleEndian) {
-        	miiData = swapFFLiMiiDataOfficial(miiData);
+            miiData = swapFFLiMiiDataOfficial(miiData);
         }
 
         // Extract FFLCreateID (bytes 4 to 20 within FFLiMiiDataOfficial)
@@ -222,7 +228,7 @@ function processFFLODB(arrayBuffer) {
             validMiis.push({
                 name: name,
                 //roomIndex: roomIndex,
-				//positionInRoom: positionInRoom,
+                //positionInRoom: positionInRoom,
                 base64: base64Mii
             });
         }
@@ -233,11 +239,15 @@ function processFFLODB(arrayBuffer) {
 }
 
 /**
-  * Display the list of valid Mii Base64 strings in the HTML.
-  * @param {Array} miis - Array of Mii objects containing name, roomIndex, positionInRoom, and Base64 data.
-  */
+ * Display the list of valid Mii Base64 strings in the HTML.
+ * @param {Array<Object<string, *>>} miis - Array of Mii objects containing name, roomIndex, positionInRoom, and Base64 data.
+ */
 function displayMiis(miis) {
     var ul = document.getElementById('miiList');
+    if (!ul) {
+        alert('displayMiis: Element with ID "miiList" does not exist.');
+        return;
+    }
     ul.innerHTML = ''; // Clear any existing content
 
     // Add text format description
@@ -278,25 +288,31 @@ function displayMiis(miis) {
 
 
 /**
-  * Handle the file input change event.
-  * @param {Event} event - The change event.
-  */
+ * Handle the file input change event.
+ * @param {Event} event - The change event.
+ */
 function handleFileSelect(event) {
-    var file = event.target.files[0];
-    if (!file) {
+    var target = /** @type {HTMLInputElement} */ (event.target);
+    if (!target || !target.files || !target.files[0]) {
         alert('No file selected.');
         return;
     }
 
+    var file = target.files[0];
+
     var reader = new FileReader();
 
     reader.onload = function(e) {
-        var arrayBuffer = e.target.result;
+        var arrayBuffer = /** @type {FileReader} */ (e.target).result;
+        if (typeof arrayBuffer === 'string') {
+            console.error('handleFileSelect / reader.onload: FileReader.result is string but ArrayBuffer was expected');
+            return;
+        }
         processFFLODB(arrayBuffer);
     };
 
-    reader.onerror = function(e) {
-        alert('Error reading file.');
+    reader.onerror = function() {
+        alert('handleFileSelect / reader.onerror: Error reading file.');
     };
 
     // Read the file as ArrayBuffer for binary processing
@@ -305,11 +321,14 @@ function handleFileSelect(event) {
 
 // Uncomment the following block to use NWF's file reading implementation
 
-// NWF File Reading Implementation
+/**
+ * NWF File Reading Implementation
+ * @param {Event & {data: Blob}} evt
+ */
 function onFFLODBRead(evt) {
     // Check if evt.data is a Blob
     if (!evt.data) {
-        alert('Error: No data found in the event.');
+        alert('onFFLODBRead: evt.data is null or undefined.');
         return;
     }
 
@@ -317,34 +336,41 @@ function onFFLODBRead(evt) {
     var reader = new FileReader();
 
     reader.onloadend = function () {
-        if (reader.result) {
-            // Convert text content to an ArrayBuffer
-            var textData = reader.result; // Result is a string
-            var arrayBuffer = new Uint8Array(textData.split('').map(function (char) {
+        if (!reader.result) {
+            alert('onFFLODBRead: reader.result is null or undefined, failed to read Blob content.');
+            return;
+        }
+        // Convert text content to an ArrayBuffer
+        var textData = reader.result; // Result is a string
+        if (typeof textData !== 'string') {
+            alert('onFFLODBRead / reader.onloadend: FileReader.result type is unexpectedly string');
+            return;
+        }
+        var arrayBuffer = new Uint8Array(textData.split('').map(
+            /**
+             * @param {string} char
+             * @returns {number}
+             */
+            function (char) {
                 return char.charCodeAt(0);
             })).buffer;
 
-            // Process the ArrayBuffer
-            processFFLODB(arrayBuffer);
-        } else {
-            alert('Error: Failed to read Blob content.');
-        }
+        // Process the ArrayBuffer
+        processFFLODB(arrayBuffer);
     };
 
     reader.onerror = function () {
-        alert('Error: Could not read Blob.');
+        alert('onFFLODBRead / reader.onerror: Could not read Blob.');
     };
 
     // Read the Blob as text
     reader.readAsBinaryString(blob); // Use binary string to match expected content format
 }
 
-
-function onFFLODBReadFail() {
-    alert('Failed to read FFL_ODB.dat file.');
-}
-
 /*
+function onFFLODBReadFail() {
+    alert('nwf.events.IOEvent.ERROR / Failed to read FFL_ODB.dat file.');
+}
 // Initialize NWF file reading on document ready
 document.addEventListener('DOMContentLoaded', function () {
     try {
@@ -371,7 +397,8 @@ if (!window.btoa) {
     window.btoa = function (str) {
         var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
         var output = '';
-        var block, charCode, idx = 0;
+        var block;
+        var idx = 0;
 
         str = String(str);
         while (idx < str.length) {
@@ -396,10 +423,10 @@ if (!window.btoa) {
 // Ensure the DOM is loaded before attaching event listeners
 document.addEventListener('DOMContentLoaded', function () {
     var fileInput = document.getElementById('fileInput');
-    if (fileInput.addEventListener) {
+    if (fileInput && fileInput.addEventListener) {
         fileInput.addEventListener('change', handleFileSelect, false);
-    } else if (fileInput.attachEvent) { // For older IE versions
-        fileInput.attachEvent('onchange', handleFileSelect);
+    } else {
+        alert('Could not find element fileInput.');
     }
 });
 

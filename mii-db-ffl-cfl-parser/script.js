@@ -64,7 +64,7 @@ function swapEndianArray(data, start, count, type) {
 /**
  * Perform endian swapping on FFLiMiiDataCore and its fields based on SWAP_ENDIAN_DESC.
  * @param {Uint8Array} data - The byte array containing FFLiMiiDataOfficial.
- * @returns {Uint8Array} - The endian-swapped data.
+ * @returns {Uint8Array} The endian-swapped data.
  */
 function swapFFLiMiiDataCore(data) {
     var offset = 0;
@@ -83,7 +83,7 @@ function swapFFLiMiiDataCore(data) {
 /**
  * Perform endian swapping on FFLiMiiDataOfficial.
  * @param {Uint8Array} data - The 92-byte FFLiMiiDataOfficial data.
- * @returns {Uint8Array} - The endian-swapped data.
+ * @returns {Uint8Array} The endian-swapped data.
  */
 function swapFFLiMiiDataOfficial(data) {
     // Create a copy of the data to modify
@@ -100,7 +100,7 @@ function swapFFLiMiiDataOfficial(data) {
 /**
  * Convert a Uint8Array to a Base64 string.
  * @param {Uint8Array} bytes - The byte array to convert.
- * @returns {string} - The Base64 encoded string.
+ * @returns {string} The Base64 encoded string.
  */
 function bytesToBase64(bytes) {
     var binary = '';
@@ -116,7 +116,7 @@ function bytesToBase64(bytes) {
  * @param {number} offset - The offset where the name starts.
  * @param {number} maxLength - The maximum length of the name in characters.
  * @param {boolean} isLittleEndian - Whether the data is in little-endian format.
- * @returns {string} - The decoded UTF-16 name as a string.
+ * @returns {string} The decoded UTF-16 name as a string.
  */
 function decodeUTF16Name(data, offset, maxLength, isLittleEndian) {
     var name = '';
@@ -142,7 +142,7 @@ function decodeUTF16Name(data, offset, maxLength, isLittleEndian) {
 /**
  * Check if all elements in an array are zero.
  * @param {Array<number>} arr - The array to check.
- * @returns {boolean} - True if all elements are zero, else false.
+ * @returns {boolean} True if all elements are zero, else false.
  */
 function areAllZeros(arr) {
     for (var i = 0; i < arr.length; i++) {
@@ -156,8 +156,10 @@ function areAllZeros(arr) {
 /**
  * Process the uploaded FFL_ODB.dat file and display valid Mii data.
  * @param {ArrayBuffer|null} arrayBuffer - The file data as ArrayBuffer.
+ * @param {boolean|undefined} [display] - Whether to display them, defauling to false.
+ * @returns {undefined|Array<{name: string, data: Uint8Array}>} An array of data from the FFL_ODB.
  */
-function processFFLODB(arrayBuffer) {
+function processFFLODB(arrayBuffer, display) {
     if (!arrayBuffer) {
         console.log('processFFLODB: arrayBuffer is null.');
         return;
@@ -195,52 +197,52 @@ function processFFLODB(arrayBuffer) {
         return;
     }
 
-    var validMiis = [];
+    var storeDataArray = [];
 
     for (var i = 0; i < totalMiis; i++) {
         var offset = DATABASE_MIIDATA_OFFSET + (i * FFLI_MII_DATA_OFFICIAL_SIZE);
-        var miiData = uint8Array.subarray(offset, offset + FFLI_MII_DATA_OFFICIAL_SIZE);
+        var data = uint8Array.subarray(offset, offset + FFLI_MII_DATA_OFFICIAL_SIZE);
 
         // Perform endian swapping
         if (!isLittleEndian) {
-            miiData = swapFFLiMiiDataOfficial(miiData);
+            data = swapFFLiMiiDataOfficial(data);
         }
 
         // Extract FFLCreateID (bytes 4 to 20 within FFLiMiiDataOfficial)
         var createId = [];
         for (var j = 4; j < 20; j++) {
-            createId.push(miiData[j]);
+            createId.push(data[j]);
         }
 
         // Check if FFLCreateID is all zeros
         if (!areAllZeros(createId)) {
             // Decode UTF-16 name
-            var name = decodeUTF16Name(miiData, NAME_OFFSET, MAX_NAME_LENGTH, true);
+            var name = decodeUTF16Name(data, NAME_OFFSET, MAX_NAME_LENGTH, true);
 
             // Extract roomIndex (4 bits) and positionInRoom (4 bits)
-            //var roomIndex = (miiData[3] >> 4) & 0x0F; // Upper 4 bits of byte 3
-            //var positionInRoom = miiData[3] & 0x0F;   // Lower 4 bits of byte 3
+            //var roomIndex = (data[3] >> 4) & 0x0F; // Upper 4 bits of byte 3
+            //var positionInRoom = data[3] & 0x0F;   // Lower 4 bits of byte 3
 
-            // Encode Mii data to Base64
-            var base64Mii = bytesToBase64(miiData);
-
-            // Add entry to the validMiis array as formatted text
-            validMiis.push({
+            // Add entry to the array as formatted text
+            storeDataArray.push({
                 name: name,
                 //roomIndex: roomIndex,
                 //positionInRoom: positionInRoom,
-                base64: base64Mii
+                data: data
             });
         }
     }
 
-    // Display the valid Mii data in a list
-    displayMiis(validMiis);
+    // Call displayMiis to display the Mii data in a list
+    if (display) {
+        displayMiis(storeDataArray);
+    }
+    return storeDataArray;
 }
 
 /**
  * Display the list of valid Mii Base64 strings in the HTML.
- * @param {Array<Object<string, *>>} miis - Array of Mii objects containing name, roomIndex, positionInRoom, and Base64 data.
+ * @param {Array<{name: string, data: Uint8Array}>} miis - Array of Mii objects containing name, roomIndex, positionInRoom, and Base64 data.
  */
 function displayMiis(miis) {
     var ul = document.getElementById('miiList');
@@ -263,15 +265,17 @@ function displayMiis(miis) {
         // Prefix with Name and Room Info
         li.textContent = miis[i].name + '\n';//`${miis[i].name} (${miis[i].roomIndex}/${miis[i].positionInRoom}): `;
 
+        // Encode data to Base64
+        var base64Data = bytesToBase64(miis[i].data);
         // Add Base64 in a code block
         var codeBlock = document.createElement('code');
-        codeBlock.textContent = miis[i].base64;
+        codeBlock.textContent = base64Data;
         li.appendChild(codeBlock);
 
         // Add inner bullet with image
         var innerUl = document.createElement('ul');
         var innerLi = document.createElement('li');
-        innerLi.innerHTML = '<img loading="lazy" src="https://mii-unsecure.ariankordi.net/miis/image.png?width=96&data=' + encodeURIComponent(miis[i].base64) + '"><br>';
+        innerLi.innerHTML = '<img loading="lazy" src="https://mii-unsecure.ariankordi.net/miis/image.png?width=96&data=' + encodeURIComponent(base64Data) + '"><br>';
         innerUl.appendChild(innerLi);
         li.appendChild(innerUl);
 
@@ -302,16 +306,16 @@ function handleFileSelect(event) {
 
     var reader = new FileReader();
 
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         var arrayBuffer = /** @type {FileReader} */ (e.target).result;
         if (typeof arrayBuffer === 'string') {
             console.error('handleFileSelect / reader.onload: FileReader.result is string but ArrayBuffer was expected');
             return;
         }
-        processFFLODB(arrayBuffer);
+        processFFLODB(arrayBuffer, true);
     };
 
-    reader.onerror = function() {
+    reader.onerror = function () {
         alert('handleFileSelect / reader.onerror: Error reading file.');
     };
 
@@ -356,7 +360,7 @@ function onFFLODBRead(evt) {
             })).buffer;
 
         // Process the ArrayBuffer
-        processFFLODB(arrayBuffer);
+        processFFLODB(arrayBuffer, true);
     };
 
     reader.onerror = function () {
@@ -482,3 +486,5 @@ private:
     u16                 m_Crc;
 }
 */
+
+// export { processFFLODB };

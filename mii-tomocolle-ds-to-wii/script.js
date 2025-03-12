@@ -1,3 +1,5 @@
+// @ts-check
+
 const DATA_LENGTH = 74; // sizeof(RFLCharData)
 const NAME_OFFSET = 0x2; // name offset in RFLCharData
 const MAX_NAME_LENGTH = 0x14; // 20 bytes/10 utf16 chars
@@ -12,7 +14,12 @@ const FFLI_SWAP_ENDIAN_TYPE_U8 = 0;
 const FFLI_SWAP_ENDIAN_TYPE_U16 = 1;
 const FFLI_SWAP_ENDIAN_TYPE_U32 = 2;
 
-// Swap descriptor for RFL mii data
+/** @typedef {{type: number, count: number}} FFLiSwapEndianDesc */
+
+/**
+ * Swap descriptor for RFLCharData.
+ * @type {FFLiSwapEndianDesc[]}
+ */
 const SWAP_ENDIAN_DESC_RFL = [
     { type: FFLI_SWAP_ENDIAN_TYPE_U16, count: 11 },
     { type: FFLI_SWAP_ENDIAN_TYPE_U8,  count: 10 },
@@ -21,10 +28,10 @@ const SWAP_ENDIAN_DESC_RFL = [
 ];
 
 /**
-  * Swap the endianness of an array of integers based on the descriptor.
-  * @param {Uint8Array} data - The byte array to swap.
-  * @param {Array} swapDesc - The swap descriptor array.
-  */
+ * Swap the endianness of data based on {@link FFLiSwapEndianDesc}.
+ * @param {Uint8Array} data - The byte array to swap.
+ * @param {FFLiSwapEndianDesc} swapDesc - The swap descriptor array.
+ */
 function swapEndian(data, swapDesc) {
     let offset = 0;
     for (let desc of swapDesc) {
@@ -36,12 +43,12 @@ function swapEndian(data, swapDesc) {
 }
 
 /**
-  * Swap the endianness of an array of integers.
-  * @param {Uint8Array} data - The byte array to swap.
-  * @param {number} start - The starting offset in the array.
-  * @param {number} count - The number of elements to swap.
-  * @param {number} type - The type of elements (U8, U16, or U32).
-  */
+ * Swap the endianness of an array of integers.
+ * @param {Uint8Array} data - The byte array to swap.
+ * @param {number} start - The starting offset in the array.
+ * @param {number} count - The number of elements to swap.
+ * @param {number} type - The type of elements (U8, U16, or U32).
+ */
 function swapEndianArray(data, start, count, type) {
     const size = type === FFLI_SWAP_ENDIAN_TYPE_U8 ? 1 :
     type === FFLI_SWAP_ENDIAN_TYPE_U16 ? 2 :
@@ -68,10 +75,10 @@ function swapEndianArray(data, start, count, type) {
 }
 
 /**
-  * Convert a Uint8Array to a Hex string.
-  * @param {Uint8Array} bytes - The byte array to convert.
-  * @return {string} - The Hex encoded string.
-  */
+ * Convert a Uint8Array to a Hex string.
+ * @param {Uint8Array} bytes - The byte array to convert.
+ * @returns {string} The hex encoded string.
+ */
 function bytesToHex(bytes) {
     return Array.from(bytes)
         .map(byte => byte.toString(16).padStart(2, '0'))
@@ -79,10 +86,11 @@ function bytesToHex(bytes) {
 }
 
 /**
-  * Function to detect if the string is Base64 or Hex and decode it.
-  * @param {string} input - The input string to detect and decode.
-  * @return {Uint8Array} - The decoded byte array.
-  */
+ * Function to detect if the string is Base64 or Hex and decode it.
+ * @param {string} input - The input string to detect and decode.
+ * @returns {Uint8Array} The decoded byte array.
+ * @throws Throws if hex input length is invalid or the input cannot be detected as Base64 or hex.
+ */
 function detectAndDecodeInput(input) {
     input = input.replace(/\s+/g, '');
 
@@ -106,10 +114,10 @@ function detectAndDecodeInput(input) {
 }
 
 /**
-  * Pad or trim the data to 74 bytes.
-  * @param {Uint8Array} data - The input data.
-  * @return {Uint8Array} - The padded or trimmed data.
-  */
+ * Pad or trim the data to 74 bytes.
+ * @param {Uint8Array} data - The input data.
+ * @returns {Uint8Array} The padded or trimmed data.
+ */
 function padTo74Bytes(data) {
     if (data.length === 74) {
         return data;
@@ -125,7 +133,7 @@ function padTo74Bytes(data) {
 /**
  * Check if the file is a compressed DeSmuME save state.
  * @param {Uint8Array} data - The file data.
- * @return {boolean} - True if the file is compressed, false otherwise.
+ * @returns {boolean} True if the file is compressed, false otherwise.
  */
 function isCompressedDeSmuMESave(data) {
     // Check for the magic bytes at the start of the file
@@ -142,7 +150,7 @@ function isCompressedDeSmuMESave(data) {
 /**
  * Decompress zlib-compressed data using CompressionStream.
  * @param {Uint8Array} data - The compressed data.
- * @return {Promise<Uint8Array>} - The decompressed data as a Uint8Array.
+ * @returns {Promise<Uint8Array>} The decompressed data as a Uint8Array.
  */
 async function decompressDSTZlib(data) {
     if (!window.CompressionStream) {
@@ -158,9 +166,9 @@ async function decompressDSTZlib(data) {
 
 
 /**
-  * Handle the form submission.
-  * @param {Event} event - The form submit event.
-  */
+ * Handle the form submission.
+ * @param {Event} event - The form submit event.
+ */
 async function processData(event) {
     event.preventDefault();
 
@@ -220,7 +228,7 @@ async function processData(event) {
  * @param {Uint8Array} data - The data array containing the name.
  * @param {number} offset - The starting offset for the name.
  * @param {number} maxLength - The maximum length of the name in bytes.
- * @return {string} - The decoded name.
+ * @returns {string} The decoded name.
  */
 function extractName(data, offset = NAME_OFFSET, maxLength = MAX_NAME_LENGTH) {
     let endPosition = offset;
@@ -240,7 +248,7 @@ function extractName(data, offset = NAME_OFFSET, maxLength = MAX_NAME_LENGTH) {
 
 /**
  * Generate a random pastel color.
- * @return {string} - The generated RGB color string.
+ * @returns {string} The generated RGB color string.
  */
 function getRandomPastelColor() {
     const mix = [255, 255, 224]; // Light yellow helps in making pastel colors
@@ -312,7 +320,7 @@ function appendToList(hexData, name) {
 /**
  * Check if a Mii block is valid.
  * @param {Uint8Array} block - The Mii data block to validate.
- * @return {boolean} - True if the block is valid, false otherwise.
+ * @returns {boolean} True if the block is valid, false otherwise.
  */
 function isValidMiiBlock(block) {
     // Hex sequence for ASCII string "tsumanogosakata"
@@ -323,7 +331,7 @@ function isValidMiiBlock(block) {
     // and it mistakenly finds the string IN THE CODE
     // and treats the string defined after that as
     // actual data and jumpscares them nononono
-    const invalidPrefix = [0x74, 0x73, 0x75, 0x6D, 0x61, 0x6E, 0x6F, 0x67, 0x6F, 0x73, 0x61, 0x6B, 0x61, 0x74, 0x61];
+    const invalidSuffix = [0x74, 0x73, 0x75, 0x6D, 0x61, 0x6E, 0x6F, 0x67, 0x6F, 0x73, 0x61, 0x6B, 0x61, 0x74, 0x61];
 
     // Check if the block is all zeros
     if (areAllZeros(block)) {
@@ -331,14 +339,14 @@ function isValidMiiBlock(block) {
     }
 
     // Check if the block starts with "tsumanogosakata" and invalidate it
-    let matchesInvalidPrefix = true;
-    for (let i = 0; i < invalidPrefix.length; i++) {
-        if (block[i] !== invalidPrefix[i]) {
-            matchesInvalidPrefix = false;
+    let matchesinvalidSuffix = true;
+    for (let i = 0; i < invalidSuffix.length; i++) {
+        if (block[i] !== invalidSuffix[i]) {
+            matchesinvalidSuffix = false;
             break;
         }
     }
-    if (matchesInvalidPrefix) {
+    if (matchesinvalidSuffix) {
     	return false;
     }
 
@@ -349,9 +357,10 @@ function isValidMiiBlock(block) {
 /**
  * Search the data for the signature sequence and extract RFL data blocks.
  * @param {Uint8Array} data - The entire file data.
- * @return {Uint8Array[]} - Array of extracted RFL data blocks.
+ * @returns {Uint8Array[]} Array of extracted RFL data blocks.
  */
 function extractMiiDataBlocks(data) {
+		/** "MaaMiiMuuMeeMoo" */
     const signature = [0x4D, 0x61, 0x61, 0x4D, 0x69, 0x69, 0x4D, 0x75, 0x75, 0x4D, 0x65, 0x65, 0x4D, 0x6F, 0x6F, 0x00];
     const signatureLength = signature.length;
     const miiDataLength = 74;
@@ -388,10 +397,11 @@ function extractMiiDataBlocks(data) {
 /**
  * Deduplicate an array of Uint8Array based on their hex representation.
  * @param {Uint8Array[]} miiDataBlocks - Array of Mii data blocks.
- * @return {Uint8Array[]} - Deduplicated array of Mii data blocks.
+ * @returns {Uint8Array[]} Deduplicated array of Mii data blocks.
  */
 function deduplicateMiis(miiDataBlocks) {
     const seen = new Set();
+    /** @type {Uint8Array[]} */
     const uniqueMiis = [];
 
     miiDataBlocks.forEach(block => {
@@ -406,10 +416,10 @@ function deduplicateMiis(miiDataBlocks) {
 }
 
 /**
-  * Check if all elements in an array are zero.
-  * @param {Array} arr - The array to check.
-  * @return {boolean} - True if all elements are zero, else false.
-  */
+ * Check if all elements in an array are zero.
+ * @param {number[]|Uint8Array} arr - The array to check.
+ * @returns {boolean} True if all elements are zero, else false.
+ */
 function areAllZeros(arr) {
     for (var i = 0; i < arr.length; i++) {
         if (arr[i] !== 0) {
@@ -438,12 +448,12 @@ function processSave(arrayBuffer) {
 
 
 /**
-  * Initialize event listeners after DOM is loaded.
-  */
+ * Initialize event listeners after DOM is loaded.
+ */
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('dataForm');
     form.addEventListener('submit', processData);
- 
+
     const fileInput = document.getElementById('fileInput');
 
     fileInput.addEventListener('change', function () {

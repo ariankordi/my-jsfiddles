@@ -1,5 +1,5 @@
 // @ts-check
-//import * as _ from './struct-fu.js';
+// import * as _ from './struct-fu.js';
 /* eslint @stylistic/indent: ['error', 2] -- Define indent rules. */
 /* eslint @stylistic/spaced-comment: ['error', 'always', {
     line: { markers: ['/<', '!<'] },
@@ -9,18 +9,25 @@
   -- Allow Doxygen-style inline brief comments.
 */
 
-// CHANGE THESE -------------------------------------------
+// import { unzipSync } from 'fflate';
+// const fflate = { unzipSync };
+// import * as _Import from './struct-fu.js';
+/* globals _ -- Global dependencies. */
+/** @typedef {import('./struct-fu')} _ */
+// eslint-disable-next-line no-self-assign -- Get TypeScript to identify global imports.
+globalThis._ = /** @type {_} */ (/** @type {*} */ (globalThis)._);
+// eslint-disable-next-line @stylistic/max-statements-per-line --  Hack to use either UMD or browser ESM import.
+// let _ = globalThis._; _ = (!_) ? _Import : _;
 
-const resourceFetchPath = 'https://debian.local:8445/assets/web%20builds/AFLResHigh_2_3_LE_half_float.dat'; //!< Change this to something you can fetch() from.
-const useAFL_2_3TextureHeader = true; //!< Set to false for FFL Wii U resources.
-
-// --------------------------------------------------------
 
 // Constants for resource header magic.
-const FFLiResourceHeader_MagicBE = 'FFRA';
-const FFLiResourceHeader_MagicLE = 'ARFF';
-const FFLiResourceHeader_MagicU32 = 0x46465241;
+const FFLI_RESOURCE_HEADER_MAGIC_BE = 'FFRA';
+const FFLI_RESOURCE_HEADER_MAGIC_LE = 'ARFF';
+const FFLI_RESOURCE_HEADER_MAGIC_U32 = 0x46465241;
 // This sample tries? to detect endianness from the magic.
+const FFLI_RESOURCE_HEADER_EXPAND_BUFFER_SIZE_OFFSET = 0x0c;
+const FFLI_RESOURCE_HEADER_EXPAND_BUFFER_SIZE_AFL_2_3 = 0x2502de0;
+const FFLI_RESOURCE_HEADER_RESOURCE_TYPE_HINT_AFL_2_3 = 3;
 
 // // ---------------------------------------------------------------------
 // //  JSDoc Struct Definitions
@@ -58,12 +65,21 @@ const FFLiResourceHeader_MagicU32 = 0x46465241;
  */
 
 /**
+ * @enum {number}
+ */
+const FFLTextureFormat = {
+  R8_UNORM: 0,
+  R8_G8_UNORM: 1,
+  R8_G8_B8_A8_UNORM: 2,
+  MAX: 3
+};
+/**
  * @typedef {Object} FFLiResourceTextureFooter
  * @property {number} m_MipOffset
  * @property {number} m_Width
  * @property {number} m_Height
  * @property {number} m_NumMips
- * @property {number} m_TextureFormat - enum FFLiTextureFormat
+ * @property {FFLTextureFormat} m_TextureFormat
  */
 
 /**
@@ -198,7 +214,7 @@ const createFFLiResourceStructs = (littleEndian, isAFL_2_3TextureHeader) => {
 
   // The structs below are based off of the FFL decomp by AboodXD: https://github.com/aboood40091/ffl/blob/0fe8e687dac5963000e3214a2c54d9219c99d63f/include/nn/ffl/FFLiResourceHeader.h
 
-  /** @type {_.StructInstance<FFLiResourcePartsInfo>} */
+  /** @type {import('./struct-fu').StructInstance<FFLiResourcePartsInfo>} */
   const FFLiResourcePartsInfo = _.struct([
     uint32bi('dataPos'),
     uint32bi('dataSize'),
@@ -209,7 +225,7 @@ const createFFLiResourceStructs = (littleEndian, isAFL_2_3TextureHeader) => {
     _.uint8('strategy')
   ]);
 
-  /** @type {_.StructInstance<FFLiResourceTextureHeader>} */
+  /** @type {import('./struct-fu').StructInstance<FFLiResourceTextureHeader>} */
   const FFLiResourceTextureHeader = (() => {
     /** Anonymous alias for isAFL_2_3TextureHeader. */
     const afl = isAFL_2_3TextureHeader;
@@ -235,7 +251,7 @@ const createFFLiResourceStructs = (littleEndian, isAFL_2_3TextureHeader) => {
   // 12 bytes (= FFLiResourceTextureFooter.size) corresponding to FFLiResourceTextureFooter:
   // Gets read here: https://github.com/aboood40091/ffl/blob/73fe9fc70c0f96ebea373122e50f6d3acc443180/src/detail/FFLiResourceTexture.cpp#L24
 
-  /** @type {_.StructInstance<FFLiResourceTextureFooter>} */
+  /** @type {import('./struct-fu').StructInstance<FFLiResourceTextureFooter>} */
   const FFLiResourceTextureFooter = _.struct([
     uint32bi('m_MipOffset'),
     uint16bi('m_Width'),
@@ -245,7 +261,7 @@ const createFFLiResourceStructs = (littleEndian, isAFL_2_3TextureHeader) => {
     _.byte('_padding', 2) // Includes two bytes of padding.
   ]);
 
-  /** @type {_.StructInstance<FFLiResourceShapeHeader>} */
+  /** @type {import('./struct-fu').StructInstance<FFLiResourceShapeHeader>} */
   const FFLiResourceShapeHeader = _.struct([
     uint32bi('partsMaxSize', 12),
     _.struct('partsInfoBeard', [FFLiResourcePartsInfo], 4),
@@ -265,20 +281,20 @@ const createFFLiResourceStructs = (littleEndian, isAFL_2_3TextureHeader) => {
   // For each shape PartsInfo, the data is FFLiResourceShapeDataHeader:
   // Gets read here: https://github.com/aboood40091/ffl/blob/73fe9fc70c0f96ebea373122e50f6d3acc443180/src/detail/FFLiResourceShape.cpp#L19
 
-  /** @type {_.StructInstance<FFLVec3>} */
+  /** @type {import('./struct-fu').StructInstance<FFLVec3>} */
   const FFLVec3 = _.struct([
     float32bi('x'),
     float32bi('y'),
     float32bi('z')
   ]);
 
-  /** @type {_.StructInstance<FFLiResourceShapeFacelineTransform>} */
+  /** @type {import('./struct-fu').StructInstance<FFLiResourceShapeFacelineTransform>} */
   const FFLiResourceShapeFacelineTransform = _.struct([
     _.struct('m_HairTranslate', [FFLVec3]),
     _.struct('m_NoseTranslate', [FFLVec3]),
     _.struct('m_BeardTranslate', [FFLVec3])
   ]);
-  /** @type {_.StructInstance<FFLiResourceShapeHairTransform>} */
+  /** @type {import('./struct-fu').StructInstance<FFLiResourceShapeHairTransform>} */
   const FFLiResourceShapeHairTransform = _.struct([
     _.struct('m_FrontTranslate', [FFLVec3]),
     _.struct('m_FrontRotate', [FFLVec3]),
@@ -288,7 +304,7 @@ const createFFLiResourceStructs = (littleEndian, isAFL_2_3TextureHeader) => {
     _.struct('m_TopRotate', [FFLVec3])
   ]);
 
-  /** @type {_.StructInstance<FFLBoundingBox>} */
+  /** @type {import('./struct-fu').StructInstance<FFLBoundingBox>} */
   const FFLBoundingBox = _.struct([
     _.struct('min', [FFLVec3]),
     _.struct('max', [FFLVec3])
@@ -302,7 +318,7 @@ const createFFLiResourceStructs = (littleEndian, isAFL_2_3TextureHeader) => {
   ]);
 
   // Define top-level resource header structure.
-  /** @type {_.StructInstance<FFLiResourceHeader>} */
+  /** @type {import('./struct-fu').StructInstance<FFLiResourceHeader>} */
   const FFLiResourceHeader = _.struct([
     uint32bi('m_Magic'),
     uint32bi('m_Version'),
@@ -326,62 +342,88 @@ const createFFLiResourceStructs = (littleEndian, isAFL_2_3TextureHeader) => {
 };
 
 /**
- * Parse big-endian uint32 to four characters.
- * @param {number} i - Big-endian unsigned 32-bit integer.
- * @returns {string} Four characters.
+ * @param {ArrayBuffer} buffer - The input ArrayBuffer to read the first 4 bytes of.
+ * @returns {string} The first 4 characters of the input, or the magic/fourcc.
  */
-const charFromU32 = i =>
-  String.fromCharCode(
-    (i >> 24) & 0xFF, ///< Highest byte (MSB).
-    (i >> 16) & 0xFF, ///< Second highest byte.
-    (i >> 8) & 0xFF,  ///< Second lowest byte.
-    i & 0xFF          ///< Lowest byte (LSB).
-  );
+const getMagicFromArrayBuffer = buffer => String.fromCharCode(
+  // Read buffer as Uint8Array, get first 4 bytes as string.
+  ...new Uint8Array(buffer).subarray(0, 4));
+
+/**
+ * Checks the magic of the resource to verify it
+ * and return whether it is little-endian.
+ * @param {ArrayBuffer} buffer - The ArrayBuffer for the resource. This will read the first 4 bytes.
+ * @returns {boolean} Returns the value for if the resource is little-endian.
+ * @throws {Error} Throws if magic does not match FFL resource.
+ */
+function getValidAndIsLittleEndianFromMagic(buffer) {
+  // Peek at the magic to verify it and determine endianness.
+  const magic = getMagicFromArrayBuffer(buffer);
+  console.log(`🫣 peeked at magic: "${magic}"`);
+
+  // Determine endianness based on the value of magic.
+  if (magic === FFLI_RESOURCE_HEADER_MAGIC_BE) {
+    console.log('🔧 parsing in big-endian...');
+    return false;
+  } else if (magic === FFLI_RESOURCE_HEADER_MAGIC_LE) {
+    console.log('🦴 parsing in little-endian...');
+    return true;
+  } else {
+    throw new Error(`unknown magic ("${magic}"), not an FFL resource`);
+  }
+}
+
+/**
+ * Determines whether a resource is using the
+ * AFLResHigh_2_3.dat header from its buffer data.
+ * @param {ArrayBuffer} resBuffer - The resource header.
+ * @param {boolean} littleEndian - Endianness of the header.
+ * @returns {boolean} Whether the resource is AFLResHigh_2_3.dat.
+ */
+function getIsAFL_2_3Header(resBuffer, littleEndian) {
+  const view = new DataView(resBuffer);
+  // Get m_ExpandBufferSize property, this is the only field that varies.
+  const expandBufferSize = view.getUint32(FFLI_RESOURCE_HEADER_EXPAND_BUFFER_SIZE_OFFSET, littleEndian);
+  // Return if the size matches that of the AFLResHigh_2_3.dat file.
+  if (expandBufferSize === FFLI_RESOURCE_HEADER_EXPAND_BUFFER_SIZE_AFL_2_3) {
+    return true;
+  }
+  // NOTE: Not accounting for AFLResHigh.dat.
+  const hint = expandBufferSize >> 29;  ///< Get the first 3 bits.
+  // Determine if it is AFLResHigh_2_3.dat from the hint here.
+  return (hint === FFLI_RESOURCE_HEADER_RESOURCE_TYPE_HINT_AFL_2_3);
+}
 
 // // ---------------------------------------------------------------------
 // //  Primary Entrypoint
 // // ---------------------------------------------------------------------
 
-(async () => {
-  // Download resource.
-  const response = await fetch(resourceFetchPath);
-  if (!response.ok) {
-    throw new Error('fetch response not ok');
-  }
-  const resArrayBuffer = await response.arrayBuffer();
-  console.log('📁 resArrayBuffer:', resArrayBuffer);
-
-  // Peek at the magic for validity and determine endianness.
-  // Read at offset 0 and littleEndian = false.
-  const magicU32 = new DataView(resArrayBuffer).getUint32(0, false);
-  const magic = charFromU32(magicU32);
-  console.log(`🫣 peeked at magic (0x${magicU32.toString(16)}) = "${magic}"`);
-
-  // Set endianness based on the value of magic.
-  let littleEndian;
-  if (magic === FFLiResourceHeader_MagicBE) {
-    littleEndian = false;
-    console.log('🔧 parsing in big-endian...');
-  } else if (magic === FFLiResourceHeader_MagicLE) {
-    littleEndian = true;
-    console.log('🦴 parsing in little-endian...');
-  } else {
-    throw new Error('unknown magic, not parsing');
+/**
+ * Sample for parsing and reading an FFL resource from an ArrayBuffer.
+ * @param {ArrayBuffer} resArrayBuffer - The contents of the resource file.
+ */
+async function readResourceSample(resArrayBuffer) {
+  // console.log('📁 resArrayBuffer:', resArrayBuffer); // NOTE: Memory leak, remove in prod.
+  if (!(resArrayBuffer instanceof ArrayBuffer)) {
+    throw new Error('readResourceSample: Expected resArrayBuffer to be ArrayBuffer.');
   }
 
+  // Verify the magic of the resource and determine its endianness.
+  const littleEndian = getValidAndIsLittleEndianFromMagic(resArrayBuffer);
+  const isAFL_2_3 = getIsAFL_2_3Header(resArrayBuffer, littleEndian);
   // Construct structs with specified endianness.
-  const s = createFFLiResourceStructs(littleEndian, useAFL_2_3TextureHeader);
+  const s = createFFLiResourceStructs(littleEndian, isAFL_2_3);
 
   // Parse FFLiResourceHeader to object.
-  const resource = s.FFLiResourceHeader.unpack(resArrayBuffer);
-  console.log('✅ FFLiResourceHeader.unpack result:', resource);
-  if (resource.m_Magic !== FFLiResourceHeader_MagicU32) {
-    // print real and expected magic both in hex (base 16)
-    console.error(`❌ failed to parse magic, got: 0x${resource.m_Magic.toString(16)}, expected: 0x${FFLiResourceHeader_MagicU32.toString(16)}`);
+  const header = s.FFLiResourceHeader.unpack(resArrayBuffer);
+  console.log('✅ FFLiResourceHeader.unpack result:', header);
+  if (header.m_Magic !== FFLI_RESOURCE_HEADER_MAGIC_U32) {
+    // Print real and expected magic both in hex (base 16).
+    throw new Error(`❌ failed to parse magic, got: 0x${header.m_Magic.toString(16)}, expected: 0x${FFLI_RESOURCE_HEADER_MAGIC_U32.toString(16)}`);
   }
 
   // Extract m_ExpandBufferSize/total uncompressed resource size.
-  const expandBufferSizeWithoutResHint = resource.m_ExpandBufferSize & 0x1FFFFFFF; // only last 29 bits, see FFLiResourceUtil.cpp
+  const expandBufferSizeWithoutResHint = header.m_ExpandBufferSize & 0x1FFFFFFF; // only last 29 bits, see FFLiResourceUtil.cpp
   const totalUncompressedResSizeMB = Math.trunc(expandBufferSizeWithoutResHint / (1024 * 1024));
 
   if (totalUncompressedResSizeMB > 75) {
@@ -390,6 +432,257 @@ const charFromU32 = i =>
   }
 
   console.log(`ℹ️ resource total uncompressed size: ${totalUncompressedResSizeMB} MB`);
-  console.log('🖼️ m_TextureHeader:', resource.m_TextureHeader);
-  console.log('📐 m_ShapeHeader:', resource.m_ShapeHeader);
-})();
+  console.log('🖼️ m_TextureHeader:', header.m_TextureHeader);
+  console.log('📐 m_ShapeHeader:', header.m_ShapeHeader);
+
+  // Potential TODO: I feel that these methods could be made more generic,
+  // so that completely different resource files could share the same interface.
+  // Example: if it could just get part type/index; getting
+  // its corresponding data, all structures just unpacked... Need to expand that.
+
+  /**
+   * Takes an {@link FFLiResourcePartsInfo} object within {@link FFLiResourceHeader},
+   * reading and potentially decompressing the data
+   * @param {ArrayBuffer} resArrayBuffer - The resource to read the part data from.
+   * @param {FFLiResourcePartsInfo} partsInfo - The information about the part.
+   * @returns {Promise<ArrayBuffer>} The decompressed part data.
+   * @throws {Error} Throws if CompressionStream is not supported.
+   */
+  async function getPartsInfoData(resArrayBuffer, partsInfo) {
+    // Access the compressed data for the part.
+    const resU8 = new Uint8Array(resArrayBuffer);
+    const rawData = resU8.subarray(partsInfo.dataPos,
+      partsInfo.dataPos + partsInfo.compressedSize);
+
+    // Check the compression strategy of the part.
+    if (partsInfo.strategy === 5) { // FFLI_RESOURCE_STRATEGY_UNCOMPRESSED
+      return rawData.buffer; ///< Return raw data directly. if uncompressed.
+    }
+
+    // Throw if CompressionStream is not supported.
+    if (!window.CompressionStream) {
+      throw new Error('getPartsInfoData: CompressionStream is not supported in this browser, so this function will have to be refactored to use pako library and call deflate().');
+    }
+    const cs = new DecompressionStream('deflate');
+    const stream = /** @type {ReadableStream<Uint8Array>} */ (new Response(rawData).body)
+      .pipeThrough(cs);
+    const decompressed = await new Response(stream).arrayBuffer();
+
+    return decompressed;
+  }
+  /**
+   * @param {Uint8Array} data - The decompressed texture data.
+   * @param {ReturnType<createFFLiResourceStructs>} s - Structures to use.
+   * @returns {FFLiResourceTextureFooter} The texture footer.
+   */
+  const getTextureFooter = (data, s) =>
+    s.FFLiResourceTextureFooter.unpack(data.subarray(-s.FFLiResourceTextureFooter.size));
+  /**
+   * @param {Uint8Array} data - The decompressed shape data.
+   * @param {ReturnType<createFFLiResourceStructs>} s - Structures to use.
+   * @returns {FFLiResourceShapeDataHeader} The shape data header.
+   */
+  const getShapeHeader = (data, s) =>
+    s.FFLiResourceShapeDataHeader.unpack(data.subarray(0, s.FFLiResourceShapeDataHeader.size));
+  /**
+   * @param {Uint8Array} data - The decompressed shape data.
+   * @param {ReturnType<createFFLiResourceStructs>} s - Structures to use.
+   * @returns {FFLiResourceShapeFacelineTransform} The faceline transform object.
+   */
+  function getFacelineTransform(data, s) {
+    const off = /** @type {number} */ (s.FFLiResourceShapeDataHeader.fields.m_Transform.offset);
+    const buf = data.subarray(off, off + s.FFLiResourceShapeFacelineTransform.size);
+    return s.FFLiResourceShapeFacelineTransform.unpack(buf);
+  }
+
+  // Get data and footer for eye 0.
+  const eye0Data = new Uint8Array(await getPartsInfoData(resArrayBuffer, header.m_TextureHeader.partsInfoEye[0]));
+  const eye0Footer = getTextureFooter(eye0Data, s);
+  console.log('👁️📩 eye 0 footer: ', eye0Footer);
+
+  // Get data and header for faceline 0.
+  const faceline0Data = new Uint8Array(await getPartsInfoData(resArrayBuffer, header.m_ShapeHeader.partsInfoFaceline[0]));
+  const faceline0Header = getShapeHeader(faceline0Data, s);
+  console.log('🗿✉️ faceline 0 header: ', faceline0Header);
+
+  // Parse indices for faceline 0.
+  const elType = FFLiResourceShapeElementType.INDEX;
+  const pos = faceline0Header.m_ElementPos[elType];
+  const size = faceline0Header.m_ElementSize[elType];
+  /** @type {Uint16Array} */ let indices;
+  if (littleEndian) {
+    indices = new Uint16Array(faceline0Data.buffer, faceline0Data.byteOffset + pos, size);
+  } else {
+    // endian swap
+    const view = new DataView(faceline0Data.buffer, faceline0Data.byteOffset + pos, size);
+    // use getUint16 with littleEndian = false
+    indices = Uint16Array.from({ length: size / 2 }, (_, i) => view.getUint16(i * 2, false));
+    // const indices = getShapeElement(faceline0Header, FFLiResourceShapeElementType.INDEX, faceline0Data, littleEndian);
+  }
+  console.log('🗿⛓️ faceline 0 indices: ', indices);
+  // const positions = getShapeElement(faceline0Header, FFLiResourceShapeElementType.POSITION, faceline0Data, littleEndian);
+  // console.log('🗿🧊 faceline 0 positions: ', positions);
+
+  // Parse faceline transform for faceline 0.
+  const faceline0FacelineTransform = getFacelineTransform(faceline0Data, s);
+  console.log('🗿⬆️ faceline 0 transform: ', faceline0FacelineTransform);
+}
+
+// // ---------------------------------------------------------------------
+// //  Zip File Reading
+// // ---------------------------------------------------------------------
+
+/**
+ * Extract a single file from a zip that matches a specific suffix and fourcc.
+ * @param {ArrayBuffer} buffer - The zip file data.
+ * @param {string} fileSuffix - The file suffix to filter (e.g. '.dat').
+ * @param {string} requiredFourCC - The required fourcc string (e.g. 'FFRA').
+ * @returns {Uint8Array} The matching file data.
+ * @throws {Error} If unzipping fails, zip structure is too complex, file is too small, or no file matches the fourcc.
+ */
+function loadSingleFileFromZipWithFourcc(buffer, fileSuffix, requiredFourCC) {
+  const MAX_FILES = 5;            ///< Maximum allowed number of files in the zip.
+  const MAX_RECURSION_LEVEL = 10;   ///< Maximum allowed directory recursion level.
+  const MIN_FILE_SIZE = 90 * 1024;  ///< Minimum allowed file size in bytes (90 kb).
+
+  const files = fflate.unzipSync(new Uint8Array(buffer));  ///< Unzip the data with fflate.
+  const entries = Object.entries(files);  ///< Get zip entries as [name, data] pairs.
+  if (entries.length > MAX_FILES) {
+    throw new Error(`loadSingleFileFromZipWithFourcc: Amount of files exceeded ${MAX_FILES}.`);  ///< Fail if too many files.
+  }
+  let found = null;
+  for (const [name, data] of entries) {
+    const level = name.split('/').length - 1;  ///< Calculate directory recursion level.
+    if (level > MAX_RECURSION_LEVEL) {
+      throw new Error(`loadSingleFileFromZipWithFourcc: Recursion level exceeded ${MAX_RECURSION_LEVEL}.`);  ///< Fail if recursion level too deep.
+    }
+    if (!name.endsWith(fileSuffix)) {
+      continue;  ///< Skip non-matching file suffix.
+    }
+    if (data.length < MIN_FILE_SIZE) {
+      throw new Error(`loadSingleFileFromZipWithFourcc: File ${name} is smaller than minimum: ${MIN_FILE_SIZE}.`);  ///< Fail if file is too small.
+    }
+    const header = String.fromCharCode(...data.slice(0, 4));  ///< Peek first 4 bytes for fourcc.
+    if (header === requiredFourCC) {
+      found = data;  ///< Found a matching file.
+      break;
+    }
+  }
+  if (!found) {
+    // Fail if no file matches.
+    throw new Error(`No file with required fourcc (${requiredFourCC}) or suffix (${fileSuffix}) found.`);
+  }
+  return found;
+}
+
+// // ---------------------------------------------------------------------
+// //  Utility: Load Buffer from File or URL
+// // ---------------------------------------------------------------------
+
+/**
+ * Load data from a File object.
+ * @param {File} file - The file from an upload.
+ * @returns {Promise<ArrayBuffer>} A promise that resolves to the file's data.
+ */
+function bufferFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();  ///< Create a new FileReader.
+    reader.onload = () => {
+      if (!(reader.result instanceof ArrayBuffer)) {
+        reject(new Error('bufferFromFile: reader.result is not an ArrayBuffer.'));
+        return;
+      }
+      resolve(reader.result);  ///< Resolve with ArrayBuffer.
+    };
+    reader.onerror = (event) => {
+      reject(new Error(`bufferFromFile: File reading failed: ${event.target?.error?.message}.`));  ///< Reject with error details.
+    };
+    reader.readAsArrayBuffer(file);  ///< Read file as ArrayBuffer.
+  });
+}
+
+/**
+ * Load data from a URL using fetch.
+ * @param {string} url - The URL to fetch the file.
+ * @returns {Promise<ArrayBuffer>} A promise that resolves to the file data.
+ */
+async function bufferFromUrl(url) {
+  const response = await fetch(url);  ///< Fetch the zip file.
+  if (!response.ok) {
+    // Fail if response is bad.
+    throw new Error(`bufferFromFile: Fetch failed at URL = ${response.url}, response code = ${response.status}`);
+  }
+  return await response.arrayBuffer();  ///< Get and return ArrayBuffer from response.
+}
+
+// // ---------------------------------------------------------------------
+// //  Event Handlers for File or URL9
+// // ---------------------------------------------------------------------
+
+/**
+ * Handles the file after it's uploaded or fetched.
+ * Extracts the desired file if it is a zip, and then calls {@link readResourceSample}.
+ * @param {ArrayBuffer} buffer - The ArrayBuffer to use.
+ */
+async function handleZipLoading(buffer) {
+  const EXPECTED_SUFFIX_IN_ZIP = '.dat';  ///< Expected file suffix for valid files.
+  const EXPECTED_FOURCC_IN_ZIP = 'FFRA';  ///< Expected fourcc header.
+  const ZIP_MAGIC_PREFIX = 'PK';          ///< Prefix for zip file magic.
+
+  try {
+    // If the buffer contains zip data, get the file from it and set it as buffer.
+    if (getMagicFromArrayBuffer(buffer).startsWith(ZIP_MAGIC_PREFIX)) {
+      buffer = loadSingleFileFromZipWithFourcc(buffer,
+        EXPECTED_SUFFIX_IN_ZIP, EXPECTED_FOURCC_IN_ZIP).buffer;  ///< Access ArrayBuffer.
+    }
+
+    readResourceSample(buffer);  ///< Call main entrypoint.
+  } catch (error) {
+    const e = error instanceof Error ? error.message : error;
+    console.error(e);  ///< Log error message.
+    alert(e);  ///< Alert error message.
+  }
+}
+
+// Get input elements.
+const fileInput = /** @type {HTMLInputElement} */ (document.getElementById('fileInput'));
+const urlForm = /** @type {HTMLFormElement} */ (document.getElementById('urlForm'));
+const urlButton = /** @type {HTMLButtonElement} */ (document.getElementById('urlButton'));
+const urlInput = /** @type {HTMLInputElement} */ (document.getElementById('urlInput'));
+// Above JSDoc guarantees them to be non-null, so alert if any don't exist.
+const missing = ['fileInput', 'urlForm', 'urlButton', 'urlInput']
+  // @ts-ignore - it is indexable by string and we just set above
+  .filter(id => !globalThis[id]);  ///< NOTE: Matches either HTML ID or variable name.
+if (missing.length) {
+  alert(`HTML elements not found: ${missing.join(', ')}`);
+}
+
+// // ---------------------------------------------------------------------
+// //  Attach Event Listeners
+// // ---------------------------------------------------------------------
+
+fileInput.addEventListener('change', async (event) => {
+  const files = /** @type {HTMLInputElement} */ (event.target).files;  ///< Get the selected file.
+  files && files[0] && handleZipLoading(await bufferFromFile(files[0]));  ///< Process uploaded file.
+});
+
+urlForm.addEventListener('submit', async (event) => {
+  event.preventDefault();  ///< Prevent default form submission.
+  const url = urlInput.value.trim();  ///< Get URL input.
+  if (!url) {
+    return;
+  }
+  urlButton.disabled = true;  ///< Disable button during fetch.
+  console.log(`Fetching from: ${url}`);  ///< Log start of fetch.
+  bufferFromUrl(url)
+    .then((buffer) => {
+      urlButton.disabled = false;  ///< Re-enable button after fetch.
+      handleZipLoading(buffer);  ///< Process fetched file.
+    })
+    .catch ((error) => {
+      const e = error instanceof Error ? error.message : error;
+      console.error(e);  ///< Log error message.
+      alert(e);  ///< Alert error message.
+      urlButton.disabled = false;  ///< Re-enable button after failure.
+    });
+});

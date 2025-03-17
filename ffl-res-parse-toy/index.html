@@ -1,9 +1,32 @@
-<h1>check your console. you will need to modify the source</h1>
+<body>
+	<h1>upload an FFL resource, then open your console</h1>
+	<p>
+		if you need it, get it from archive.org: <a target="_blank" href="https://web.archive.org/web/20180502054513/http://download-cdn.miitomo.com/native/20180125111639/android/v2/asset_model_character_mii_AFLResHigh_2_3_dat.zip">https://web.archive.org/web/20180502054513/http://download-cdn.miitomo.com/native/20180125111639/android/v2/asset_model_character_mii_AFLResHigh_2_3_dat.zip</a>
+		<div style="font-size: 11px;">
+			before you try, if you paste that below it won't work since archive.org has no CORS policy :( this proxy from kaeru would work if it were https: <a target="_blank" href="http://ia-proxy.fs3d.net:8989/20180502054513id_/http://download-cdn.miitomo.com/native/20180125111639/android/v2/asset_model_character_mii_AFLResHigh_2_3_dat.zip">http://ia-proxy.fs3d.net:8989/20180502054513id_/http://download-cdn.miitomo.com/native/20180125111639/android/v2/asset_model_character_mii_AFLResHigh_2_3_dat.zip</a>
+		</div>
+	</p>
+	<!-- Inline HTML user interface elements. -->
+	<input type="file" id="fileInput" accept=".zip,.dat">
+	<form id="urlForm">
+		<input type="text" id="urlInput" placeholder="Or import from URL.">
+		<br> <button id="urlButton">Fetch File/Zip</button>
+	</form>
+<!-- --
+	<script type="importmap">
+	{
+	  "imports": {
+	    "fflate": "https://cdn.jsdelivr.net/npm/fflate@0.8.2/+esm"
+	  }
+	}
+	</script>
+-->
+	<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.min.js"></script>
 
-<!-- struct-fu library ported to browser -->
-<!-- original source: https://github.com/natevw/struct-fu/blob/master/lib.js -->
-<!-- fork: https://github.com/ariankordi/struct-fu/blob/14fc71a75f06a97c0e462baef8f7605b0071323a/lib.js -->
-<script>
+	<!-- struct-fu library ported to browser -->
+	<!-- original source: https://github.com/natevw/struct-fu/blob/master/lib.js -->
+	<!-- fork: https://github.com/ariankordi/struct-fu/blob/14fc71a75f06a97c0e462baef8f7605b0071323a/lib.js -->
+	<script>
 /*!
  * The following is a version of the struct-fu library
  * fork by ariankordi: https://github.com/ariankordi/struct-fu
@@ -482,4 +505,6 @@ if (typeof module !== 'undefined' && module.exports) {
     // Export to global scope for browsers
     window._ = _;
 }
-</script><script src="script.js"></script>
+	</script>
+<script src="script.js"></script>
+</body>

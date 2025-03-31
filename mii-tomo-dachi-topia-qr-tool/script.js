@@ -3,30 +3,34 @@
 /* eslint @stylistic/indent: ['error', 2] -- Define indent rules. */
 /* @stylistic/no-multi-spaces: 'off' -- Allow spaced comments. */
 
-
 // // ---------------------------------------------------------------------
 // //  AES Keys
 // // ---------------------------------------------------------------------
 
-// https://www.3dbrew.org/wiki/PSPXI:EncryptDecryptAes#Key_Types
-/** Type 2, slot 0x31 */
-const AES_CCM_KEYSLOT_0x31_HEX = '59FC817E6446EA6190347B20E9BDCE52';
-/** Dev variant of {@link AES_CCM_KEYSLOT_0x31_HEX}. */
-const AES_CCM_KEYSLOT_0x31_DEV_HEX = '12DF92B6FFD438AB291C4FD4D7CE256D';
+/** @enum number */
+const KeyType = {
+  Production: 0,
+  Development: 1,
+  Null: 2
+};
+/**
+ * AES keys at "Type 2, slot 0x31" in sjcl's representation.
+ * https://www.3dbrew.org/wiki/PSPXI:EncryptDecryptAes#Key_Types
+ * @type {Object<KeyType, sjcl.BitArray>}
+ */
+const AES_CCM_KEYSLOT_0x31_KEYS = {
+  /** Production key. */
+  [KeyType.Production]: sjcl.codec.hex.toBits('59FC817E6446EA6190347B20E9BDCE52'),
+  /** Development key. */
+  [KeyType.Development]: sjcl.codec.hex.toBits('12DF92B6FFD438AB291C4FD4D7CE256D'),
+  /** Null key (used in Citra). */
+  [KeyType.Null]: sjcl.codec.hex.toBits('00000000000000000000000000000000')
+};
 
 const AES_CTR_KEY_HEX = '30819F300D06092A864886F70D010101';
 
-/** SJCL converted version of {@link AES_CCM_KEYSLOT_0x31_HEX}. */
-const AES_CCM_KEYSLOT_0x31_BITS = sjcl.codec.hex.toBits(AES_CCM_KEYSLOT_0x31_HEX);
-/** SJCL converted version of {@link AES_CCM_KEYSLOT_0x31_DEV_HEX}. */
-const AES_CCM_KEYSLOT_0x31_DEV_BITS = sjcl.codec.hex.toBits(AES_CCM_KEYSLOT_0x31_DEV_HEX);
-
 /** Reassigned to dev/prod. */
-let gAESCCMKeyPrimary = AES_CCM_KEYSLOT_0x31_BITS;
-/** @param {boolean} isDev - Controls whether to use the dev key or not. */
-const toggleAESCCMKeyMode = (isDev) => {
-  gAESCCMKeyPrimary = isDev ? AES_CCM_KEYSLOT_0x31_DEV_BITS : AES_CCM_KEYSLOT_0x31_BITS;
-};
+let gAESCCMKeyPrimary = AES_CCM_KEYSLOT_0x31_KEYS[KeyType.Production];
 
 // @ts-ignore - HACK because jsfiddle blocks this word???
 const crpyto = globalThis['crypt' + 'o'];
@@ -40,6 +44,9 @@ const sc = crpyto.subtle;
 // // ---------------------------------------------------------------------
 // //  Utility Conversion
 // // ---------------------------------------------------------------------
+
+/** sizeof(CFLiWrappedMiiData) */
+const WRAPPED_MII_DATA_LENGTH = 112;
 
 /**
  * Converts a hexadecimal string to a Uint8Array.
@@ -102,7 +109,10 @@ function isBase64(str) {
 // //  CRC-16 and CRC-32
 // // ---------------------------------------------------------------------
 
+/** Polynomial for CRC-16/CCITT. */
+const CRC16_CCITT_POLY = 0x1021;
 /**
+ * Calculates a checksum of `data` using CRC-16/CCITT/XMODEM, with a polynomial of 0x1021.
  * @param {Uint8Array|Array<number>} data - The data to create a checksum of.
  * @returns {number} The CRC-16 checksum.
  */
@@ -111,29 +121,31 @@ function crc16(data) {
   for (const byte of data) {
     crc ^= byte << 8;
     for (let i = 0; i < 8; i++) {
-      crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
+      crc = (crc & 0x8000)
+        ? (crc << 1) ^ CRC16_CCITT_POLY
+        : crc << 1;
     }
   }
   return crc & 0xFFFF;
 }
 
-// Define the polynomial used in CRC-32/CKSUM
-const CRC32_CKSUM_POLYNOMIAL = 0x04C11DB7;
-
-// Create a table for CRC-32/CKSUM lookup
+/** Table for CRC-32 lookup. */
 const crc32CksumTable = new Uint32Array(256);
 
+/** Polynomial for CRC-32/POSIX/CKSUM. */
+const CRC32_CKSUM_POLY = 0x04C11DB7;
+
 /**
- * Function to generate a CRC-32/CKSUM table.
+ * Function to generate a CRC-32/POSIX/CKSUM table.
  * @param {Uint32Array} table - The Uint32Array to populate with the table.
- * @param {number} [polynomial] - The polynomial to generate the CRC-32 table with.
+ * @param {number} [poly] - The polynomial to generate the CRC-32 table with.
  */
-function generateCrc32CksumTable(table, polynomial = CRC32_CKSUM_POLYNOMIAL) {
+function generateCrc32Table(table, poly = CRC32_CKSUM_POLY) {
   for (let i = 0; i < 256; i++) {
     let crc = i << 24;
     for (let j = 0; j < 8; j++) {
       if (crc & 0x80000000) {
-        crc = (crc << 1) ^ polynomial;
+        crc = (crc << 1) ^ poly;
       } else {
         crc = crc << 1;
       }
@@ -142,16 +154,15 @@ function generateCrc32CksumTable(table, polynomial = CRC32_CKSUM_POLYNOMIAL) {
   }
 }
 
-// Call the table generation function.
-generateCrc32CksumTable(crc32CksumTable);
+generateCrc32Table(crc32CksumTable); // Generate the table.
 
 /**
+ * Calculates a checksum of `data` using CRC-32/POSIX/CKSUM.
  * @param {Uint8Array|Array<number>} input - The data to create a checksum of.
  * @param {Uint32Array} [table] - The CRC-32 table to use.
  * @returns {number} The CRC-32 checksum.
  */
 function crc32(input, table = crc32CksumTable) {
-  /** Initial value for CRC-32/CKSUM */
   let crc = 0x00000000;
   for (let i = 0; i < input.length; i++) {
     const byte = (input[i] ^ (crc >>> 24)) & 0xFF;
@@ -167,6 +178,8 @@ function crc32(input, table = crc32CksumTable) {
 
 /**
  * Decrypts the AES-CCM portion of the QR code, using sjcl's private ctrMode function.
+ * The default AES-CCM decryption function in sjcl does not work
+ * due to the following errata: https://www.3dbrew.org/wiki/AES_Registers#CCM_mode_pitfall
  * @param {Uint8Array} encryptedData - Input QR code data (CFLiWrappedMiiData)
  * @param {Array<number>} [key] - The key to pass into sjcl.
  * @returns {Uint8Array} The encrypted StoreData.
@@ -175,13 +188,13 @@ function crc32(input, table = crc32CksumTable) {
 function decryptAesCcm(encryptedData, key = gAESCCMKeyPrimary) {
   // key = [1509720446, 1682369121, -1875608800, -373436846]) {
   // if the length is smaller than the standard mii qr code size
-  if (encryptedData.length < 112) {
-    throw new Error('Mii QR codes should be 112 or more bytes long, yours is ' + encryptedData.length);
+  if (encryptedData.length < WRAPPED_MII_DATA_LENGTH) {
+    throw new Error(`decryptAesCcm: Input size is ${encryptedData.length}, expected ${WRAPPED_MII_DATA_LENGTH} or longer.`);
   }
 
   /** Extracted nonce */
-  const nonce = encryptedData.slice(0, 8);
-  const encryptedContent = encryptedData.slice(8);
+  const nonce = encryptedData.subarray(0, 8);
+  const encryptedContent = encryptedData.subarray(8);
 
   const cipher = new sjcl.cipher.aes(key);
 
@@ -198,7 +211,12 @@ function decryptAesCcm(encryptedData, key = gAESCCMKeyPrimary) {
 
   /** regex to find the _ctrMode function: 6 arguments and calls "bitSlice" */
   const ctrModeFuncRegex = /\([^)]*,[^)]*,[^)]*,[^)]*,[^)]*,[^)]*\)\s*.*?bitSlice/;
-  /** Closure to match string representation of the function. */
+  /**
+   * Closure to find the _ctrMode function by matching its string representation.
+   * @param {[string, Function]} entry - A [key, function] pair from Object.entries.
+   * @returns {Array<string>|null} Match if function signature matches ctrMode.
+   */
+  // eslint-disable-next-line no-unused-vars -- key is not needed
   const ctrModeFuncMatch = ([_, fn]) => fn.toString().match(ctrModeFuncRegex);
 
   /**
@@ -230,12 +248,12 @@ function decryptAesCcm(encryptedData, key = gAESCCMKeyPrimary) {
 
   /** Final output with nonce in the middle */
   const decryptedBytes = sjcl.codec.bytes.fromBits(decryptedBits.data);
-  const decryptedSlice = new Uint8Array(decryptedBytes).slice(0, 0x58);
+  const decryptedSlice = new Uint8Array(decryptedBytes).subarray(0, 88);
 
   return new Uint8Array([
-    ...decryptedSlice.slice(0, 12),
+    ...decryptedSlice.subarray(0, 12),
     ...nonce,
-    ...decryptedSlice.slice(12)
+    ...decryptedSlice.subarray(12)
   ]);
 }
 
@@ -254,12 +272,12 @@ function split16BitToArray(num) {
  */
 function encryptAesCcm(data) {
   // Assuming sjcl.codec.bytes is properly defined
-  const nonce = data.slice(12, 20);
-  let content = [...data.slice(0, 12), ...data.slice(20)];
+  const nonce = data.subarray(12, 20);
+  let content = new Uint8Array([...data.subarray(0, 12), ...data.subarray(20)]);
 
-  const checksumContent = [...data.slice(0, 12), ...nonce, ...data.slice(20, -2)];
+  const checksumContent = [...data.subarray(0, 12), ...nonce, ...data.subarray(20, -2)];
   const newChecksum = crc16(new Uint8Array(checksumContent));
-  content = [...content.slice(0, -2), ...split16BitToArray(newChecksum)];
+  content = new Uint8Array([...content.subarray(0, -2), ...split16BitToArray(newChecksum)]);
 
   const cipher = new sjcl.cipher.aes(gAESCCMKeyPrimary);
 
@@ -268,11 +286,11 @@ function encryptAesCcm(data) {
   const nonceBits = sjcl.codec.bytes.toBits([...nonce, 0, 0, 0, 0]);
 
   const encryptedBits = sjcl.mode.ccm.encrypt(cipher, paddedContentBits, nonceBits, [], 128);
-  const encryptedBytes = sjcl.codec.bytes.fromBits(encryptedBits);
+  const encryptedBytes = new Uint8Array(sjcl.codec.bytes.fromBits(encryptedBits));
 
   const correctEncryptedContentLength = encryptedBytes.length - 8 - 16;
-  const encryptedContentCorrected = encryptedBytes.slice(0, correctEncryptedContentLength);
-  const tag = encryptedBytes.slice(encryptedBytes.length - 16);
+  const encryptedContentCorrected = encryptedBytes.subarray(0, correctEncryptedContentLength);
+  const tag = encryptedBytes.subarray(encryptedBytes.length - 16);
 
   const result = new Uint8Array([...nonce, ...encryptedContentCorrected, ...tag]);
   return result;
@@ -320,11 +338,14 @@ async function encryptAesCtr(data, keyData = hexToUint8Array(AES_CTR_KEY_HEX)) {
 // These functions are meant to be used completely inline within
 // the sample and weren't written to be reused at all...
 
+const qrCodeContainer = /** @type {HTMLDivElement} */ (document.getElementById('qr-code-container'));
+
 /**
  * Generates a QR code of the data using {@link encryptAesCcm} and {@link encryptAesCtr}.
  * @param {Uint8Array} [storeData] - Input StoreData.
  * @param {Uint8Array} [extraData] - Input extra data.
  * @returns {Promise<void>} The code is emitted to HTML ID "qr-code-container".
+ * @throws {Error} Throws if "qr-code-container" element does not exist.
  */
 async function generateQrCode(storeData = hexEditorBaseInput.saveToArray(),
   extraData = hexEditorExtraInput.saveToArray()) {
@@ -352,13 +373,21 @@ async function generateQrCode(storeData = hexEditorBaseInput.saveToArray(),
     console.log(qrData);
   }
 
-  const qrContainer = document.getElementById('qr-code-container');
-  qrContainer.firstElementChild.src = QRCode.generatePNG(qrData, { margin: null });
+  if (!qrCodeContainer || !(qrCodeContainer.firstElementChild instanceof HTMLImageElement)) {
+    throw new Error('generateQrCode: Element qr-code-container or its child is not an image.');
+  }
+  /** @type {HTMLImageElement} */ (qrCodeContainer.firstElementChild).src =
+    QRCode.generatePNG(qrData, { margin: null });
 }
 
+const extraDataWarning = /** @type {HTMLElement} */ (document.getElementById('extra-data-warning'));
+const extraDataWarningInner = /** @type {HTMLElement} */ (document.getElementById('extra-data-warning-inner'));
+
+/** @typedef {{bytes: Uint8Array}} QrScannerResult */
 /**
  * The callback for the scanned QR code data from QrScanner.
- * @param {{bytes: Uint8Array}} result - The result object received from QrScanner.
+ * @param {QrScannerResult} result - The result object received from QrScanner.
+ * @throws {Error} Throws if scanned length is 0.
  */
 function handleQrCode(result) {
   if (!result || !result.bytes) {
@@ -367,28 +396,31 @@ function handleQrCode(result) {
 
   cameraScanner.stop();
 
+  if (!result.bytes.length) {
+    throw new Error(`handleQrCode: Scanned QR Code has byte length of ${result.bytes.length}.`);
+  }
   const qrData = new Uint8Array(result.bytes);
-  /** First 112 bytes are AES-CCM */
-  const decryptedData = decryptAesCcm(qrData.slice(0, 112));
+  /** Decrypt the first AES-CCM encrypted portion. */
+  const decryptedData = decryptAesCcm(qrData.subarray(0, WRAPPED_MII_DATA_LENGTH));
 
   hexEditorBaseOutput.loadFromArray(decryptedData);
-  document.getElementById('extra-data-warning').style.display = 'none';
+  extraDataWarning.style.display = 'none';
 
-  if (qrData.length > 112) {
-    const iv = qrData.slice(112, 128);
-    const encryptedExtra = qrData.slice(128, -4);
+  if (qrData.length > WRAPPED_MII_DATA_LENGTH) {
+    const iv = qrData.subarray(WRAPPED_MII_DATA_LENGTH, 128);
+    const encryptedExtra = qrData.subarray(128, -4);
     decryptAesCtr(encryptedExtra, iv).then((decryptedExtraData) => {
-      document.getElementById('hex-editor-decrypt-extra').style.display = 'initial';
+      hexEditorExtraOutput.container.style.display = 'initial';
       hexEditorExtraOutput.loadFromArray(decryptedExtraData);
     })
       .catch((error) => {
-        document.getElementById('hex-editor-decrypt-extra').style.display = 'initial';
-        document.getElementById('extra-data-warning').style.display = 'initial';
-        document.getElementById('extra-data-warning-inner').textContent = error;
-        hexEditorExtraOutput.loadFromArray(qrData.slice(112));
+        hexEditorExtraOutput.container.style.display = 'initial';
+        extraDataWarning.style.display = 'initial';
+        extraDataWarningInner.textContent = error;
+        hexEditorExtraOutput.loadFromArray(qrData.subarray(WRAPPED_MII_DATA_LENGTH));
       });
   } else {
-    document.getElementById('hex-editor-decrypt-extra').style.display = 'none';
+    hexEditorExtraOutput.container.style.display = 'none';
   }
 }
 
@@ -417,7 +449,7 @@ function extractUTF16LEText(data, startOffset, byteLength = 20) {
   }
 
   // Extract and decode the name bytes
-  const nameBytes = data.slice(startOffset, endPosition);
+  const nameBytes = data.subarray(startOffset, endPosition);
   return decoder.decode(nameBytes);
 }
 
@@ -453,7 +485,7 @@ function getFormattedTime() {
 }
 
 // // ---------------------------------------------------------------------
-// //  Helpers for downloading data
+// //  Helpers for Downloading Data
 // // ---------------------------------------------------------------------
 
 /**
@@ -515,6 +547,79 @@ function downloadExtraData(extraData = hexEditorExtraOutput.saveToArray(),
 }
 
 // // ---------------------------------------------------------------------
+// //  Helpers for Uploading Data
+// // ---------------------------------------------------------------------
+
+/** Minimum size for Mii data (CFLiPackedMiiDataCore) */
+const PACKED_MII_DATA_SIZE = 72;
+/** Maximum accepted size for StoreData (CFLiMiiDataPacket, FFLStoreData) */
+const STORE_DATA_SIZE = 96;
+
+/**
+ * Function to load StoreData from file.
+ * @param {Event} event - The upload event.
+ */
+function loadStoreDataFromFile(event) {
+  const files = /** @type {HTMLInputElement} */ (event.target).files;
+  if (!files || !files[0]) {
+    return;
+  }
+
+  const fileSize = files[0].size;
+  if (fileSize < PACKED_MII_DATA_SIZE || fileSize > STORE_DATA_SIZE) {
+    alert(`StoreData (.cfsd) file must be between ${PACKED_MII_DATA_SIZE} and ${STORE_DATA_SIZE} bytes.`);
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function () {
+    if (!(reader.result instanceof ArrayBuffer)) {
+      console.warn('loadExtraDataFromFile: reader.result is not an ArrayBuffer.');
+      return;
+    }
+    let baseData = new Uint8Array(reader.result);
+
+    // Pad StoreData to 96 bytes if the size is smaller.
+    if (baseData.length < STORE_DATA_SIZE) {
+      const paddedBaseData = new Uint8Array(STORE_DATA_SIZE);
+      paddedBaseData.set(baseData); // Copy original data
+      baseData = paddedBaseData; // Replace with padded data
+    }
+
+    // Load into the hex editor for base data (StoreData)
+    hexEditorBaseInput.loadFromArray(baseData);
+  };
+
+  reader.readAsArrayBuffer(files[0]);
+}
+
+/**
+ * Function to load extra data from file.
+ * @param {Event} event - The upload event.
+ */
+function loadExtraDataFromFile(event) {
+  const files = /** @type {HTMLInputElement} */ (event.target).files;
+  if (!files || !files[0]) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function () {
+    if (!(reader.result instanceof ArrayBuffer)) {
+      console.warn('loadExtraDataFromFile: reader.result is not an ArrayBuffer.');
+      return;
+    }
+    const extraData = new Uint8Array(reader.result);
+
+    // Load into the hex editor for extra data
+    hexEditorExtraInput.loadFromArray(extraData);
+    hexEditorExtraOutput.container.style.display = 'initial';
+  };
+
+  reader.readAsArrayBuffer(files[0]);
+}
+
+// // ---------------------------------------------------------------------
 // //  Page Setup
 // // ---------------------------------------------------------------------
 
@@ -552,6 +657,14 @@ function setupHexEditorPasteHandling(hexEditorInstance) {
     });
 }
 
+/** @type {ReturnType<QrScanner>} */
+let cameraScanner;
+
+const camList = /** @type {HTMLSelectElement} */ (document.getElementById('cam-list'));
+
+const startCameraButton = /** @type {HTMLButtonElement} */ (document.getElementById('start-camera'));
+const stopCameraButton = /** @type {HTMLButtonElement} */ (document.getElementById('stop-camera'));
+
 // Initialize hex editors for the inputs and outputs
 /** @type {HexEditor} */ let hexEditorBaseInput;
 /** @type {HexEditor} */ let hexEditorExtraInput;
@@ -559,6 +672,26 @@ function setupHexEditorPasteHandling(hexEditorInstance) {
 /** @type {HexEditor} */ let hexEditorExtraOutput;
 
 document.addEventListener('DOMContentLoaded', () => {
+  /**
+   * List of EITHER element IDs OR variable names that
+   * should be guaranteed non-null in JSDoc, and will
+   * be filtered down to elements that do not exist.
+   */
+  /*
+  const missing = [
+    // Constants set from elements.
+    'qrCodeContainer', 'extraDataWarning', 'extraDataWarningInner',
+    'cameraScanner', 'camList',
+    // Element IDs that are not constants.
+    'qr-video', 'file-input', 'key-type',
+    'generate-qr-code', 'download-store-data', 'download-extra-data'
+  ]
+    // @ts-ignore - it is indexable by string and we just set above
+    .filter(id => !(globalThis[id] instanceof HTMLElement));
+  if (missing.length) {
+    alert(`HTML elements not found: ${missing.join(', ')}`);
+  }
+  */
   hexEditorBaseInput = new HexEditor(document.getElementById('hex-editor-storedata'), false);
 
   setupHexEditorPasteHandling(hexEditorBaseInput); // Attach paste handling to this instance
@@ -566,148 +699,85 @@ document.addEventListener('DOMContentLoaded', () => {
   hexEditorExtraInput = new HexEditor(document.getElementById('hex-editor-extra'), false);
   hexEditorBaseOutput = new HexEditor(document.getElementById('hex-editor-decrypt-storedata'), true);
   hexEditorExtraOutput = new HexEditor(document.getElementById('hex-editor-decrypt-extra'), true);
-});
 
-// QR Code Scanner for decoding
-const cameraScanner = new QrScanner(document.getElementById('qr-video'),
-  result => handleQrCode(result), {
-    highlightScanRegion: true,
-    highlightCodeOutline: true
-  });
-const camList = document.getElementById('cam-list');
-
-// // ---------------------------------------------------------------------
-// //  Event Listeners
-// // ---------------------------------------------------------------------
-
-/*
-  document.getElementById('start-camera').addEventListener('click', () => {
-    cameraScanner = new QrScanner(document.getElementById('qr-video'), result => handleQrCode(result));
-    cameraScanner.start();
-  });
-*/
-document.getElementById('start-camera').addEventListener('click', () => {
-  cameraScanner.start().then(() => {
-    // List cameras after the scanner started to avoid listCamera's stream and the scanner's stream being requested
-    // at the same time which can result in listCamera's unconstrained stream also being offered to the scanner.
-    // Note that we can also start the scanner after listCameras, we just have it this way around in the demo to
-    // start the scanner earlier.
-    const existingCameras = document.getElementsByClassName('device-camera');
-    [...existingCameras].forEach((camera) => {
-      // go ahead and remove all existing cameras to repopulate camera list
-      camera.remove();
+  // QR Code Scanner for decoding
+  cameraScanner = new QrScanner(document.getElementById('qr-video'),
+    handleQrCode, {
+      highlightScanRegion: true,
+      highlightCodeOutline: true
     });
-    QrScanner.listCameras(true).then(cameras => cameras.forEach((camera) => {
-      const option = document.createElement('option');
-      option.value = camera.id;
-      option.text = camera.label;
-      option.className = 'device-camera';
-      camList.add(option);
-    }));
+
+  // // ---------------------------------------------------------------------
+  // //  Event Listeners
+  // // ---------------------------------------------------------------------
+
+  /** @type {HTMLButtonElement} */ (document.getElementById('generate-qr-code'))
+    .addEventListener('click', () => {
+      generateQrCode();
+    });
+  /** @type {HTMLButtonElement} */ (document.getElementById('download-store-data'))
+    .addEventListener('click', () => {
+      downloadStoreData();
+    });
+  /** @type {HTMLButtonElement} */ (document.getElementById('download-extra-data'))
+    .addEventListener('click', () => {
+      downloadExtraData();
+    });
+
+  startCameraButton.addEventListener('click', () => {
+    cameraScanner.start().then(() => {
+      // List cameras after the scanner started to avoid listCamera's stream and the scanner's stream being requested
+      // at the same time which can result in listCamera's unconstrained stream also being offered to the scanner.
+      // Note that we can also start the scanner after listCameras, we just have it this way around in the demo to
+      // start the scanner earlier.
+      const existingCameras = document.getElementsByClassName('device-camera');
+      [...existingCameras].forEach((camera) => {
+        // go ahead and remove all existing cameras to repopulate camera list
+        camera.remove();
+      });
+      /** @type {Promise<Array<{id: string, label: string}>>} */ (QrScanner.listCameras(true)).then(
+        cameras => cameras.forEach((camera) => {
+          const option = document.createElement('option');
+          option.value = camera.id;
+          option.text = camera.label;
+          option.className = 'device-camera';
+          camList.add(option);
+        }));
+    });
+  });
+
+  camList.addEventListener('change', (event) => {
+    cameraScanner.setCamera(/** @type {HTMLInputElement} */(event.target).value);
+  });
+
+  stopCameraButton.addEventListener('click', () => {
+    if (cameraScanner) {
+      cameraScanner.stop();
+    }
+  });
+
+  /** @type {HTMLInputElement} */ (document.getElementById('file-input')).addEventListener('change', (event) => {
+    const files = /** @type {HTMLInputElement} */ (event.target).files;
+    if (files && files[0]) {
+      QrScanner.scanImage(files[0], { returnDetailedScanResult: true })
+        .then(handleQrCode);
+    }
+  });
+
+  /** @type {HTMLInputElement} */ (document.getElementById('key-type')).addEventListener('change', (event) => {
+    const type = /** @type {HTMLInputElement} */ (event.target).value;
+    const newKey = AES_CCM_KEYSLOT_0x31_KEYS[Number(type)];
+    gAESCCMKeyPrimary = newKey;
+    console.log('key changed to: ' + gAESCCMKeyPrimary);
+  });
+
+  // Initialize QR Scanner
+  QrScanner.hasCamera().then(/** @param {boolean} hasCamera - Presence of camera. */(hasCamera) => {
+    if (!hasCamera) {
+      startCameraButton.disabled = true;
+    }
+    if (!hasCamera) {
+      stopCameraButton.disabled = true;
+    }
   });
 });
-
-camList.addEventListener('change', (event) => {
-  cameraScanner.setCamera(event.target.value);
-});
-
-document.getElementById('stop-camera').addEventListener('click', () => {
-  if (cameraScanner) {
-    cameraScanner.stop();
-  }
-});
-
-document.getElementById('file-input').addEventListener('change', (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    QrScanner.scanImage(file, { returnDetailedScanResult: true })
-      .then(result => handleQrCode(result));
-  }
-});
-
-// Tab functionality
-/*
-function showTab(tabId) {
-  document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
-  document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-  document.querySelector(`.tab-button[onclick="showTab('${tabId}')"]`).classList.add('active');
-}
-*/
-
-document.getElementById('use-dev-key').addEventListener('change', (event) => {
-  toggleAESCCMKeyMode(event.target.checked);
-  console.log('current key: ' + gAESCCMKeyPrimary);
-});
-
-// Initialize QR Scanner
-QrScanner.hasCamera().then(/** @param {boolean} hasCamera - Presence of camera. */ (hasCamera) => {
-  if (!hasCamera) {
-    document.getElementById('start-camera').disabled = true;
-  }
-  if (!hasCamera) {
-    document.getElementById('stop-camera').disabled = true;
-  }
-});
-
-// Constants for StoreData size
-/** Minimum size for StoreData (technically not StoreData then but) */
-const STORE_DATA_MIN_SIZE = 72;
-/** Maximum accepted size for StoreData (CFLiPackedMiiDataPacket, FFLStoreData) */
-const STORE_DATA_MAX_SIZE = 96;
-
-/**
- * Function to load StoreData from file.
- * @param {ProgressEvent<FileReader>} event - The upload event.
- */
-function loadStoreDataFromFile(event) {
-  const file = event.target.files[0];
-  if (!file) {
-    return;
-  }
-
-  const fileSize = file.size;
-  if (fileSize < STORE_DATA_MIN_SIZE || fileSize > STORE_DATA_MAX_SIZE) {
-    alert(`StoreData (.cfsd) file must be between ${STORE_DATA_MIN_SIZE} and ${STORE_DATA_MAX_SIZE} bytes.`);
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    let baseData = new Uint8Array(e.target.result);
-
-    // Pad StoreData to 96 bytes if it's less
-    if (baseData.length < 96) {
-      const paddedBaseData = new Uint8Array(96);
-      paddedBaseData.set(baseData); // Copy original data
-      baseData = paddedBaseData; // Replace with padded data
-    }
-
-    // Load into the hex editor for base data (StoreData)
-    hexEditorBaseInput.loadFromArray(baseData);
-  };
-
-  reader.readAsArrayBuffer(file);
-}
-
-/**
- * Function to load extra data from file.
- * @param {ProgressEvent<FileReader>} event - The upload event.
- */
-function loadExtraDataFromFile(event) {
-  const file = event.target.files[0];
-  if (!file) {
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const extraData = new Uint8Array(e.target.result);
-
-    // Load into the hex editor for extra data
-    hexEditorExtraInput.loadFromArray(extraData);
-    document.getElementById('hex-editor-decrypt-extra').style.display = 'initial';
-  };
-
-  reader.readAsArrayBuffer(file);
-}

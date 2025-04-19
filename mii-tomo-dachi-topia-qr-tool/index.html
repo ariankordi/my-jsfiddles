@@ -10,14 +10,13 @@
   <link rel="stylesheet" href="style.css">
 </head>
   <body>
-
-  <!-- rudimentary js error handling text -->
-  <div id="error-container" style="display: none;">
-    <h1>😭 JavaScript Error!! 😭</h1>
-    <p id="error-message" style="color: red;"></p>
-    <pre id="error-stacktrace" style="display: none;"></pre>
-    <pre id="error-at">At <span></span></pre>
-  </div>
+  
+  <!-- Global error display block. -->
+  <div id="global-error-box" style="display: none; background: #ffeeee; color: #000; border: 2px solid red; padding: 1em; margin: 1em; font-family: monospace;">
+   <div style="font-weight: bold; font-size: 1.2em;"><span id="global-error-text-error">⚠️ JS Error:</span><span id="global-error-text-promise-rejection">⚠️ JS Promise Rejection:</span></div>
+    <div id="global-error-message" style="white-space: pre-wrap; margin-top: 0.5em;"></div>
+    <button id="global-error-hide-button" style="margin-top: 1em;">Close</button>
+</div>
 
 <!-- Tabbing Section
 <div>
@@ -145,29 +144,59 @@
     </select>
     <br>-> ONLY change this option if you know your QR Code was not made from a typical 3DS.
 
-    <!-- add error handling js before anything else is loaded
-             also have somewhat tried to make it backwards compatible -->
+    <!-- Global error handling snippet. -->
     <script>
-      // handle all errors and show them at the top of the page
-      window.addEventListener('error', function(event) {
-        var errorContainer = document.getElementById('error-container');
-        var errorMessage = document.getElementById('error-message');
-        var errorStacktrace = document.getElementById('error-stacktrace');
-        var errorAt = document.getElementById('error-at');
-        errorMessage.textContent = event.message;
-        // show stack trace if it has one
-        if(event.error) {
-          errorStacktrace.textContent = event.error.stack;
-          errorStacktrace.style.display = '';
-        } else {
-          // otherwise just use error's line number
-          errorAt.textContent = (event.source + ':' + event.lineno + ':' + event.colno);
-          errorAt.style.display = '';
+      (function () {
+        var box = /** @type {HTMLElement} */ (document.getElementById('global-error-box'));
+        var message = /** @type {HTMLElement} */ (document.getElementById('global-error-message'));
+        var closeBtn = /** @type {HTMLElement} */ (document.getElementById('global-error-hide-button'));
+        var textError = /** @type {HTMLElement} */ (document.getElementById('global-error-text-error'));
+        var textPromiseRejection = /** @type {HTMLElement} */ (document.getElementById('global-error-text-promise-rejection'));
+        if (!box || !message || !closeBtn || !textError || !textPromiseRejection) {
+          console.warn('Global error handler: Missing one or more required DOM elements.');
+          return;
         }
-
-        // un-hide the error container
-        errorContainer.style.display = '';
-      });
+        function showError(isPromiseRejection, detail) {
+          textError.style.display = isPromiseRejection ? 'none' : 'initial';
+          textPromiseRejection.style.display = isPromiseRejection ? 'initial' : 'none';
+          var timestamp = new Date().toLocaleString();
+          message.innerText = '[' + timestamp + '] ' + detail;
+          box.style.display = 'block';
+        }
+        function formatErrorEvent(errorEvent) {
+          var stack = errorEvent.error && errorEvent.error.stack ? errorEvent.error.stack : 'No stack trace available.';
+          var fileInfo = (errorEvent.filename || 'unknown file') + ':' +
+            (errorEvent.lineno != null ? errorEvent.lineno : '?') + ':' +
+            (errorEvent.colno != null ? errorEvent.colno : '?');
+          return errorEvent.message + '\nFile: ' + fileInfo + '\n\n' + stack;
+        }
+        function formatRejection(reason) {
+          if (reason instanceof Error) {
+            var stack = reason.stack || 'No stack trace.';
+            return reason.message + '\n\n' + stack;
+          }
+          if (typeof reason === 'string') {
+            return reason;
+          }
+          try {
+            return JSON.stringify(reason, null, 2);
+          } catch {
+            return 'Unable to serialize rejection reason.';
+          }
+        }
+        window.addEventListener('error', function (event) {
+          event.preventDefault();
+          showError(false, formatErrorEvent(event));
+        });
+        window.addEventListener('unhandledrejection', function (event) {
+          event.preventDefault();
+          showError(true, formatRejection(event.reason));
+        });
+        closeBtn.addEventListener('click', function () {
+          box.style.display = 'none';
+          message.innerText = '';
+        });
+      })();
     </script>
 
     <script>

@@ -1,7 +1,7 @@
 // @ts-check
 
-/* eslint @stylistic/indent: ['error', 2] -- Define indent rules. */
-/* @stylistic/no-multi-spaces: 'off' -- Allow spaced comments. */
+/* eslint indent: ['error', 2] -- Define indent rules. */
+/* eslint no-multi-spaces: 'off' -- Allow spaced comments. */
 
 // // ---------------------------------------------------------------------
 // //  AES Keys
@@ -116,13 +116,13 @@ const CRC16_CCITT_POLY = 0x1021;
  * @param {Uint8Array|Array<number>} data - The data to create a checksum of.
  * @returns {number} The CRC-16 checksum.
  */
-function crc16(data) {
-  let crc = 0xFFFF;
+function crc16(data, current = 0x0000, poly = CRC16_CCITT_POLY) {
+  let crc = current;
   for (const byte of data) {
-    crc ^= byte << 8;
-    for (let i = 0; i < 8; i++) {
+    crc ^= (byte << 8);
+    for (let j = 0; j < 8; j++) {
       crc = (crc & 0x8000)
-        ? (crc << 1) ^ CRC16_CCITT_POLY
+        ? (crc << 1) ^ poly
         : crc << 1;
     }
   }

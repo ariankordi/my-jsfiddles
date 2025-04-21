@@ -10,16 +10,15 @@
   <link rel="stylesheet" href="style.css">
 </head>
   <body>
+  
+  <!-- Global error display block. -->
+  <div id="global-error-box" style="display: none; background: #ffeeee; color: #000; border: 2px solid red; padding: 1em; margin: 1em; font-family: monospace;">
+   <div style="font-weight: bold; font-size: 1.2em;"><span id="global-error-text-error">⚠️ JS Error:</span><span id="global-error-text-promise-rejection">⚠️ JS Promise Rejection:</span></div>
+    <div id="global-error-message" style="white-space: pre-wrap; margin-top: 0.5em;"></div>
+    <button id="global-error-hide-button" style="margin-top: 1em;">Close</button>
+</div>
 
-  <!-- rudimentary js error handling text -->
-  <div id="error-container" style="display: none;">
-    <h1>😭 JavaScript Error!! 😭</h1>
-    <p id="error-message" style="color: red;"></p>
-    <pre id="error-stacktrace" style="display: none;"></pre>
-    <pre id="error-at">At <span></span></pre>
-  </div>
-
-<!-- Tabbing Section 
+<!-- Tabbing Section
 <div>
   <button class="tab-button active" onclick="showTab('encode-tab')">Encode</button>
   <button class="tab-button" onclick="showTab('decode-tab')">Decode</button>
@@ -47,7 +46,7 @@
     </tr>
   </table>
   <input type="file" id="load-storedata-btn" accept=".cfsd,.ffsd,.3dsmii,.cfcd,.ffcd,.bin,.dat" onchange="loadStoreDataFromFile(event)">
-  
+
   <details>
     <summary>load extra data for tomodachi life/miitomo/miitopia 3ds:</summary>
     <table id="hex-editor-extra" border>
@@ -65,9 +64,9 @@
     </table>
     <input type="file" id="load-extra-btn" accept=".bin,.dat" onchange="loadExtraDataFromFile(event)">
   </details>
-  
+
   <br>
-  <button onclick="generateQrCode()">encrypt QR code</button>
+  <button id="generate-qr-code">encrypt QR code</button>
   <div id="qr-code-container"><img></div>
 </div>
 
@@ -110,8 +109,8 @@
           <td width="160" class="ascii-output">.</td>
         </tr>
       </table>
-      
-      <button onclick="downloadStoreData()">download StoreData (.cfsd)</button>
+
+      <button id="download-store-data">download StoreData (.cfsd)</button>
       <div>
         <div id="extra-data-warning" style="display:none;">exception while decrypting AES-CTR data, showing original as hex: <span id="extra-data-warning-inner"></span></div>
         <table id="hex-editor-decrypt-extra" style="display:none;" border>
@@ -133,244 +132,387 @@
         </table>
       </div>
     </div>
-    
-    <button onclick="downloadExtraData()">download game extra data if present</button>
-    
+
+    <button id="download-extra-data">download game extra data if present</button>
+
     <hr>
     <h3>settings</h3>
-    <input type="checkbox" id="use-dev-key" value="1"> <label for="use-dev-key">Use dev version of keyslot 0x31 key (for QR codes made from dev systems)</label>
+    key type for keyslot 0x31 AES-CCM qr key: <select id="key-type" value="0">
+        <option value="0">Production</option>
+        <option value="1">Development</option>
+        <option value="2">Null (from Citra)</option>
+    </select>
+    <br>-> ONLY change this option if you know your QR Code was not made from a typical 3DS.
 
-
-    <!-- add error handling js before anything else is loaded
-             also have somewhat tried to make it backwards compatible -->
+    <!-- Global error handling snippet. -->
     <script>
-      // handle all errors and show them at the top of the page
-      window.addEventListener('error', function(event) {
-        var errorContainer = document.getElementById('error-container');
-        var errorMessage = document.getElementById('error-message');
-        var errorStacktrace = document.getElementById('error-stacktrace');
-        var errorAt = document.getElementById('error-at');
-        errorMessage.textContent = event.message;
-        // show stack trace if it has one
-        if(event.error) {
-          errorStacktrace.textContent = event.error.stack;
-          errorStacktrace.style.display = '';
-        } else {
-          // otherwise just use error's line number
-          errorAt.textContent = (event.source + ':' + event.lineno + ':' + event.colno);
-          errorAt.style.display = '';
+      (function () {
+        var box = /** @type {HTMLElement} */ (document.getElementById('global-error-box'));
+        var message = /** @type {HTMLElement} */ (document.getElementById('global-error-message'));
+        var closeBtn = /** @type {HTMLElement} */ (document.getElementById('global-error-hide-button'));
+        var textError = /** @type {HTMLElement} */ (document.getElementById('global-error-text-error'));
+        var textPromiseRejection = /** @type {HTMLElement} */ (document.getElementById('global-error-text-promise-rejection'));
+        if (!box || !message || !closeBtn || !textError || !textPromiseRejection) {
+          console.warn('Global error handler: Missing one or more required DOM elements.');
+          return;
         }
-
-        // un-hide the error container
-        errorContainer.style.display = '';
-      });
+        function showError(isPromiseRejection, detail) {
+          textError.style.display = isPromiseRejection ? 'none' : 'initial';
+          textPromiseRejection.style.display = isPromiseRejection ? 'initial' : 'none';
+          var timestamp = new Date().toLocaleString();
+          message.innerText = '[' + timestamp + '] ' + detail;
+          box.style.display = 'block';
+        }
+        function formatErrorEvent(errorEvent) {
+          var stack = errorEvent.error && errorEvent.error.stack ? errorEvent.error.stack : 'No stack trace available.';
+          var fileInfo = (errorEvent.filename || 'unknown file') + ':' +
+            (errorEvent.lineno != null ? errorEvent.lineno : '?') + ':' +
+            (errorEvent.colno != null ? errorEvent.colno : '?');
+          return errorEvent.message + '\nFile: ' + fileInfo + '\n\n' + stack;
+        }
+        function formatRejection(reason) {
+          if (reason instanceof Error) {
+            var stack = reason.stack || 'No stack trace.';
+            return reason.message + '\n\n' + stack;
+          }
+          if (typeof reason === 'string') {
+            return reason;
+          }
+          try {
+            return JSON.stringify(reason, null, 2);
+          } catch {
+            return 'Unable to serialize rejection reason.';
+          }
+        }
+        window.addEventListener('error', function (event) {
+          event.preventDefault();
+          showError(false, formatErrorEvent(event));
+        });
+        window.addEventListener('unhandledrejection', function (event) {
+          event.preventDefault();
+          showError(true, formatRejection(event.reason));
+        });
+        closeBtn.addEventListener('click', function () {
+          box.style.display = 'none';
+          message.innerText = '';
+        });
+      })();
     </script>
 
     <script>
-      class HexEditor {
-        constructor(container, isReadOnly = false) {
-          this.container = container; // Reference to the table container
-          this.isReadOnly = isReadOnly; // Check if the editor should be read-only
-          this.textArea = container.querySelector('.hex-textarea'); // Text area for hex input
-          this.lineNumbers = container.querySelector('.line-numbers'); // Element for line numbers
-          this.asciiOutput = container.querySelector('.ascii-output'); // Element for ASCII/Unicode output
-          this.header = container.querySelector('.table-padding'); // Hex header element (00, 01, 02...)
-          this.encodingMode = 'ascii'; // Default encoding mode
-
-          // Event listener for encoding mode changes (e.g., switching between ASCII, UTF-16LE, and UTF-16BE)
-          /*document.getElementById('encoding-mode').addEventListener('change', (event) => {
-            this.encodingMode = event.target.value; // Update the encoding mode based on user selection
-            this.updateAsciiOutput(this.cleanHexInput(this.textArea.selectionStart)); // Refresh ASCII output with the new encoding
-          });*/
-
-          // Listen for text selection in the hex textarea
-          this.textArea.addEventListener('select', () => this.syncSelection('hex'));
-
-          // Listen for mouse down on the ASCII side to clear the hex side highlights
-          this.asciiOutput.addEventListener('mousedown', () => this.clearHexHighlights());
-
-          this.initTopCell(); // Initialize the top row with hex values (00, 01, 02, ..., 0F)
-          this.bindTextAreaInput(); // Bind input event to handle hex editing
-
-          // If the editor is read-only, disable editing
-          if (isReadOnly) {
-            this.textArea.setAttribute('readonly', 'readonly');
-          }
+    /** A hex editor class for displaying and editing hex data within a container. */
+    class HexEditor {
+      /**
+       * Creates an instance of HexEditor.
+       * @param {HTMLElement|null} container - The container element that holds the hex editor components.
+       * @param {boolean} [isReadOnly] - Determines if the hex editor should be read-only.
+       * @throws {Error} Throws if any of the required elements do not exist.
+       */
+      constructor(container, isReadOnly = false) {
+        if (!container) {
+          throw new Error('HexEditor: Passed in container is null.');
         }
-
-        // Initialize the top row with hexadecimal values (00, 01, 02, ..., 0F)
-        initTopCell() {
-          let headerContent = ''; // Initialize empty string for header content
-          for (let i = 0; i < 16; i++) {
-            headerContent += (0 + i.toString(16)).slice(-2) + ' '; // Convert numbers to hex and append to header
-          }
-          this.header.textContent = headerContent; // Set the header content
+        /**
+         * Text area for hex input.
+         * @type {HTMLTextAreaElement|null}
+         */
+        const textArea = container.querySelector('.hex-textarea');
+        if (!(textArea instanceof HTMLTextAreaElement)) {
+          throw new Error('HexEditor: Missing or invalid .hex-textarea element.');
         }
+        this.textArea = textArea;
 
-        // Bind input event to handle hex editing
-        bindTextAreaInput() {
-          this.textArea.addEventListener('input', () => {
-            const caretPosition = this.textArea.selectionStart; // Get caret position
-            const cleanHex = this.cleanHexInput(caretPosition); // Clean and format hex input
-            this.updateLineNumbers(cleanHex); // Update the line numbers based on hex data
-            this.updateAsciiOutput(cleanHex); // Update the ASCII/Unicode output based on hex data
-            this.adjustTextAreaHeight(cleanHex); // Adjust the textarea height dynamically
-          });
+        /**
+         * Element for storing line numbers.
+         * @type {HTMLElement|null}
+         */
+        const lineNumbers = container.querySelector('.line-numbers');
+        if (!(lineNumbers instanceof HTMLElement)) {
+          throw new Error('HexEditor: Missing or invalid .line-numbers element.');
         }
+        this.lineNumbers = lineNumbers;
 
-        // Clean hex input and return clean value while maintaining caret position
-        cleanHexInput(caretPosition) {
-          let hexValue = this.textArea.value; // Get current value from the textarea
-
-          // Clean and format the hex input, maintaining the caret position
-          let beforeCaret = hexValue
-            .substr(0, caretPosition) // Get the substring before the caret
-            .replace(/[^0-9A-F]/gi, '') // Strip non-hex characters
-            .replace(/(..)/g, '$1 ') // Add a space between every two hex digits
-            .length;
-
-          hexValue = hexValue
-            .replace(/[^0-9A-F]/gi, '') // Remove non-hex characters globally
-            .replace(/(..)/g, '$1 ') // Add a space every two hex characters
-            .replace(/ $/, '') // Remove trailing space
-            .toUpperCase(); // Convert to uppercase for consistency
-
-          this.textArea.value = hexValue; // Update textarea with cleaned hex
-
-          // Handle caret positioning correctly when there's a space
-          if (hexValue[beforeCaret] === ' ') beforeCaret--;
-
-          this.textArea.setSelectionRange(beforeCaret, beforeCaret); // Restore caret position
-
-          return hexValue; // Return cleaned hex string
+        /**
+         * Element for ASCII/Unicode output.
+         * @type {HTMLElement|null}
+         */
+        const asciiOutput = container.querySelector('.ascii-output');
+        if (!(asciiOutput instanceof HTMLElement)) {
+          throw new Error('HexEditor: Missing or invalid .ascii-output element.');
         }
+        this.asciiOutput = asciiOutput;
 
-        // Update the line numbers in the left column based on the hex data
-        updateLineNumbers(cleanHex) {
-          let lineNumberString = ''; // Initialize string for line numbers
-          for (let i = 0; i < cleanHex.length / 48; i++) {
-            lineNumberString += (1e7 + (16 * i).toString(16)).slice(-8) + ' '; // Calculate and append each line number
-          }
-          this.lineNumbers.textContent = lineNumberString; // Update the line numbers display
+        /**
+         * Hex header element (00, 01, 02...)
+         * @type {HTMLElement|null}
+         */
+        const header = container.querySelector('.table-padding');
+        if (!(header instanceof HTMLElement)) {
+          throw new Error('HexEditor: Missing or invalid .table-padding element.');
         }
+        this.header = header;
 
-        // Update the ASCII or Unicode output based on the hex data and selected encoding
-        updateAsciiOutput(cleanHex) {
-          let asciiString = ''; // Initialize string for ASCII/Unicode output
+        /**
+         * Reference to the table container.
+         * @type {HTMLElement}
+         */
+        this.container = container;
 
-          // ASCII encoding mode
-          if (this.encodingMode === 'ascii') {
-            for (let i = 0; i < cleanHex.length; i += 3) { // Read every byte for ASCII
-              const charCode = parseInt(cleanHex.substr(i, 2), 16); // Convert hex to character code
-              asciiString += (32 < charCode && charCode < 127) ? String.fromCharCode(charCode) : '.'; // Add valid character or dot
-            }
-          } else {
-            // UTF-16 encoding mode (handles both LE and BE)
-            for (let i = 0; i < cleanHex.length; i += 6) { // Read every two bytes for UTF-16
-              const byte1 = parseInt(cleanHex.substr(i, 2), 16); // First byte
-              const byte2 = parseInt(cleanHex.substr(i + 3, 2), 16); // Second byte
-              let charCode;
+        /** @type {boolean} */
+        this.isReadOnly = isReadOnly;
 
-              // Handle little-endian or big-endian decoding
-              if (this.encodingMode === 'utf16le') {
-                charCode = (byte2 << 8) + byte1; // Little-endian: lower byte first
-              } else {
-                charCode = (byte1 << 8) + byte2; // Big-endian: higher byte first
-              }
+        /** @type {'ascii' | 'utf16le' | 'utf16be'} */
+        this.encodingMode = 'ascii';
 
-              // Skip control characters and null bytes (0x00)
-              if (charCode !== 0 && charCode >= 32) { // Skip non-printable characters
-                asciiString += String.fromCharCode(charCode); // Add valid Unicode character
-              } else {
-                asciiString += '.'; // Replace non-printable characters with a dot
-              }
-            }
-          }
+        // Event listener for hex textarea selection to synchronize selection with ASCII output.
+        this.textArea.addEventListener('select', () => this.syncSelection('hex'));
 
-          this.asciiOutput.textContent = asciiString.replace(/(.{16})/g, '$1 '); // Set ASCII output as text content
-        }
+        // Event listener on the ASCII output to clear hex highlights on mouse down.
+        this.asciiOutput.addEventListener('mousedown', () => this.clearHexHighlights());
 
-        // Adjust the textarea height based on its content length
-        adjustTextAreaHeight(cleanHex) {
-          this.textArea.style.height = (1.5 + cleanHex.length / 47) + 'em'; // Dynamically adjust height based on content
-        }
+        this.initTopCell(); // Initialize the top row with hex values (00, 01, 02, ..., 0F)
+        this.bindTextAreaInput(); // Bind input event to handle hex editing
 
-        // Load data from a Uint8Array into the hex editor
-        loadFromArray(uint8Array) {
-          let hexString = ''; // Initialize string for hex data
-          uint8Array.forEach(byte => {
-            hexString += (0 + byte.toString(16)).slice(-2) + ' '; // Convert each byte to hex string and append
-          });
-          this.textArea.value = hexString.trim(); // Set textarea value with the hex string
-          this.textArea.dispatchEvent(new Event('input')); // Trigger input event to update the editor
-        }
-
-        // Save the current hex data back to a Uint8Array
-        saveToArray() {
-          const cleanHex = this.cleanHexInput(this.textArea.selectionStart).replace(/ /g, ''); // Clean hex string
-          const byteArray = new Uint8Array(cleanHex.length / 2); // Create Uint8Array to hold the hex data
-          for (let i = 0; i < cleanHex.length; i += 2) {
-            byteArray[i / 2] = parseInt(cleanHex.substr(i, 2), 16); // Convert hex to bytes
-          }
-          return byteArray; // Return Uint8Array
-        }
-
-        // Synchronize selection between the hex view and ASCII/Unicode view
-        syncSelection(source) {
-          const selectionStart = this.textArea.selectionStart; // Get the start of the selection
-          const selectionEnd = this.textArea.selectionEnd; // Get the end of the selection
-
-          let asciiStart, asciiEnd; // Variables to hold the start and end positions for ASCII selection
-
-          // Calculate start and end positions for ASCII selection
-          if (this.encodingMode === 'ascii') {
-            asciiStart = Math.floor(selectionStart / 3); // Every 3 hex chars = 1 byte
-            asciiEnd = Math.ceil(selectionEnd / 3); // Use Math.ceil for selectionEnd to ensure the last character is included
-          } else {
-            asciiStart = Math.floor(selectionStart / 6); // Every 6 hex chars (2 bytes) = 1 UTF-16 char
-            asciiEnd = Math.ceil(selectionEnd / 6); // Ensure last Unicode character is included
-          }
-
-          // Ensure asciiStart and asciiEnd are within bounds of the content
-          asciiStart = Math.max(asciiStart, 0);
-          asciiEnd = Math.min(asciiEnd, this.asciiOutput.textContent.length);
-
-          // Highlight the corresponding text in ASCII output
-          this.highlightAscii(asciiStart, asciiEnd);
-        }
-
-				// Escape HTML special chars
-        escapeHtml(unsafe) {
-            return unsafe
-                 .replace(/&/g, "&amp;")
-                 .replace(/</g, "&lt;")
-                 .replace(/>/g, "&gt;")
-                 .replace(/"/g, "&quot;")
-                 .replace(/'/g, "&#039;");
-         }
-
-        // Highlight the corresponding text in the ASCII/Unicode view
-        highlightAscii(start, end) {
-          const asciiContent = this.asciiOutput.textContent;
-
-          // Adjust start and end to account for line breaks (spaces added every 16 characters)
-          const adjustedStart = start + Math.floor(start / 16); // Account for added space after every 16 characters
-          const adjustedEnd = end + Math.floor(end / 16);       // Similarly adjust the end position
-
-          const highlightedText = asciiContent.substring(adjustedStart, adjustedEnd);
-
-          const preText = asciiContent.substring(0, adjustedStart);
-          const postText = asciiContent.substring(adjustedEnd);
-
-          // Rebuild the ASCII content with the highlighted selection
-          this.asciiOutput.innerHTML = `${this.escapeHtml(preText)}<mark>${this.escapeHtml(highlightedText)}</mark>${this.escapeHtml(postText)}`;
-        }
-
-        // Clear the highlights on the hex side without changing the actual selection
-        clearHexHighlights() {
-          this.asciiOutput.innerHTML = this.asciiOutput.innerHTML.replace(/<mark>/g, '').replace(/<\/mark>/g, ''); // Remove all <mark> tags
+        // Set the text area to read-only if applicable.
+        if (isReadOnly) {
+          this.textArea.setAttribute('readonly', 'readonly');
         }
       }
+
+      /** Initializes the top row of the editor with hexadecimal values (00 to 0F). */
+      initTopCell() {
+        let headerContent = '';
+        for (let i = 0; i < 16; i++) {
+          headerContent += (0 + i.toString(16)).slice(-2) + ' '; // Convert numbers to hex and append to header
+        }
+        this.header.textContent = headerContent; // Set the header content
+      }
+
+      /** Binds the input event to the hex text area to handle editing. */
+      bindTextAreaInput() {
+        this.textArea.addEventListener('input', () => {
+          const caretPosition = this.textArea.selectionStart;
+          /** Cleaned and formatted hex input. */
+          const cleanHex = this.cleanHexInput(caretPosition);
+          this.updateLineNumbers(cleanHex); // Update the line numbers based on hex data
+          this.updateAsciiOutput(cleanHex); // Update the ASCII/Unicode output based on hex data
+          this.adjustTextAreaHeight(cleanHex); // Adjust the textarea height dynamically
+        });
+      }
+
+      /**
+       * Cleans and formats the hex input while maintaining the caret position.
+       * @param {number} caretPosition - The current caret position in the text area.
+       * @returns {string} The cleaned and formatted hex string.
+       */
+      cleanHexInput(caretPosition) {
+        /** Current value from the textarea. */
+        let hexValue = this.textArea.value;
+        // Clean and format the hex input, maintaining the caret position
+        let beforeCaret = hexValue
+          .substring(0, caretPosition) // Get the substring before the caret
+          .replace(/[^0-9A-F]/gi, '') // Strip non-hex characters
+          .replace(/(..)/g, '$1 ') // Add a space between every two hex digits
+          .length;
+
+        hexValue = hexValue
+          .replace(/[^0-9A-F]/gi, '') // Remove non-hex characters globally
+          .replace(/(..)/g, '$1 ') // Add a space every two hex characters
+          .replace(/ $/, '') // Remove trailing space
+          .toUpperCase(); // Convert to uppercase for consistency
+
+        this.textArea.value = hexValue; // Update textarea with cleaned hex
+
+        // Handle caret positioning correctly when there's a space
+        if (hexValue[beforeCaret] === ' ') {
+          beforeCaret--;
+        }
+        this.textArea.setSelectionRange(beforeCaret, beforeCaret); // Restore caret position
+
+        return hexValue; // Return cleaned hex string
+      }
+
+      /**
+       * Updates the line numbers based on the length of the cleaned hex string.
+       * @param {string} cleanHex - The cleaned hex string.
+       */
+      updateLineNumbers(cleanHex) {
+        /** String for line numbers. */
+        let lineNumberString = '';
+        for (let i = 0; i < cleanHex.length / 48; i++) {
+          lineNumberString += (1e7 + (16 * i).toString(16)).slice(-8) + ' '; // Calculate and append each line number
+        }
+        this.lineNumbers.textContent = lineNumberString; // Update the line numbers display
+      }
+
+      /**
+       * Updates the ASCII/Unicode output based on the cleaned hex string and the selected encoding mode.
+       * @param {string} cleanHex - The cleaned hex string.
+       */
+      updateAsciiOutput(cleanHex) {
+        /** String for ASCII/Unicode output. */
+        let asciiString = '';
+
+        // ASCII encoding mode
+        if (this.encodingMode === 'ascii') {
+          // Read every byte for ASCII
+          for (let i = 0; i < cleanHex.length; i += 3) {
+            /** Hex converted to character code. */
+            const charCode = parseInt(cleanHex.substring(i, i + 2), 16);
+            // Add valid character or dot.
+            asciiString += (32 < charCode && charCode < 127)
+              ? String.fromCharCode(charCode)
+              : '.';
+          }
+        } else {
+          // UTF-16 encoding mode (handles both LE and BE)
+          for (let i = 0; i < cleanHex.length; i += 6) { // Read every two bytes for UTF-16
+            const byte1 = parseInt(cleanHex.substring(i, i + 2), 16);
+            const byte2 = parseInt(cleanHex.substring(i + 3, i + 5), 16);
+            let charCode;
+
+            // Handle little-endian or big-endian decoding
+            if (this.encodingMode === 'utf16le') {
+              charCode = (byte2 << 8) + byte1; // Little-endian: lower byte first
+            } else {
+              charCode = (byte1 << 8) + byte2; // Big-endian: higher byte first
+            }
+
+            // Skip control characters and null bytes (0x00)
+            if (charCode !== 0 && charCode >= 32) { // Skip non-printable characters
+              asciiString += String.fromCharCode(charCode); // Add valid Unicode character
+            } else {
+              asciiString += '.'; // Replace non-printable characters with a dot
+            }
+          }
+        }
+
+        // Insert spaces after every 16 characters.
+        this.asciiOutput.textContent = asciiString.replace(/(.{16})/g, '$1 ');
+      }
+
+      /**
+       * Dynamically adjusts the height of the text area based on its content length.
+       * @param {string} cleanHex - The cleaned hex string.
+       */
+      adjustTextAreaHeight(cleanHex) {
+        this.textArea.style.height = (1.5 + cleanHex.length / 47) + 'em'; // Dynamically adjust height based on content
+      }
+
+      /**
+       * Loads data from a Uint8Array into the hex editor.
+       * @param {Uint8Array} uint8Array - The array of bytes to load into the editor.
+       */
+      loadFromArray(uint8Array) {
+        let hexString = '';
+        uint8Array.forEach((byte) => {
+          // Convert each byte to hex string and append.
+          hexString += (0 + byte.toString(16)).slice(-2) + ' '; // Trigger input event to update the editor
+        });
+        this.textArea.value = hexString.trim(); // Set textarea value with the hex string
+        this.textArea.dispatchEvent(new Event('input'));
+      }
+
+      /**
+       * Saves the current hex data from the text area into a Uint8Array.
+       * @returns {Uint8Array} The Uint8Array containing the hex data.
+       */
+      saveToArray() {
+        /** Cleaned hex string. */
+        const cleanHex = this.cleanHexInput(this.textArea.selectionStart).replace(/ /g, '');
+        /** Uint8Array to hold the hex data. */
+        const byteArray = new Uint8Array(cleanHex.length / 2);
+        for (let i = 0; i < cleanHex.length; i += 2) {
+          byteArray[i / 2] = parseInt(cleanHex.substring(i, i + 2), 16); // Convert hex to bytes
+        }
+        return byteArray; // Return Uint8Array
+      }
+
+      /**
+       * Synchronizes the selection between the hex view and the ASCII/Unicode view.
+       * @param {'hex' | 'ascii'} [source] - The source of the selection (expected "hex").
+       * @throws {Error} Throws if source is not "hex" ("ascii" is unimplemented).
+       */
+      syncSelection(source = 'hex') {
+        if (source !== 'hex') {
+          throw new Error('HexEditor.syncSelection: Unexpected value for source (unimplemented)');
+        }
+        /** Start of the selection. */
+        const selectionStart = this.textArea.selectionStart;
+        /** End of the selection. */
+        const selectionEnd = this.textArea.selectionEnd;
+
+        // Variables to hold the start and end positions for ASCII selection
+        let asciiStart;
+        let asciiEnd;
+
+        // Calculate start and end positions for ASCII selection
+        if (this.encodingMode === 'ascii') {
+          asciiStart = Math.floor(selectionStart / 3); // Every 3 hex chars = 1 byte
+          // Use Math.ceil for selectionEnd to ensure the last character is included
+          asciiEnd = Math.ceil(selectionEnd / 3);
+        } else {
+          asciiStart = Math.floor(selectionStart / 6); // Every 6 hex chars (2 bytes) = 1 UTF-16 char
+          asciiEnd = Math.ceil(selectionEnd / 6); // Ensure last Unicode character is included
+        }
+
+        // Ensure asciiStart and asciiEnd are within bounds of the content
+        asciiStart = Math.max(asciiStart, 0);
+        asciiEnd = Math.min(asciiEnd,
+          this.asciiOutput.textContent ? this.asciiOutput.textContent.length : 0);
+
+        // Highlight the corresponding text in ASCII output
+        this.highlightAscii(asciiStart, asciiEnd);
+      }
+
+      /**
+       * Escapes HTML special characters in a string.
+       * @param {string} unsafe - The string to escape.
+       * @returns {string} The escaped string.
+       */
+      escapeHtml(unsafe) {
+        return unsafe
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      /**
+       * Highlights a portion of the ASCII/Unicode view corresponding to a given range.
+       * @param {number} start - The starting index in the ASCII output.
+       * @param {number} end - The ending index in the ASCII output.
+       */
+      highlightAscii(start, end) {
+        const asciiContent = this.asciiOutput.textContent;
+        if (!asciiContent) {
+          return; // There is no text to highlight.
+        }
+
+        // Adjust start and end to account for line breaks (spaces added every 16 characters)
+        /** Adjustment to account for added space every 16 characters. */
+        const adjustedStart = start + Math.floor(start / 16);
+        /** Similar adjustment to `adjustedStart` for the end position. */
+        const adjustedEnd = end + Math.floor(end / 16);
+
+        const highlightedText = asciiContent.substring(adjustedStart, adjustedEnd);
+
+        const preText = asciiContent.substring(0, adjustedStart);
+        const postText = asciiContent.substring(adjustedEnd);
+
+        // Rebuild the ASCII content with the highlighted selection
+        this.asciiOutput.innerHTML = `${this.escapeHtml(preText)}<mark>${this.escapeHtml(highlightedText)}</mark>${this.escapeHtml(postText)}`;
+      }
+
+      /** Clears any highlights in the ASCII/Unicode view. */
+      clearHexHighlights() {
+        // Remove all <mark> tags.
+        this.asciiOutput.innerHTML = this.asciiOutput.innerHTML
+          .replace(/<mark>/g, '')
+          .replace(/<\/mark>/g, '');
+      }
+    }
     </script>
   <script src="script.js"></script>
 </body>

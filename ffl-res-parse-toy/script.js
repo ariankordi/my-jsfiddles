@@ -399,15 +399,12 @@ function getIsAFL_2_3Header(resBuffer, littleEndian) {
 // // ---------------------------------------------------------------------
 
 /**
- * Sample for parsing and reading an FFL resource from an ArrayBuffer.
- * @param {ArrayBuffer} resArrayBuffer - The contents of the resource file.
+ * Parses only the FFLiResourceHeader from a buffer and displays it in #output.
+ * Works with a header-only buffer (e.g. the first 0x4a00 bytes).
+ * @param {ArrayBuffer} resArrayBuffer - Buffer containing at least the resource header.
+ * @returns {{header: FFLiResourceHeader, s: ReturnType<createFFLiResourceStructs>, littleEndian: boolean}}
  */
-async function readResourceSample(resArrayBuffer) {
-  // console.log('📁 resArrayBuffer:', resArrayBuffer); // NOTE: Memory leak, remove in prod.
-  if (!(resArrayBuffer instanceof ArrayBuffer)) {
-    throw new Error('readResourceSample: Expected resArrayBuffer to be ArrayBuffer.');
-  }
-
+function parseResourceHeader(resArrayBuffer) {
   // Verify the magic of the resource and determine its endianness.
   const littleEndian = getValidAndIsLittleEndianFromMagic(resArrayBuffer);
   const isAFL_2_3 = getIsAFL_2_3Header(resArrayBuffer, littleEndian);
@@ -434,6 +431,42 @@ async function readResourceSample(resArrayBuffer) {
   console.log(`ℹ️ resource total uncompressed size: ${totalUncompressedResSizeMB} MB`);
   console.log('🖼️ m_TextureHeader:', header.m_TextureHeader);
   console.log('📐 m_ShapeHeader:', header.m_ShapeHeader);
+
+  updateOutput(header);
+  const hideConditionally = document.getElementById('hide-when-loading-not-fflresmiddle-dat');
+  if (hideConditionally) {
+    hideConditionally.style.display = header.m_ExpandBufferSize === 9330192 ? '' : 'none';
+  }
+
+  return { header, s, littleEndian };
+}
+
+function updateOutput(/** @type {Object} */ header) {
+  const outputEl = /** @type {HTMLTextAreaElement} */ (document.getElementById('output'));
+  if (!outputEl) {
+    return;
+  }
+
+  outputEl.value = JSON.stringify(header, function(k, v) {
+    if (v && v.constructor === Uint8Array) {
+      return Array.from(v).map((b) =>
+        ('0' + b.toString(16)).slice(-2)).join('');
+    }
+    return v;
+  }, 2);
+}
+
+/**
+ * Sample for parsing and reading an FFL resource from an ArrayBuffer.
+ * @param {ArrayBuffer} resArrayBuffer - The contents of the resource file.
+ */
+async function readResourceSample(resArrayBuffer) {
+  if (!(resArrayBuffer instanceof ArrayBuffer)) {
+    throw new Error('readResourceSample: Expected resArrayBuffer to be ArrayBuffer.');
+  }
+
+  // Parse and display the header.
+  const { header, s, littleEndian } = parseResourceHeader(resArrayBuffer);
 
   // Potential TODO: I feel that these methods could be made more generic,
   // so that completely different resource files could share the same interface.
@@ -464,7 +497,7 @@ async function readResourceSample(resArrayBuffer) {
       throw new Error('getPartsInfoData: CompressionStream is not supported in this browser, so this function will have to be refactored to use pako library and call deflate().');
     }
     const cs = new DecompressionStream('deflate');
-    const stream = /** @type {ReadableStream<Uint8Array>} */ (new Response(rawData).body)
+    const stream = /** @type {ReadableStream<BufferSource>} */ (new Response(rawData).body)
       .pipeThrough(cs);
     const decompressed = await new Response(stream).arrayBuffer();
 

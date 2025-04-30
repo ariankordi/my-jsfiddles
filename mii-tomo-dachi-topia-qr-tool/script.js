@@ -41,47 +41,75 @@ const crpyto = globalThis['crypt' + 'o'];
 const sc = crpyto.subtle;
 // ^^ Needed or else the fiddle will not save
 
+/** Determines if the StoreData will be modified before making a QR code ({@link modifyStoreDataCopyablePlatform}) */
+let gModifyStoreDataForQr = true;
+
+// // ---------------------------------------------------------------------
+// //  Constants
+// // ---------------------------------------------------------------------
+
+/** Size of encrypted Mii data found in QR codes (CFLiWrappedMiiData, FFLiWrappedStoreData) */
+const WRAPPED_MII_DATA_LENGTH = 112; // 0x70
+
+/** Size of 3DS/Wii U format Mii data, referred to as: FFLStoreData, CFLiMiiDataPacket, nn::mii::Ver3StoreData */
+const VER3_STORE_DATA_LENGTH = 96; // 0x60
+/** Minimum size for 3DS/Wii U Mii data (CFLiPackedMiiDataCore, FFLiMiiDataCore) */
+const MII_DATA_CORE_LENGTH = 72;
+
+/** Size of the AES-CCM nonce (IV) within wrapped data. */
+const WRAPPED_NONCE_LENGTH = 12;
+/** Size of the AES-CCM tag (MAC) within wrapped data. */
+const WRAPPED_TAG_LENGTH = 16;
+/** Offset of the ID in StoreData used for wrapped data (CreateID) */
+const WRAPPED_ID_OFFSET = 12;
+/**
+ * Size of the ID in the wrapped data that forms the nonce.
+ * While this ID is taken from CreateID, it is truncated to be
+ * two bytes smaller because it has to be a multiple of 4,
+ * and less than/equal to the nonce size, so it couldn't be 16.
+ * @type {number}
+ */
+const WRAPPED_ID_LENGTH = 8; // (10) & ~3
+
+/** Length of an IV for AES-CTR used in {@link encryptAesCtr}. */
+const AES_IV_LENGTH = 16;
+const AES_IV_LENGTH_BITS = AES_IV_LENGTH * 8; // 128
+
+/** Test StoreData. */
+const jasmineStoreData = 'AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAABvAHMAaQBnAG8AbgBhAGwAAAAAAJA6';
+
 // // ---------------------------------------------------------------------
 // //  Utility Conversion
 // // ---------------------------------------------------------------------
 
-/** sizeof(CFLiWrappedMiiData) */
-const WRAPPED_MII_DATA_LENGTH = 112;
+/**
+ * Hex -> U8 / https://gist.github.com/themikefuller/608202bde24077990c0539f960b79fe4 (hex2string)
+ * @param {string} hex - Input hex data to decode.
+ * @returns {Uint8Array} Decoded input data.
+ */
+const hexToBytes = hex => new Uint8Array((hex.match(/.{1,2}/g) || [])
+  .map((/** @type {string} */ byte) => parseInt(byte, 16)));
+/**
+ * U8 -> Hex / https://www.xaymar.com/articles/2020/12/08/fastest-uint8array-to-hex-string-conversion-in-javascript/
+ * @param {Array<number>|Uint8Array} bytes - Input data to encode.
+ * @returns {string} Hexadecimal representation of `buffer`.
+ */
+const bytesToHex = bytes => Array.prototype.map.call(bytes,
+  (/** @type {{ toString: (arg0: number) => string; }} */ x) => x.toString(16).padStart(2, '0')).join('');
 
 /**
- * Converts a hexadecimal string to a Uint8Array.
- * @param {string} hex - The hexadecimal string.
- * @returns {Uint8Array} The converted Uint8Array.
+ * Converts Uint8Array to hex with spaces between every byte.
+ * @param {Array<number>|Uint8Array} bytes - Input data to encode.
+ * @returns {string} Hexadecimal representation of `buffer` with spaces between every byte.
  */
-function hexToUint8Array(hex) {
-  const match = hex.match(/.{1,2}/g);
-  // If match returned null, use an empty array.
-  const arr = (match ? match : []).map(function (byte) {
-    return parseInt(byte, 16);
-  });
-  return new Uint8Array(arr);
-}
+const bytesToHexSpaced = bytes => bytesToHex(bytes).replace(/(.{2})/g, '$1 ');
 
 /**
- * @param {Uint8Array} bytes - Input Uint8Array.
- * @returns {string} The data in hexadecimal.
+ * Base64 -> U8 / https://stackoverflow.com/a/41106346
+ * @param {string} base64 - Input Base64 data to decode.
+ * @returns {Uint8Array} Decoded input data.
  */
-function uint8ArrayToHex(bytes) {
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-/**
- * @param {string} base64 - The input Base64 string.
- * @returns {Uint8Array} The decoded data as Uint8Array.
- */
-function base64ToUint8Array(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
+const base64ToBytes = base64 => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 
 /**
  * @param {string} str - Input string to check.
@@ -110,30 +138,36 @@ function isBase64(str) {
 // // ---------------------------------------------------------------------
 
 /** Polynomial for CRC-16/CCITT. */
-const CRC16_CCITT_POLY = 0x1021;
+// const CRC16_CCITT_POLY = 0x1021;
+
+/** Polynomial for CRC-32/POSIX/CKSUM. */
+const CRC32_CKSUM_POLY = 0x04C11DB7;
+
 /**
- * Calculates a checksum of `data` using CRC-16/CCITT/XMODEM, with a polynomial of 0x1021.
+ * Calculates the CRC-16/CCITT/XMODEM checksum for the specified input data.
+ * Courtesy of Luciano Barcaro: https://stackoverflow.com/a/30357446
  * @param {Uint8Array|Array<number>} data - The data to create a checksum of.
- * @returns {number} The CRC-16 checksum.
+ * @param {number} [current] - The starting CRC value, defaulting to 0.
+ * @returns {number} The calculated CRC-16 checksum.
  */
-function crc16(data, current = 0x0000, poly = CRC16_CCITT_POLY) {
-  let crc = current;
-  for (const byte of data) {
-    crc ^= (byte << 8);
-    for (let j = 0; j < 8; j++) {
-      crc = (crc & 0x8000)
-        ? (crc << 1) ^ poly
-        : crc << 1;
-    }
+function crc16(data, current = 0x0000) {
+  const crc = current;
+  let msb = crc >> 8;
+  let lsb = crc & 0xFF;
+
+  for (let i = 0; i < data.length; i++) {
+    const c = data[i];
+    let x = c ^ msb;
+    x ^= (x >> 4);
+    msb = (lsb ^ (x >> 3) ^ (x << 4)) & 0xFF;
+    lsb = (x ^ (x << 5)) & 0xFF;
   }
-  return crc & 0xFFFF;
+
+  return (msb << 8) | lsb;
 }
 
 /** Table for CRC-32 lookup. */
 const crc32CksumTable = new Uint32Array(256);
-
-/** Polynomial for CRC-32/POSIX/CKSUM. */
-const CRC32_CKSUM_POLY = 0x04C11DB7;
 
 /**
  * Function to generate a CRC-32/POSIX/CKSUM table.
@@ -172,42 +206,60 @@ function crc32(input, table = crc32CksumTable) {
   return (crc ^ 0xFFFFFFFF) >>> 0;
 }
 
+/**
+ * Updates the CRC-16 checksum in StoreData.
+ * @param {Uint8Array} storeData - The data to update the checksum for.
+ */
+function updateStoreDataCRC(storeData) {
+  // Update the CRC-16 in the data.
+  const crcOffset = VER3_STORE_DATA_LENGTH - 2;
+  const crc = crc16(storeData.subarray(0, crcOffset));
+  // Store as big-endian.
+  new DataView(storeData.buffer).setUint16(crcOffset, crc, false);
+}
+
+/**
+ * Modifies the StoreData to set birthPlatform to 3,
+ * enabling it to be scannable on a 3DS, and enable copying.
+ * @param {Uint8Array} storeData - The Mii StoreData to modify.
+ */
+function modifyStoreDataCopyablePlatform(storeData) {
+  // Mii data created on Wii U, Miitomo, and Switch
+  // have birthPlatform set to 4 (= Wii U). That data is
+  // not scannable as a QR code on 3DS because it will
+  // fail verification if birthPlatform > 3.
+  // Set birthPlatform bitfield to 3 (CFLi_BIRTH_PLATFORM_CTR)
+  storeData[3] = storeData[3] & 0b10001111 | 0b00110000;
+  // Allow the Mii to be copied, for convenience.
+  storeData[1] |= 1; // copyable = 1
+}
+
 // // ---------------------------------------------------------------------
 // //  AES-CCM Encryption
 // // ---------------------------------------------------------------------
 
 /**
- * Decrypts the AES-CCM portion of the QR code, using sjcl's private ctrMode function.
- * The default AES-CCM decryption function in sjcl does not work
- * due to the following errata: https://www.3dbrew.org/wiki/AES_Registers#CCM_mode_pitfall
- * @param {Uint8Array} encryptedData - Input QR code data (CFLiWrappedMiiData)
- * @param {Array<number>} [key] - The key to pass into sjcl.
- * @returns {Uint8Array} The encrypted StoreData.
- * @throws {Error}
+ * The sjcl.mode.ccm._ctrMode private function.
+ * Originally defined here:  https://github.com/bitwiseshiftleft/sjcl/blob/85caa53c281eeeb502310013312c775d35fe0867/core/ccm.js#L194
+ * @typedef {(
+ * prf: { encrypt: (input: sjcl.BitArray) => sjcl.BitArray },
+ * data: sjcl.BitArray, iv: sjcl.BitArray,
+ * tag: sjcl.BitArray, tlen: number, L: number
+ * ) => { data: sjcl.BitArray, tag: sjcl.BitArray }} _ctrMode
  */
-function decryptAesCcm(encryptedData, key = gAESCCMKeyPrimary) {
-  // key = [1509720446, 1682369121, -1875608800, -373436846]) {
-  // if the length is smaller than the standard mii qr code size
-  if (encryptedData.length < WRAPPED_MII_DATA_LENGTH) {
-    throw new Error(`decryptAesCcm: Input size is ${encryptedData.length}, expected ${WRAPPED_MII_DATA_LENGTH} or longer.`);
-  }
 
-  /** Extracted nonce */
-  const nonce = encryptedData.subarray(0, 8);
-  const encryptedContent = encryptedData.subarray(8);
-
-  const cipher = new sjcl.cipher.aes(key);
-
-  // Convert nonce and encrypted content to bits, adjusting the nonce to full size
-  const encryptedBits = sjcl.codec.bytes.toBits(Array.from(encryptedContent));
-  const nonceBits = sjcl.codec.bytes.toBits([...nonce, 0, 0, 0, 0]);
-
-  // Isolate the actual ciphertext from the tag and adjust IV.
-  /** Tag length in bits */
-  const tlen = 128;
-  const out = sjcl.bitArray.clamp(encryptedBits,
-    // remove tag from out, tag length = 128
-    sjcl.bitArray.bitLength(encryptedBits) - tlen);
+/**
+ * Gets the private {@link _ctrMode} function in SJCL.
+ * This private function's name is minified across builds.
+ * @returns {_ctrMode} The sjcl.mode.ccm._ctrMode private function
+ * that decrypts AES-CCM ciphertext without verifying the tag.
+ * @throws {Error} Throws if the function cannot be found.
+ */
+function getSjclCcmCtrModeDecryptFunc() {
+  // NOTE: If you are adapting this code, you may find the
+  // minified version of the function yourself, and return it here.
+  // Example ("sjcl-with-all" v1.0.8 from npm):
+  // return sjcl.mode.ccm.u;
 
   /** regex to find the _ctrMode function: 6 arguments and calls "bitSlice" */
   const ctrModeFuncRegex = /\([^)]*,[^)]*,[^)]*,[^)]*,[^)]*,[^)]*\)\s*.*?bitSlice/;
@@ -219,13 +271,7 @@ function decryptAesCcm(encryptedData, key = gAESCCMKeyPrimary) {
   // eslint-disable-next-line no-unused-vars -- key is not needed
   const ctrModeFuncMatch = ([_, fn]) => fn.toString().match(ctrModeFuncRegex);
 
-  /**
-   * The sjcl.mode.ccm._ctrMode private function.
-   * @typedef {(prf: { encrypt: (input: sjcl.BitArray) => sjcl.BitArray },
-   * data: sjcl.BitArray, iv: sjcl.BitArray,
-   * tag: sjcl.BitArray, tlen: number, L: number
-   * ) => { tag: sjcl.BitArray, data: sjcl.BitArray }} _ctrMode
-   */
+  /** sjcl.mode.ccm object/namespace. */
   const ccm = /** @type {Object<string, *>} */ (sjcl.mode.ccm);
   /**
    * jsdelivr (1.0.8 sjcl.min.js) minifies this function name to "C"
@@ -233,68 +279,249 @@ function decryptAesCcm(encryptedData, key = gAESCCMKeyPrimary) {
    */
   let ctrDecrypt = /** @type {_ctrMode} */ (ccm._ctrMode) || /** @type {_ctrMode} */ (ccm.C);
   if (!ctrDecrypt) {
-    // attempt to find the private _ctrMode func using our regex
+    // Use the pattern to find the private _ctrMode function.
     const match = Object.entries(sjcl.mode.ccm).find(ctrModeFuncMatch);
-    // may throw IndexError??
-    if (match) {
-      ctrDecrypt = match[1];
+    // Validate that the match turned up a function.
+    if (Array.isArray(match) && match.length > 0 && typeof match[1] === 'function') {
+      ctrDecrypt = match[1]; // Assign the function.
     } else {
-      throw new Error('decryptAesCcm: cannot find PRIVATE sjcl.mode.ccm._ctrMode DECRYPT FUNCTION!!!!!!');
+      throw new Error('Private sjcl.mode.ccm._ctrMode function cannot be found. The build of sjcl expected may have changed. Cannot continue with decryption.');
     }
   }
-  /** harcoding 3 as "L" / length; */
-  const decryptedBits = ctrDecrypt(cipher, out, nonceBits, [], tlen, 3);
-  // NOTE: the CBC-MAC of the qr code is NOT verified here
 
-  /** Final output with nonce in the middle */
-  const decryptedBytes = sjcl.codec.bytes.fromBits(decryptedBits.data);
-  const decryptedSlice = new Uint8Array(decryptedBytes).subarray(0, 88);
-
-  return new Uint8Array([
-    ...decryptedSlice.subarray(0, 12),
-    ...nonce,
-    ...decryptedSlice.subarray(12)
-  ]);
+  return ctrDecrypt;
 }
 
 /**
- * @param {number} num - The 16-bit number.
- * @returns {Array<number>} An array representing the number as two bytes.
+ * Gets 96 byte 3DS/Wii U format Mii data from QR code data.
+ * Decrypts the AES-CCM encrypted data (CFLiWrappedMiiData) from the QR code using sjcl.
+ *
+ * References (Credits: 3DBrew contributors, jaames, kazuki-4ys):
+ * - https://www.3dbrew.org/wiki/Mii_Maker#Mii_QR_Code_format
+ * - https://gist.github.com/jaames/96ce8daa11b61b758b6b0227b55f9f78
+ * - https://github.com/kazuki-4ys/kazuki-4ys.github.io/blob/148dc339974f8b7515bfdc1395ec1fc9becb68ab/web_apps/MiiInfoEditorCTR/encode.js#L57
+ * - CFL: void CFLi_UnwrapMiiData(CFLiMiiDataPacket* packetData, CFLiWrappedMiiData* wrappedData);
+ * -> nn::applet::CTR::detail::Unwrap(packetData, wrappedData, 0x70, 0xc, 10);
+ * -> nn::ps::UnwrapMii(void* pMiiBuffer, const void* pWrapped, size_t wrappedSize, s32 idOffset, size_t idSize);
+ * (> ctr.7z: ctr/sources/libraries/ps/CTR/ps_Util.cpp)
+ * - FFL: FFLResult FFLiUnwrapStoreData(FFLiStoreDataCFL*, const FFLiWrappedStoreData*);
+ * -> ACPMiiUnwrap(pStoreDataCFL, FFL_MIIDATA_PACKET_SIZE, pWrappedStoreData, FFLI_WRAPPEDSTOREDATA_SIZE);
+ *
+ * The default AES-CCM decryption function in sjcl fails to verify the tag (MAC)
+ * due to the following errata: https://www.3dbrew.org/wiki/AES_Registers#CCM_mode_pitfall
+ * In order to skip verification of the tag (MAC), a private function to
+ * decrypt without verifying is used, obtained by {@link getSjclCcmCtrModeDecryptFunc}.
+ * @param {Uint8Array} dst - Destination to write the decrypted StoreData to.
+ * Expected size is {@link VER3_STORE_DATA_LENGTH}.
+ * @param {Uint8Array} encryptedData - Encrypted "wrapped" Mii QR code data (CFLiWrappedMiiData)
+ * @param {Array<number>} [key] - The key to pass into sjcl.
+ * @returns {void}
+ * @throws {Error} Throws if the input data's size doesn't match {@link WRAPPED_MII_DATA_LENGTH}.
  */
-function split16BitToArray(num) {
-  return [(num >> 8) & 0xFF, num & 0xFF];
+function decryptAesCcm(dst, encryptedData, key = gAESCCMKeyPrimary) {
+  // key = [1509720446, 1682369121, -1875608800, -373436846]) {
+
+  if (encryptedData.length < WRAPPED_MII_DATA_LENGTH) { // Verify length.
+    throw new Error(`decryptAesCcm: Input size is ${encryptedData.length}, expected ${WRAPPED_MII_DATA_LENGTH} or longer.`);
+  }
+
+  /** AES-CCM nonce (like an IV) initialized to zeroes. */
+  const nonce = new Uint8Array(WRAPPED_NONCE_LENGTH);
+  nonce.set(encryptedData.subarray(0, WRAPPED_ID_LENGTH)); // Extract the ID into the nonce.
+  /** Extracted ciphertext. */
+  const encryptedContent = encryptedData.subarray(WRAPPED_ID_LENGTH);
+
+  // Convert encrypted content and nonce to sjcl.BitArray (toBits expects array).
+  // @ts-ignore -- Works with Uint8Array.
+  const encryptedBits = sjcl.codec.bytes.toBits(encryptedContent);
+  /** Nonce padded to 12 bytes. */
+  // @ts-ignore -- Works with Uint8Array.
+  const nonceBits = sjcl.codec.bytes.toBits(nonce);
+
+  // Isolate the actual ciphertext from the tag and adjust IV.
+  // Copied from sjcl.mode.ccm.decrypt: https://github.com/bitwiseshiftleft/sjcl/blob/85caa53c281eeeb502310013312c775d35fe0867/core/ccm.js#L83
+  /** Tag length in bits. */
+  const tlen = WRAPPED_TAG_LENGTH * 8;
+  const dataWithoutTag = sjcl.bitArray.clamp(encryptedBits,
+    // remove tag from out, tag length = 128
+    sjcl.bitArray.bitLength(encryptedBits) - tlen);
+
+  // Get the decrypt function.
+  const ctrDecrypt = getSjclCcmCtrModeDecryptFunc();
+
+  /** New sjcl AES cipher constructed using the key. */
+  const cipher = new sjcl.cipher.aes(key);
+
+  const decryptedBits = ctrDecrypt(cipher, dataWithoutTag,
+    // hardcoding 3 as "L" / length
+    nonceBits, [], tlen, 3);
+  // NOTE: The tag (CBC-MAC) within the encrypted data is NOT verified here.
+
+  // Convert the decrypted bytes from sjcl.BitArray format.
+  const decryptedArray = sjcl.codec.bytes.fromBits(decryptedBits.data);
+  // Create a Uint8Array so that we can slice and copy from it.
+  const decryptedBytes = new Uint8Array(decryptedArray)
+    .subarray(0, encryptedData.length - WRAPPED_ID_LENGTH);
+
+  // Create the final Mii StoreData from the decrypted bytes.
+  // const dst = new Uint8Array(encryptedData.length);
+  dst.set(decryptedBytes.subarray(0, WRAPPED_NONCE_LENGTH)); // First 12 decrypted bytes.
+  dst.set(nonce, WRAPPED_NONCE_LENGTH); // Original nonce from the encrypted bytes.
+  // Copy the rest of the decrypted bytes.
+  dst.set(decryptedBytes.subarray(WRAPPED_NONCE_LENGTH),
+    WRAPPED_NONCE_LENGTH + WRAPPED_ID_LENGTH);
 }
 
 /**
- * Encrypts the AES-CCM portion of the QR code.
- * @param {Uint8Array} data - Input 96-byte StoreData to encrypt.
- * @returns {Uint8Array} The encrypted QR code data (CFLiWrappedMiiData).
+ * Encrypts 3DS/Wii U Mii data with AES-CCM (CFLiWrappedMiiData)
+ * using sjcl for use in a Mii QR code.
+ *
+ * References (Credits: 3DBrew contributors, jaames, kazuki-4ys):
+ * - https://www.3dbrew.org/wiki/Mii_Maker#Mii_QR_Code_format
+ * - (Only decryption) https://gist.github.com/jaames/96ce8daa11b61b758b6b0227b55f9f78
+ * - https://github.com/kazuki-4ys/kazuki-4ys.github.io/blob/148dc339974f8b7515bfdc1395ec1fc9becb68ab/web_apps/MiiInfoEditorCTR/encode.js#L46
+ * - CFL: void CFLi_WrapMiiData(CFLiWrappedMiiData* wrappedData, CFLiMiiDataPacket* packetData);
+ * -> nn::applet::CTR::detail::Wrap(wrappedData,packetData, 0x60, 0xc, 10);
+ * -> nn::ps::WrapMii(void* pWrappedBuffer, const void* pMii, size_t miiSize, s32 idOffset, size_t idSize);
+ * (> ctr.7z: ctr/sources/libraries/ps/CTR/ps_Util.cpp)
+ * - FFL: FFLResult FFLiWrapStoreData(FFLiWrappedStoreData*, const FFLiStoreDataCFL*);
+ * -> ACPMiiWrap(pWrappedStoreData, FFLI_WRAPPEDSTOREDATA_SIZE, pWrappedStoreData, FFL_MIIDATA_PACKET_SIZE);
+ * @param {Uint8Array} dst - Destination to write the
+ * encrypted QR code data (CFLiWrappedMiiData) to. Expected size is {@link WRAPPED_MII_DATA_LENGTH}.
+ * @param {Uint8Array} storeData - Input 96 byte StoreData to encrypt.
+ * @param {Array<number>} [key] - The key to pass into sjcl.
+ * @returns {void}
+ * @throws {Error} Throws if the input data's size doesn't match {@link VER3_STORE_DATA_LENGTH}.
  */
-function encryptAesCcm(data) {
-  // Assuming sjcl.codec.bytes is properly defined
-  const nonce = data.subarray(12, 20);
-  let content = new Uint8Array([...data.subarray(0, 12), ...data.subarray(20)]);
+function encryptAesCcm(dst, storeData, key = gAESCCMKeyPrimary) {
+  if (storeData.length !== VER3_STORE_DATA_LENGTH) { // Verify length.
+    throw new Error(`encryptAesCcm: Input size is ${storeData.length}, expected ${VER3_STORE_DATA_LENGTH} / 3DS/Wii U format Mii StoreData.`);
+  }
 
-  const checksumContent = [...data.subarray(0, 12), ...nonce, ...data.subarray(20, -2)];
-  const newChecksum = crc16(new Uint8Array(checksumContent));
-  content = new Uint8Array([...content.subarray(0, -2), ...split16BitToArray(newChecksum)]);
+  /** Offset after the ID ends. */
+  const idEndOffset = WRAPPED_ID_OFFSET + WRAPPED_ID_LENGTH;
+  /** The ID to include in the encrypted data as the nonce (IV). */
+  const wrappedID = storeData.subarray(WRAPPED_ID_OFFSET, idEndOffset);
 
-  const cipher = new sjcl.cipher.aes(gAESCCMKeyPrimary);
+  /** The content to be encrypted. Consists of the data with the ID cut out, and with extra padding. */
+  const content = new Uint8Array(
+    // Size: 96-len(id) (= 88) + len(id) = 96
+    VER3_STORE_DATA_LENGTH);
+  content.set(storeData.subarray(0, WRAPPED_ID_OFFSET)); // Copy until the ID.
+  content.set(storeData.subarray(idEndOffset), WRAPPED_ID_OFFSET); // Copy after the ID.
+  // This leaves 8 bytes of padding.
 
-  const paddedContent = new Uint8Array([...content, ...new Array(8).fill(0)]);
-  const paddedContentBits = sjcl.codec.bytes.toBits(Array.from(paddedContent));
-  const nonceBits = sjcl.codec.bytes.toBits([...nonce, 0, 0, 0, 0]);
+  /** AES-CCM nonce (like an IV) initialized to zeroes. */
+  const nonce = new Uint8Array(WRAPPED_NONCE_LENGTH);
+  nonce.set(wrappedID); // Set the ID in the nonce, leaving extra padding.
+  // @ts-ignore -- Works with Uint8Array.
+  const nonceBits = sjcl.codec.bytes.toBits(nonce);
+  // @ts-ignore -- Works with Uint8Array.
+  const contentBits = sjcl.codec.bytes.toBits(content);
 
-  const encryptedBits = sjcl.mode.ccm.encrypt(cipher, paddedContentBits, nonceBits, [], 128);
+  /** New sjcl AES cipher constructed using the key. */
+  const cipher = new sjcl.cipher.aes(key);
+
+  const tlen = WRAPPED_TAG_LENGTH * 8;
+  // Encrypt the padded StoreData with the ID cut out, using the ID as a nonce (IV).
+  const encryptedBits = sjcl.mode.ccm.encrypt(cipher, contentBits, nonceBits, undefined, tlen);
   const encryptedBytes = new Uint8Array(sjcl.codec.bytes.fromBits(encryptedBits));
 
-  const correctEncryptedContentLength = encryptedBytes.length - 8 - 16;
+  // The encrypted bytes are padded and the tag is at the end.
+  const correctEncryptedContentLength =
+    encryptedBytes.length - WRAPPED_ID_LENGTH - WRAPPED_TAG_LENGTH;
+  // The data is spliced to remove the extra padding in the middle.
   const encryptedContentCorrected = encryptedBytes.subarray(0, correctEncryptedContentLength);
-  const tag = encryptedBytes.subarray(encryptedBytes.length - 16);
+  const tag = encryptedBytes.subarray(encryptedBytes.length - WRAPPED_TAG_LENGTH);
 
-  const result = new Uint8Array([...nonce, ...encryptedContentCorrected, ...tag]);
-  return result;
+  // const dst = new Uint8Array(WRAPPED_MII_DATA_LENGTH);
+  dst.set(wrappedID); // Set nonce from the original data.
+  dst.set(encryptedContentCorrected, WRAPPED_ID_LENGTH); // Encrypted content.
+  dst.set(tag, VER3_STORE_DATA_LENGTH); // Set tag after content + nonce.
 }
+
+/**
+ * @param {Uint8Array} a - First buffer to compare.
+ * @param {Uint8Array} b - Second buffer to compare.
+ * @returns {boolean} Whether the buffers' content matches.
+ */
+function uint8ArrayCmp(a, b) {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Tests {@link encryptAesCcm} against known good data. */
+function encryptAesCcmTest() {
+  const WRAP_TEST_DATA = new Uint8Array([
+    0x03, 0x00, 0x00, 0x30, 0xdf, 0x9a, 0x34, 0x02,
+    0x83, 0xa5, 0xea, 0xbd, 0x90, 0xf1, 0x07, 0xdc,
+    0x78, 0xa2, 0xa0, 0x35, 0xd8, 0xa4, 0x00, 0x00,
+    0x01, 0x00, 0x51, 0x30, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x40,
+    0x00, 0x00, 0x0c, 0x01, 0x04, 0x68, 0x43, 0x18,
+    0x20, 0x34, 0x46, 0x14, 0x81, 0x12, 0x17, 0x68,
+    0x0d, 0x00, 0x00, 0x29, 0x00, 0x52, 0x48, 0x50,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0xc8
+  ]);
+
+  const WRAP_EXPECTED = new Uint8Array([
+    0x90, 0xf1, 0x07, 0xdc, 0x78, 0xa2, 0xa0, 0x35,
+    0xff, 0xc5, 0x59, 0x1c, 0x2f, 0x33, 0xc0, 0x12,
+    0x05, 0x8b, 0x34, 0x56, 0xb8, 0xb9, 0xa4, 0x71,
+    0x71, 0x6d, 0x38, 0xa1, 0x06, 0x7a, 0x14, 0x91,
+    0x23, 0x17, 0x84, 0xb6, 0x52, 0x05, 0xa9, 0xff,
+    0xa9, 0x28, 0x15, 0x3b, 0x6b, 0xa8, 0x9c, 0x8b,
+    0xa3, 0xff, 0xb3, 0x3b, 0x75, 0x0b, 0xc9, 0x03,
+    0xea, 0x25, 0x63, 0xa4, 0xe4, 0x0e, 0x57, 0xa8,
+    0xa1, 0xdd, 0xd2, 0x34, 0xc2, 0xd6, 0x67, 0x1b,
+    0x85, 0x1a, 0xd0, 0x19, 0x2f, 0xc4, 0x79, 0xd5,
+    0xbb, 0x79, 0xfa, 0x45, 0xe2, 0x0c, 0x01, 0xea,
+    0x9a, 0x44, 0x36, 0x29, 0xf3, 0xcb, 0x18, 0xa3,
+    0xf8, 0x11, 0xf8, 0x8e, 0xbe, 0x5f, 0x19, 0x26,
+    0xa2, 0x67, 0xb1, 0x97, 0xf0, 0x7a, 0x0d, 0xa7
+  ]);
+
+  /**
+   * @param {Uint8Array} a - First buffer to compare.
+   * @param {Uint8Array} b - Second buffer to compare.
+   */
+  function onMismatch(a, b) {
+    console.error('mismatch:', a, b);
+    console.info('mismatch hex:', bytesToHex(a), bytesToHex(b));
+  }
+  // Expected test data is using dev key.
+  const key = AES_CCM_KEYSLOT_0x31_KEYS[Number(KeyType.Development)];
+
+  // encode test
+  const wrapped = new Uint8Array(WRAPPED_MII_DATA_LENGTH);
+  encryptAesCcm(wrapped, WRAP_TEST_DATA, key);
+
+  if (!uint8ArrayCmp(WRAP_EXPECTED, wrapped)) {
+    onMismatch(WRAP_EXPECTED, wrapped);
+    return;
+  }
+
+  // decode test
+  const storeData = new Uint8Array(VER3_STORE_DATA_LENGTH);
+  decryptAesCcm(storeData, wrapped, key);
+  if (!uint8ArrayCmp(WRAP_TEST_DATA, storeData)) {
+    onMismatch(WRAP_TEST_DATA, storeData);
+    return;
+  }
+  console.info('encryptAesCcmTest: ✅ passed (en/de)code');
+}
+
+encryptAesCcmTest();
 
 // // ---------------------------------------------------------------------
 // //  AES-CTR Encryption
@@ -307,11 +534,11 @@ function encryptAesCcm(data) {
  * @param {Uint8Array} [keyData] - The key for the data.
  * @returns {Promise<Uint8Array>} The decrypted data.
  */
-async function decryptAesCtr(encryptedData, iv, keyData = hexToUint8Array(AES_CTR_KEY_HEX)) {
+async function decryptAesCtr(encryptedData, iv, keyData = hexToBytes(AES_CTR_KEY_HEX)) {
   // Calls to SubtleCr*pto (window.cr*pto.subtle):
   const key = await sc.importKey('raw', keyData, { name: 'AES-CTR' }, false, ['decrypt']);
   const decrypted = await sc.decrypt(
-    { name: 'AES-CTR', counter: iv, length: 128 }, key, encryptedData.buffer);
+    { name: 'AES-CTR', counter: iv, length: AES_IV_LENGTH_BITS }, key, encryptedData);
   return new Uint8Array(decrypted);
 }
 
@@ -321,13 +548,13 @@ async function decryptAesCtr(encryptedData, iv, keyData = hexToUint8Array(AES_CT
  * @param {Uint8Array} [keyData] - The key for the data.
  * @returns {Promise<{encryptedData: Uint8Array, iv: Uint8Array}>} The encrypted data and new IV.
  */
-async function encryptAesCtr(data, keyData = hexToUint8Array(AES_CTR_KEY_HEX)) {
+async function encryptAesCtr(data, keyData = hexToBytes(AES_CTR_KEY_HEX)) {
   // Calls to SubtleCr*pto (window.cr*pto.subtle):
   const key = await sc.importKey('raw', keyData, { name: 'AES-CTR' }, false, ['encrypt']);
   // window.cr*pto.getRandomValues:
-  const iv = crpyto.getRandomValues(new Uint8Array(16));
+  const iv = crpyto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
 
-  const encrypted = await sc.encrypt({ name: 'AES-CTR', counter: iv, length: 128 }, key, data.buffer);
+  const encrypted = await sc.encrypt({ name: 'AES-CTR', counter: iv, length: AES_IV_LENGTH_BITS }, key, data);
   return { encryptedData: new Uint8Array(encrypted), iv };
 }
 
@@ -345,81 +572,173 @@ const qrCodeContainer = /** @type {HTMLDivElement} */ (document.getElementById('
  * @param {Uint8Array} [storeData] - Input StoreData.
  * @param {Uint8Array} [extraData] - Input extra data.
  * @returns {Promise<void>} The code is emitted to HTML ID "qr-code-container".
- * @throws {Error} Throws if "qr-code-container" element does not exist.
+ * @throws {Error} Throws if "qr-code-container" element does not exist, or StoreData is empty.
  */
 async function generateQrCode(storeData = hexEditorBaseInput.saveToArray(),
   extraData = hexEditorExtraInput.saveToArray()) {
-  // effectively changes birth platform to 3ds
-  // if this is not set then the code
-  // will not scan on 3ds (wiiu sets this)
-  storeData[0x03] = 0x30; // '0'
-
-  const encryptedBase = encryptAesCcm(storeData);
-
-  let qrData = encryptedBase;
-
-  if (extraData.length > 0) {
-    // Append CRC32 for extra data
-    const dataForCRC32 = new Uint8Array([...encryptedBase, ...extraData]);
-    console.log('data into crc32:', uint8ArrayToHex(dataForCRC32).replace(/(.{2})/g, '$1 '));
-    const crc32Val = crc32(dataForCRC32);
-    const crc32Bytes = new Uint8Array(
-      [crc32Val & 0xff, (crc32Val >> 8) & 0xff, (crc32Val >> 16) & 0xff, (crc32Val >> 24) & 0xff]
-    );
-    console.log('crc32: ', uint8ArrayToHex(crc32Bytes).replace(/(.{2})/g, '$1 '));
-    const extraDataWithCRC32 = new Uint8Array([...extraData, ...crc32Bytes]);
-    const { encryptedData, iv } = await encryptAesCtr(extraDataWithCRC32);
-    qrData = new Uint8Array([...qrData, ...iv, ...encryptedData]);
-    console.log(qrData);
+  if (storeData.length < 1) {
+    alert(`Please upload or enter Mii StoreData.
+If you don't have any, try pasting this: ${jasmineStoreData}`);
+    return;
   }
+
+  if (gModifyStoreDataForQr) {
+    // Modify the data to allow copying and scanning on 3DS.
+    modifyStoreDataCopyablePlatform(storeData);
+    // Update the CRC-16 in the data.
+    updateStoreDataCRC(storeData);
+  }
+
+  /** The additional length used by extra data in the QR code. */
+  const extraDataAddLength = (extraData.length > 0)
+    ? extraData.length + 4 + AES_IV_LENGTH // Add CRC-32 and IV.
+    : 0;
+  // Create buffer to store encrypted data and extra data.
+  const encryptedBytes = new Uint8Array(WRAPPED_MII_DATA_LENGTH + extraDataAddLength);
+
+  // Create encrypted/"wrapped" data to put in the QR code.
+  encryptAesCcm(encryptedBytes, storeData);
+
+  console.debug('qr data (WrappedMiiData):', bytesToHexSpaced(encryptedBytes));
+  if (extraData.length > 0) {
+    // Append extra data if present.
+    await appendExtraToQrData(encryptedBytes, extraData);
+  }
+  console.debug('final encrypted qr data', encryptedBytes);
 
   if (!qrCodeContainer || !(qrCodeContainer.firstElementChild instanceof HTMLImageElement)) {
     throw new Error('generateQrCode: Element qr-code-container or its child is not an image.');
   }
+
+  // 112 byte WrappedMiiData QR codes are version 10 and have high error correction.
+
   /** @type {HTMLImageElement} */ (qrCodeContainer.firstElementChild).src =
-    QRCode.generatePNG(qrData, { margin: null });
+    // Matches the original QR code images 1:1.
+    // QRCode.generatePNG(encryptedBytes, { margin: 0, modulesize: 2, ecclevel: 'H' });
+    QRCode.generatePNG(encryptedBytes, { margin: null, ecclevel: 'H' });
+}
+
+/**
+ * Appends extra data before AES-CTR encryption and CRC-32
+ * to the wrapped StoreData for use in a QR code.
+ * @param {Uint8Array} encryptedBytes - The wrapped StoreData, which the extra data
+ * will be appended at the end of.
+ * @param {Uint8Array} extraData - The extra data.
+ */
+async function appendExtraToQrData(encryptedBytes, extraData) {
+  // Append extra data and CRC-32, which needs to account for WrappedMiiData.
+  encryptedBytes.set(extraData, WRAPPED_MII_DATA_LENGTH); // Append decrypted extra data.
+
+  // Calculate CRC-32 checksum based on encrypted StoreData + decrypted extra data.
+  const dataForCrc = encryptedBytes.subarray(0, WRAPPED_MII_DATA_LENGTH + extraData.length);
+  // console.debug('data into crc32:', bytesToHexSpaced(dataForCrc));
+  const crc = crc32(dataForCrc);
+  // const crcBytes = [crc & 0xff, (crc >> 8) & 0xff, (crc >> 16) & 0xff, (crc >> 24) & 0xff];
+  // console.debug('crc32: ', bytesToHexSpaced(crcBytes));
+
+  /** Extra data with CRC appended at the end. */
+  const extraWithCrc = new Uint8Array(extraData.length + 4);
+  extraWithCrc.set(extraData);// WRAPPED_MII_DATA_LENGTH);
+  // Write CRC-32 as an unsigned 32-bit little-endian integer.
+  // const totalOffsetCrc = WRAPPED_MII_DATA_LENGTH + extraData.length + 4;
+  // new DataView(encryptedBytes.buffer).setUint32(totalOffsetCrc, crc, true);
+  new DataView(extraWithCrc.buffer).setUint32(extraData.length, crc, true);
+  // const extraWithCrc = encryptedBytes.subarray(WRAPPED_MII_DATA_LENGTH, extraData.length + 4);
+
+  // Get randomly generated IV and ciphertext as a new buffer.
+  const { encryptedData: encryptedExtra, iv } = await encryptAesCtr(extraWithCrc);
+
+  // Copy the IV first, then the encrypted data, after the main QR data.
+  encryptedBytes.set(iv, WRAPPED_MII_DATA_LENGTH);
+  encryptedBytes.set(encryptedExtra, WRAPPED_MII_DATA_LENGTH + AES_IV_LENGTH);
+  // qrData = new Uint8Array([...qrData, ...iv, ...encryptedExtra]);
 }
 
 const extraDataWarning = /** @type {HTMLElement} */ (document.getElementById('extra-data-warning'));
 const extraDataWarningInner = /** @type {HTMLElement} */ (document.getElementById('extra-data-warning-inner'));
 
-/** @typedef {{bytes: Uint8Array}} QrScannerResult */
+/** @typedef {{bytes: Array<number>}} QrScannerResult */
 /**
  * The callback for the scanned QR code data from QrScanner.
  * @param {QrScannerResult} result - The result object received from QrScanner.
  * @throws {Error} Throws if scanned length is 0.
  */
-function handleQrCode(result) {
+async function handleQrCode(result) {
   if (!result || !result.bytes) {
     return;
   }
 
+  // Stop the scanner if the result is good.
   cameraScanner.stop();
 
-  if (!result.bytes.length) {
-    throw new Error(`handleQrCode: Scanned QR Code has byte length of ${result.bytes.length}.`);
+  if (!result.bytes.length) { // Length is falsy.
+    throw new Error(`handleQrCode: Scanned QR code data has byte length of ${result.bytes.length}.`);
   }
-  const qrData = new Uint8Array(result.bytes);
-  /** Decrypt the first AES-CCM encrypted portion. */
-  const decryptedData = decryptAesCcm(qrData.subarray(0, WRAPPED_MII_DATA_LENGTH));
+  // Scan was successful.
+  extraDataWarning.style.display = 'none'; // Reset the warning.
 
-  hexEditorBaseOutput.loadFromArray(decryptedData);
-  extraDataWarning.style.display = 'none';
+  const encryptedBytes = new Uint8Array(result.bytes);
 
-  if (qrData.length > WRAPPED_MII_DATA_LENGTH) {
-    const iv = qrData.subarray(WRAPPED_MII_DATA_LENGTH, 128);
-	/** Slice of the encrypted data - an ArrayBuffer is needed so a slice is made. */
-    const encryptedExtra = qrData.slice(128, -4);
-    decryptAesCtr(encryptedExtra, iv).then((decryptedExtraData) => {
-      hexEditorExtraOutput.container.style.display = 'initial';
+  /** Decodes StoreData in the QR code and displays it in the hex editor. */
+  function decodeStoreData() {
+    const decryptedData = new Uint8Array(VER3_STORE_DATA_LENGTH);
+    /** Decrypt the first AES-CCM encrypted portion. */
+    decryptAesCcm(decryptedData, encryptedBytes.subarray(0, WRAPPED_MII_DATA_LENGTH));
+
+    hexEditorBaseOutput.loadFromArray(decryptedData);
+  }
+
+  decodeStoreData();
+
+  /** Decodes extra data in the QR code (must be present) and displays in the hex editor. */
+  async function decodeExtraData() {
+    const ivOffset = WRAPPED_MII_DATA_LENGTH + 16;
+    /** Take the 128 bit IV. */
+    const iv = encryptedBytes.subarray(WRAPPED_MII_DATA_LENGTH, ivOffset);
+    /** This is the full ciphertext. Last 4 bytes are the CRC-32. */
+    const encryptedExtra = encryptedBytes.subarray(ivOffset);
+    try {
+      const decryptedExtra = await decryptAesCtr(encryptedExtra, iv);
+      // If decryption succeeded, slice off the CRC-32 in the data and load that.
+      const decryptedExtraData = decryptedExtra.subarray(0, -4);
+
+      const crcOffset = decryptedExtra.length - 4;
+      /** Actual CRC-32 in the data. */
+      const crcActual = new DataView(decryptedExtra.buffer).getUint32(crcOffset, true);
+
+      // Verify the CRC-32 checksum, which verifies against the
+      // encrypted (wrapped) StoreData with the decrypted extra data.
+
+      // Copy encryptedBytes array and set decrypted extra data within it.
+      const encryptedForCrc = new Uint8Array(encryptedBytes);
+      encryptedForCrc.set(decryptedExtraData, WRAPPED_MII_DATA_LENGTH);
+      const offsetForCrc = WRAPPED_MII_DATA_LENGTH + decryptedExtraData.length;
+      const dataForCrc = encryptedForCrc.subarray(0, offsetForCrc);
+      /** Calculated CRC-32 from the real data. */
+      const crcExpected = crc32(dataForCrc);
+      if (crcExpected !== crcActual) {
+      // Throw if comparison failed. Effectively load un-CRC'd data.
+        throw new Error('CRC-32 checksum in extra data does not match. Loading data as-is without decryption.');
+      }
+      // CRC matches, load into output.
       hexEditorExtraOutput.loadFromArray(decryptedExtraData);
-    })
-      .catch((error) => {
-        hexEditorExtraOutput.container.style.display = 'initial';
-        extraDataWarning.style.display = 'initial';
-        extraDataWarningInner.textContent = error;
-        hexEditorExtraOutput.loadFromArray(qrData.subarray(WRAPPED_MII_DATA_LENGTH));
-      });
+    } catch (error) {
+      console.error(error);
+      extraDataWarning.style.display = 'initial';
+      extraDataWarningInner.textContent = error;
+      /** Extra data without decryption. */
+      const extra = encryptedBytes.subarray(WRAPPED_MII_DATA_LENGTH);
+      hexEditorExtraOutput.loadFromArray(extra);
+    } finally {
+    // In all cases, display output.
+      hexEditorExtraOutput.container.style.display = 'initial';
+    }
+  }
+
+  // Assume that encrypted extra data is present if
+  // the encrypted data is larger than 112 bytes.
+  if (encryptedBytes.length > WRAPPED_MII_DATA_LENGTH) {
+    await decodeExtraData();
   } else {
     hexEditorExtraOutput.container.style.display = 'none';
   }
@@ -458,9 +777,7 @@ function extractUTF16LEText(data, startOffset, byteLength = 20) {
  * @param {Uint8Array} data - The Ver3StoreData data.
  * @returns {string} The name from the data.
  */
-function getNameFromCFSD(data) {
-  return extractUTF16LEText(data, 0x1A);
-}
+const getNameFromStoreData = data => extractUTF16LEText(data, 0x1A);
 
 /**
  * @param {number} length - The length of the extra data.
@@ -516,7 +833,7 @@ function downloadData(data, filename, mimeType = 'application/octet-stream') {
  */
 function downloadStoreData(data = hexEditorBaseOutput.saveToArray()) {
   /** extracted name */
-  const name = getNameFromCFSD(data);
+  const name = getNameFromStoreData(data);
   // base name will be name if it is defined
   let fileBaseName = name;
   if (!fileBaseName) {
@@ -535,7 +852,7 @@ function downloadExtraData(extraData = hexEditorExtraOutput.saveToArray(),
   storeData = hexEditorBaseOutput.saveToArray()) {
   /** Extracted name from StoreData, or timestamp. */
   let prefix = '';
-  if (!storeData || !(prefix = getNameFromCFSD(storeData))) {
+  if (!storeData || !(prefix = getNameFromStoreData(storeData))) {
     prefix = getFormattedTime();
   } // use in place of name
 
@@ -547,14 +864,15 @@ function downloadExtraData(extraData = hexEditorExtraOutput.saveToArray(),
   downloadData(extraData, fileBaseName + '.bin');
 }
 
+/** Clears the extra data input. */
+function clearExtraData() {
+  hexEditorExtraInput.clearData();
+  /** @type {HTMLInputElement} */ (document.getElementById('load-extra-btn')).value = '';
+}
+
 // // ---------------------------------------------------------------------
 // //  Helpers for Uploading Data
 // // ---------------------------------------------------------------------
-
-/** Minimum size for Mii data (CFLiPackedMiiDataCore) */
-const PACKED_MII_DATA_SIZE = 72;
-/** Maximum accepted size for StoreData (CFLiMiiDataPacket, FFLStoreData) */
-const STORE_DATA_SIZE = 96;
 
 /**
  * Function to load StoreData from file.
@@ -567,8 +885,8 @@ function loadStoreDataFromFile(event) {
   }
 
   const fileSize = files[0].size;
-  if (fileSize < PACKED_MII_DATA_SIZE || fileSize > STORE_DATA_SIZE) {
-    alert(`StoreData (.cfsd) file must be between ${PACKED_MII_DATA_SIZE} and ${STORE_DATA_SIZE} bytes.`);
+  if (fileSize < MII_DATA_CORE_LENGTH || fileSize > VER3_STORE_DATA_LENGTH) {
+    alert(`StoreData (.cfsd) file must be between ${MII_DATA_CORE_LENGTH} and ${VER3_STORE_DATA_LENGTH} bytes.`);
     return;
   }
 
@@ -581,8 +899,8 @@ function loadStoreDataFromFile(event) {
     let baseData = new Uint8Array(reader.result);
 
     // Pad StoreData to 96 bytes if the size is smaller.
-    if (baseData.length < STORE_DATA_SIZE) {
-      const paddedBaseData = new Uint8Array(STORE_DATA_SIZE);
+    if (baseData.length < VER3_STORE_DATA_LENGTH) {
+      const paddedBaseData = new Uint8Array(VER3_STORE_DATA_LENGTH);
       paddedBaseData.set(baseData); // Copy original data
       baseData = paddedBaseData; // Replace with padded data
     }
@@ -614,7 +932,6 @@ function loadExtraDataFromFile(event) {
 
     // Load into the hex editor for extra data
     hexEditorExtraInput.loadFromArray(extraData);
-    hexEditorExtraOutput.container.style.display = 'initial';
   };
 
   reader.readAsArrayBuffer(files[0]);
@@ -644,7 +961,7 @@ function setupHexEditorPasteHandling(hexEditorInstance) {
       if (!isHex(pasteData)) {
         if (isBase64(pasteData)) {
         // Decode base64 and load as hex into the HexEditor
-          const decodedBase64 = base64ToUint8Array(pasteData);
+          const decodedBase64 = base64ToBytes(pasteData);
           hexEditorInstance.loadFromArray(decodedBase64);
         } else {
           alert('Invalid hex or base64 data.');
@@ -678,21 +995,21 @@ document.addEventListener('DOMContentLoaded', () => {
    * should be guaranteed non-null in JSDoc, and will
    * be filtered down to elements that do not exist.
    */
-  /*
   const missing = [
     // Constants set from elements.
     'qrCodeContainer', 'extraDataWarning', 'extraDataWarningInner',
     'cameraScanner', 'camList',
     // Element IDs that are not constants.
-    'qr-video', 'file-input', 'key-type',
-    'generate-qr-code', 'download-store-data', 'download-extra-data'
+    'qr-video', 'file-input', 'key-type', 'qr-modify-storedata',
+    'generate-qr-code', 'download-store-data', 'download-extra-data',
+    'load-storedata-btn', 'load-extra-btn', 'clear-extra-data'
   ]
     // @ts-ignore - it is indexable by string and we just set above
     .filter(id => !(globalThis[id] instanceof HTMLElement));
   if (missing.length) {
-    alert(`HTML elements not found: ${missing.join(', ')}`);
+    // alert(`HTML elements not found: ${missing.join(', ')}`);
   }
-  */
+
   hexEditorBaseInput = new HexEditor(document.getElementById('hex-editor-storedata'), false);
 
   setupHexEditorPasteHandling(hexEditorBaseInput); // Attach paste handling to this instance
@@ -724,6 +1041,14 @@ document.addEventListener('DOMContentLoaded', () => {
     .addEventListener('click', () => {
       downloadExtraData();
     });
+  /** @type {HTMLButtonElement} */ (document.getElementById('clear-extra-data'))
+    .addEventListener('click', () => {
+      clearExtraData();
+    });
+  /** @type {HTMLInputElement} */ (document.getElementById('load-storedata-btn'))
+    .addEventListener('change', loadStoreDataFromFile);
+  /** @type {HTMLInputElement} */ (document.getElementById('load-extra-btn'))
+    .addEventListener('change', loadExtraDataFromFile);
 
   startCameraButton.addEventListener('click', () => {
     cameraScanner.start().then(() => {
@@ -769,7 +1094,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const type = /** @type {HTMLInputElement} */ (event.target).value;
     const newKey = AES_CCM_KEYSLOT_0x31_KEYS[Number(type)];
     gAESCCMKeyPrimary = newKey;
-    console.log('key changed to: ' + gAESCCMKeyPrimary);
+    console.debug('key changed to: ' + gAESCCMKeyPrimary);
+  });
+
+  /** @type {HTMLInputElement} */ (document.getElementById('qr-modify-storedata')).addEventListener('change', (event) => {
+    const enable = /** @type {HTMLInputElement} */ (event.target).checked;
+    console.debug('modify storedata for qr:', enable);
+    gModifyStoreDataForQr = enable;
   });
 
   // Initialize QR Scanner
@@ -781,4 +1112,20 @@ document.addEventListener('DOMContentLoaded', () => {
       stopCameraButton.disabled = true;
     }
   });
+
+  // test: type Jasmine into input
+  /*
+  (function simulatePasteStoreData(base64) {
+    const targetTextArea = hexEditorBaseInput.textArea;
+    if (!targetTextArea) {
+      return;
+    }
+
+    const clipboardEvent = new ClipboardEvent('paste', { clipboardData: new DataTransfer() });
+    // hack to work around non-writable clipboardData in some environments
+    Object.defineProperty(clipboardEvent, 'clipboardData',
+      { value: { getData: () => base64 } });
+    targetTextArea.dispatchEvent(clipboardEvent);
+  })(jasmineStoreData);
+  */
 });

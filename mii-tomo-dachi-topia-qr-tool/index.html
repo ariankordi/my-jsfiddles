@@ -7,10 +7,19 @@
     <script src="https://cdn.jsdelivr.net/npm/sjcl@1.0.8/core/codecBytes.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrjs@0.2.0/qr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/criteo-forks/qr-scanner/qr-scanner.umd.min.js"></script>
+<!--
+    <script type="importmap">
+	{
+	  "imports": {
+	    "sjcl": "https://cdn.jsdelivr.net/npm/@bitgo/sjcl@1.0.1/+esm"
+	  }
+	}
+    </script>
+-->
   <link rel="stylesheet" href="style.css">
 </head>
   <body>
-  
+
   <!-- Global error display block. -->
   <div id="global-error-box" style="display: none; background: #ffeeee; color: #000; border: 2px solid red; padding: 1em; margin: 1em; font-family: monospace;">
    <div style="font-weight: bold; font-size: 1.2em;"><span id="global-error-text-error">⚠️ JS Error:</span><span id="global-error-text-promise-rejection">⚠️ JS Promise Rejection:</span></div>
@@ -30,7 +39,7 @@
   <h1>encrypt/encode mii qr code</h1>
   <div>
     <b>StoreData hex input:</b>
-    <div>(you can also paste Base64 into this, or, load from a cfsd file below)</div>
+    <div>(you can also paste Base64 into this, or, load from a cfsd/ffsd file below)</div>
   </div>
   <table id="hex-editor-storedata" border>
     <tr>
@@ -45,7 +54,7 @@
       <td width="160" class="ascii-output">.</td>
     </tr>
   </table>
-  <input type="file" id="load-storedata-btn" accept=".cfsd,.ffsd,.3dsmii,.cfcd,.ffcd,.bin,.dat" onchange="loadStoreDataFromFile(event)">
+  <input type="file" id="load-storedata-btn" accept=".cfsd,.ffsd,.3dsmii,.bin,.dat">
 
   <details>
     <summary>load extra data for tomodachi life/miitomo/miitopia 3ds:</summary>
@@ -62,7 +71,8 @@
       <td width="160" class="ascii-output">.</td>
     </tr>
     </table>
-    <input type="file" id="load-extra-btn" accept=".bin,.dat" onchange="loadExtraDataFromFile(event)">
+    <input type="file" id="load-extra-btn" accept=".bin,.dat">
+    <button id="clear-extra-data">clear extra data</button>
   </details>
 
   <br>
@@ -77,14 +87,14 @@
       <h1>decrypt/decode mii qr code</h1>
       <details>
         <summary>scan from your camera by clicking here, or upload an image below:</summary>
-      <div>
+        <div>
           <label for="cam-list">Select camera:</label>
           <select id="cam-list">
               <option value="environment" selected>Back Camera (default)</option>
               <option value="user">User/Front Facing Camera</option>
               <option class="device-camera" disabled>(Open the camera for more options)</option>
           </select>
-      </div>
+        </div>
       <button id="start-camera">Start camera</button>
       <button id="stop-camera">Stop camera</button>
       <video id="qr-video" style="max-width: 100%;"></video>
@@ -137,12 +147,24 @@
 
     <hr>
     <h3>settings</h3>
-    key type for keyslot 0x31 AES-CCM qr key: <select id="key-type" value="0">
-        <option value="0">Production</option>
-        <option value="1">Development</option>
-        <option value="2">Null (from Citra)</option>
-    </select>
-    <br>-> ONLY change this option if you know your QR Code was not made from a typical 3DS.
+    <form id="settings">
+        <p>these do NOT get saved so you have to redo them every time, sorry</p>
+        <ul>
+            <li>
+                <label for="key-type">key type for keyslot 0x31 AES-CCM qr key: </label>
+                <select id="key-type" name="key-type" value="0">
+                    <option value="0">Production</option>
+                    <option value="1">Development</option>
+                    <option value="2">Null (from Citra)</option>
+                </select>
+                <ul><li>ONLY change this option if you know your QR Code was not made from a typical 3DS.</li></ul>
+            </li>
+            <li>
+                <label for="qr-modify-storedata">modify data when making qr code, to fix scan 3ds and enable copying: </label>
+                <input id="qr-modify-storedata" name="qr-modify-storedata" type="checkbox" checked>
+            </li>
+        </ul>
+    </form>
 
     <!-- Global error handling snippet. -->
     <script>
@@ -198,7 +220,9 @@
         });
       })();
     </script>
-
+<!--
+    <script type="module" src="qr-crypt-jsfiddle-for-lint.js"></script>
+-->
     <script>
     /** A hex editor class for displaying and editing hex data within a container. */
     class HexEditor {
@@ -426,6 +450,12 @@
           byteArray[i / 2] = parseInt(cleanHex.substring(i, i + 2), 16); // Convert hex to bytes
         }
         return byteArray; // Return Uint8Array
+      }
+
+      /** Clears the data within the text area. */
+      clearData() {
+        this.textArea.value = '';
+        this.textArea.dispatchEvent(new Event('input'));
       }
 
       /**

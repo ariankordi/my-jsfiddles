@@ -80,7 +80,7 @@ const createIDParsers = {
 
         // Set the first four bits to zero
         dateOffsetBytes[0] &= 0x0F;
-		// Multiply date offset by 4
+        // Multiply date offset by 4
         const dateOffset = parseInt(uint8ArrayToHex(dateOffsetBytes), 16) * 4;
 
         const epoch = new Date('2006-01-01T00:00:00Z').getTime() / 1000;
@@ -102,7 +102,7 @@ const createIDParsers = {
 
         // Set the first four bits to zero
         dateOffsetBytes[0] &= 0x0F;
-		// Multiply date offset by 2
+        // Multiply date offset by 2
         const dateOffset = parseInt(uint8ArrayToHex(dateOffsetBytes), 16) * 2;
 
         const epoch = new Date('2010-01-01T00:00:00Z').getTime() / 1000;

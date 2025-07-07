@@ -83,6 +83,7 @@ const parseMiiFromDecryptedAmiibo = unpacked => {
     studioMii.facialHairColor = storeDataExtension[5];
     studioMii.glassesColor = storeDataExtension[6];
     studioMii.glassesType = storeDataExtension[7];
+    console.info('Color values:', storeDataExtension);
   } else {
   	// use mii-unsecure api lmao???
     const studioURLCode = miiMap2Studio(Object.values(studioMii));

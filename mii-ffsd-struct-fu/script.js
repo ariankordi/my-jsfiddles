@@ -65,7 +65,7 @@ var parseHexOrB64TextStringToUint8Array = function(text) {
 };
 
 //var jasmineU8BE = parseHexOrB64TextStringToUint8Array('QAAAAwIAAATtsJuT3abq1g4nWEQAAAAAXVkASgBhAHMAbQBpAG4AZQAAAAAAABw3EBIBe24hHENkDRjHCACCHgANQTBbs22CAAAAbwBzAGkAZwBvAG4AYQBsAAA');
-var jasmineU8LE = parseHexOrB64TextStringToUint8Array('AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAABvAHMAaQBnAG8AbgBhAGwAAAAAAJA6');
+// var jasmineU8LE = parseHexOrB64TextStringToUint8Array('AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAABvAHMAaQBnAG8AbgBhAGwAAAAAAJA6');
 
 
 // Define structs: ------------------------------------
@@ -208,40 +208,112 @@ var FFLiMiiDataCore = _.struct([
 
 // ---------------------------------------------------
 
+// jasmine
+var DEFAULT_MII_DATA = 'AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAABvAHMAaQBnAG8AbgBhAGwAAAAAAJA6';
 
-var unpacked = FFLiMiiDataCore.unpack(jasmineU8LE)
+function getBaseUrl() {
+    return document.getElementById('base-url-input').value;
+}
 
-console.log('jasmine LE unpack result:', unpacked);
-console.log('miiVersion offset:', FFLiMiiDataCore.fields.mii_version.offset)
-console.log('fields:', FFLiMiiDataCore.fields)
+function renderHex(hex) {
+    var img = document.getElementById('image');
+    img.src = getBaseUrl() + hex;
+    img.style.display = '';
+}
 
-assertField('miiVersion', unpacked.mii_version, 3);
-assertField('regionMove', unpacked.region_move, 0);
-assertField('fontRegion', unpacked.font_region, 0);
-assertField('roomIndex', unpacked.room_index, 0);
-assertField('positionInRoom', unpacked.position_in_room, 0);
-assertField('authorType', unpacked.author_type, 0);
-assertField('birthPlatform', unpacked.birth_platform, 4);
+function unpackedToJsonString(unpacked) {
+    return JSON.stringify(unpacked, function(k, v) {
+        if (v && v.constructor === Uint8Array) return Array.from(v).map(byteToHex).join('');
+        return v;
+    }, 2);
+}
 
-assertField('birthMonth', unpacked.birth_month, 12);
-assertField('birthDay', unpacked.birth_day, 10);
+function processData(inputText) {
+    var inputU8 = parseHexOrB64TextStringToUint8Array(inputText);
 
-assertField('build', unpacked.build, 55);
+    var unpacked = FFLiMiiDataCore.unpack(inputU8);
 
-assertField('favoriteColor', unpacked.favorite_color, 11);
-assertField('hairType', unpacked.hair_type, 123);
-assertField('beardColor', unpacked.beard_color, 6);
-assertField('glassY', unpacked.glass_y, 0xb);
+    console.log('unpack result:', unpacked);
+    console.log('miiVersion offset:', FFLiMiiDataCore.fields.mii_version.offset);
+    console.log('fields:', FFLiMiiDataCore.fields);
 
-var hex = [].slice.call(new Uint8Array(
-        FFLiMiiDataCore.pack(unpacked)
-)).map(byteToHex).join('')
+    assertField('miiVersion', unpacked.mii_version, 3);
+    assertField('regionMove', unpacked.region_move, 0);
+    assertField('fontRegion', unpacked.font_region, 0);
+    assertField('roomIndex', unpacked.room_index, 0);
+    assertField('positionInRoom', unpacked.position_in_room, 0);
+    assertField('authorType', unpacked.author_type, 0);
+    assertField('birthPlatform', unpacked.birth_platform, 4);
 
-console.log('FFLiMiiDataCore hex:', hex)
-document.getElementById('image').src = document.getElementById('image').getAttribute('data-src') + hex
+    assertField('birthMonth', unpacked.birth_month, 12);
+    assertField('birthDay', unpacked.birth_day, 10);
 
-unpacked = FFLiMiiDataCore.unpack(FFLiMiiDataCore.pack(unpacked))
-console.log('pack then unpack result:', unpacked)
+    assertField('build', unpacked.build, 55);
 
-console.log('this mii was made on:', date_timestamp(unpacked.create_id))
-//debugger
+    assertField('favoriteColor', unpacked.favorite_color, 11);
+    assertField('hairType', unpacked.hair_type, 123);
+    assertField('beardColor', unpacked.beard_color, 6);
+    assertField('glassY', unpacked.glass_y, 0xb);
+
+    var hex = [].slice.call(new Uint8Array(
+            FFLiMiiDataCore.pack(unpacked)
+    )).map(byteToHex).join('');
+
+    console.log('FFLiMiiDataCore hex:', hex);
+    renderHex(hex);
+
+    unpacked = FFLiMiiDataCore.unpack(FFLiMiiDataCore.pack(unpacked));
+    console.log('pack then unpack result:', unpacked);
+    console.log('this mii was made on:', date_timestamp(unpacked.create_id));
+    //debugger
+
+    document.getElementById('output').value = unpackedToJsonString(unpacked);
+}
+
+function jsonToFfsdAndRender() {
+    var jsonText = document.getElementById('output').value;
+    var parsed;
+    try {
+        parsed = JSON.parse(jsonText);
+    } catch (e) {
+        // Silent: don't crash, just do nothing if JSON is invalid.
+        console.warn('JSON parse error:', e.message);
+        return;
+    }
+    // Re-hydrate hex strings back to Uint8Arrays for byte fields.
+    function rehydrate(obj) {
+        if (typeof obj !== 'object' || obj === null) return obj;
+        for (var k in obj) {
+            if (typeof obj[k] === 'string' && /^[0-9a-f]*$/.test(obj[k]) && obj[k].length % 2 === 0 && obj[k].length > 0) {
+                obj[k] = hexToUint8Array(obj[k]);
+            } else if (typeof obj[k] === 'object') {
+                rehydrate(obj[k]);
+            }
+        }
+        return obj;
+    }
+    rehydrate(parsed);
+    var hex = [].slice.call(new Uint8Array(
+        FFLiMiiDataCore.pack(parsed)
+    )).map(byteToHex).join('');
+    renderHex(hex);
+}
+
+document.getElementById('mii-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    processData(document.getElementById('mii-input').value.trim() || DEFAULT_MII_DATA);
+});
+
+document.getElementById('json-to-ffsd-btn').addEventListener('click', jsonToFfsdAndRender);
+
+document.getElementById('base-url-input').addEventListener('change', function() {
+    var currentHex = document.getElementById('image').src.split('data=')[1];
+    if (currentHex) {
+        renderHex(currentHex);
+    }
+});
+
+// Auto-run on load with default value.
+window.addEventListener('load', function() {
+    processData(DEFAULT_MII_DATA);
+});

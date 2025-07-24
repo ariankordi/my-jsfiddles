@@ -1,4 +1,59 @@
+<!--
 <img id="image" data-src="https://mii-unsecure.ariankordi.net/miis/image.png?verifyCRC16=0&type=all_body_sugar&shaderType=switch&data=">
+-->
+
+<img id="image" data-src="https://mii-unsecure.ariankordi.net/miis/image.png?verifyCRC16=0&type=all_body_sugar&shaderType=switch&data=">
+<div id="global-error-box" style="display:none;background:#ffeeee;color:#000;border:2px solid red;padding:1em;margin:1em 0;font-family:monospace">
+  <div style="font-weight:bold;font-size:1.2em"><span id="global-error-text-error">⚠️ JS Error:</span><span id="global-error-text-promise-rejection">⚠️ JS Promise Rejection:</span></div>
+  <div id="global-error-message" style="white-space:pre-wrap;margin-top:0.5em"></div>
+  <button id="global-error-hide-button" style="margin-top:1em">Close</button>
+</div>
+
+<form id="mii-form">
+  <textarea id="mii-input" rows="3" style="width:100%;font-family:monospace"
+    placeholder="Base64 or Hex FFLiMiiDataCore / StoreData (74 or 96 bytes)"></textarea>
+  <button type="submit">Parse</button>
+</form>
+
+<img id="image" src="" style="display:none">
+<button id="json-to-ffsd-btn" type="button">Convert JSON to FFSD and render</button>
+<textarea id="output" rows="30" style="width:100%;font-family:monospace"></textarea>
+
+<div style="margin-top:1em">
+  <label for="base-url-input">Image base URL:</label>
+  <input id="base-url-input" type="text" style="width:60%;font-family:monospace" value="https://mii-unsecure.ariankordi.net/miis/image.png?verifyCRC16=0&type=all_body_sugar&shaderType=switch&data=">
+</div>
+
+<!-- Global error handling snippet. -->
+<script>
+  (function () {
+    var box = document.getElementById('global-error-box');
+    var message = document.getElementById('global-error-message');
+    var closeBtn = document.getElementById('global-error-hide-button');
+    var textError = document.getElementById('global-error-text-error');
+    var textPromiseRejection = document.getElementById('global-error-text-promise-rejection');
+    if (!box || !message || !closeBtn || !textError || !textPromiseRejection) { return; }
+    function showError(isPromiseRejection, detail) {
+      textError.style.display = isPromiseRejection ? 'none' : 'initial';
+      textPromiseRejection.style.display = isPromiseRejection ? 'initial' : 'none';
+      message.innerText = '[' + new Date().toLocaleString() + '] ' + detail;
+      box.style.display = 'block';
+    }
+    function formatErrorEvent(e) {
+      var stack = e.error && e.error.stack ? e.error.stack : 'No stack trace available.';
+      return e.message + '\nFile: ' + (e.filename || 'unknown') + ':' + e.lineno + ':' + e.colno + '\n\n' + stack;
+    }
+    function formatRejection(r) {
+      if (r instanceof Error) return r.message + '\n\n' + (r.stack || '');
+      if (typeof r === 'string') return r;
+      try { return JSON.stringify(r, null, 2); } catch { return 'Unable to serialize rejection reason.'; }
+    }
+    window.addEventListener('error', function (e) { e.preventDefault(); showError(false, formatErrorEvent(e)); });
+    window.addEventListener('unhandledrejection', function (e) { e.preventDefault(); showError(true, formatRejection(e.reason)); });
+    closeBtn.addEventListener('click', function () { box.style.display = 'none'; message.innerText = ''; });
+  })();
+</script>
+
 
 <!-- struct-fu library ported to browser -->
 <!-- original source: https://github.com/natevw/struct-fu/blob/master/lib.js -->

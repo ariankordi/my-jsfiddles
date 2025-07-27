@@ -7,7 +7,7 @@
 // //  AES Keys
 // // ---------------------------------------------------------------------
 
-/** @enum number */
+/** @enum {number} */
 const KeyType = {
   Production: 0,
   Development: 1,
@@ -88,7 +88,7 @@ const jasmineStoreData = 'AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAA
  * @returns {Uint8Array} Decoded input data.
  */
 const hexToBytes = hex => new Uint8Array((hex.match(/.{1,2}/g) || [])
-  .map((/** @type {string} */ byte) => parseInt(byte, 16)));
+  .map((/** @type {string} */ byte) => Number.parseInt(byte, 16)));
 /**
  * U8 -> Hex / https://www.xaymar.com/articles/2020/12/08/fastest-uint8array-to-hex-string-conversion-in-javascript/
  * @param {Array<number>|Uint8Array} bytes - Input data to encode.
@@ -178,11 +178,9 @@ function generateCrc32Table(table, poly = CRC32_CKSUM_POLY) {
   for (let i = 0; i < 256; i++) {
     let crc = i << 24;
     for (let j = 0; j < 8; j++) {
-      if (crc & 0x80000000) {
-        crc = (crc << 1) ^ poly;
-      } else {
-        crc = crc << 1;
-      }
+      crc = crc & 0x80000000
+        ? (crc << 1) ^ poly
+        : crc << 1;
     }
     table[i] = crc >>> 0; // Ensure the value is an unsigned 32-bit integer
   }
@@ -207,15 +205,36 @@ function crc32(input, table = crc32CksumTable) {
 }
 
 /**
+ * Calculates the CRC-16 checksum for StoreData.
+ * @param {Uint8Array} storeData - The data to calculate the checksum for.
+ * @returns {number} The CRC-16 checksum.
+ */
+const getStoreDataCRC = storeData =>
+  crc16(storeData.subarray(0, VER3_STORE_DATA_LENGTH - 2));
+
+/**
  * Updates the CRC-16 checksum in StoreData.
  * @param {Uint8Array} storeData - The data to update the checksum for.
  */
 function updateStoreDataCRC(storeData) {
-  // Update the CRC-16 in the data.
-  const crcOffset = VER3_STORE_DATA_LENGTH - 2;
-  const crc = crc16(storeData.subarray(0, crcOffset));
-  // Store as big-endian.
-  new DataView(storeData.buffer).setUint16(crcOffset, crc, false);
+  const crc = getStoreDataCRC(storeData);
+  new DataView(storeData.buffer)
+    // Store as big-endian.
+    .setUint16(VER3_STORE_DATA_LENGTH - 2, crc, false);
+}
+
+/**
+ * Verifies the CRC-16 checksum in StoreData.
+ * @param {Uint8Array} storeData - The data to verify the checksum for.
+ * @returns {boolean} Returns true if the checksum matches.
+ */
+function verifyStoreDataCRC(storeData) {
+  // Get the real CRC-16 checksum.
+  const crcExpected = getStoreDataCRC(storeData);
+  // Get the CRC-16 in the data and verify against it.
+  const crcActual = new DataView(storeData.buffer)
+    .getUint16(VER3_STORE_DATA_LENGTH - 2, false);
+  return crcExpected === crcActual;
 }
 
 /**
@@ -317,6 +336,9 @@ function getSjclCcmCtrModeDecryptFunc() {
  * @param {Array<number>} [key] - The key to pass into sjcl.
  * @returns {void}
  * @throws {Error} Throws if the input data's size doesn't match {@link WRAPPED_MII_DATA_LENGTH}.
+ * @todo Need to implement verifying the tag (MAC) using the private _computeTag function:
+ * https://github.com/bitwiseshiftleft/sjcl/blob/85caa53c281eeeb502310013312c775d35fe0867/core/ccm.js#L109
+ * Until then, you MUST verify the CRC-16 of the output to ensure the data is valid.
  */
 function decryptAesCcm(dst, encryptedData, key = gAESCCMKeyPrimary) {
   // key = [1509720446, 1682369121, -1875608800, -373436846]) {
@@ -346,7 +368,7 @@ function decryptAesCcm(dst, encryptedData, key = gAESCCMKeyPrimary) {
     // remove tag from out, tag length = 128
     sjcl.bitArray.bitLength(encryptedBits) - tlen);
 
-  // Get the decrypt function.
+  // Get the decrypt function. TODO: Cache this in a global?
   const ctrDecrypt = getSjclCcmCtrModeDecryptFunc();
 
   /** New sjcl AES cipher constructed using the key. */
@@ -657,6 +679,9 @@ async function appendExtraToQrData(encryptedBytes, extraData) {
 const extraDataWarning = /** @type {HTMLElement} */ (document.getElementById('extra-data-warning'));
 const extraDataWarningInner = /** @type {HTMLElement} */ (document.getElementById('extra-data-warning-inner'));
 
+const storeDataWarning = /** @type {HTMLElement} */ (document.getElementById('storedata-warning'));
+const storeDataWarningInner = /** @type {HTMLElement} */ (document.getElementById('storedata-warning-inner'));
+
 /** @typedef {{bytes: Array<number>}} QrScannerResult */
 /**
  * The callback for the scanned QR code data from QrScanner.
@@ -674,8 +699,9 @@ async function handleQrCode(result) {
   if (!result.bytes.length) { // Length is falsy.
     throw new Error(`handleQrCode: Scanned QR code data has byte length of ${result.bytes.length}.`);
   }
-  // Scan was successful.
-  extraDataWarning.style.display = 'none'; // Reset the warning.
+  // Scan was successful. Reset warnings.
+  storeDataWarning.style.display = 'none';
+  extraDataWarning.style.display = 'none';
 
   const encryptedBytes = new Uint8Array(result.bytes);
 
@@ -684,6 +710,12 @@ async function handleQrCode(result) {
     const decryptedData = new Uint8Array(VER3_STORE_DATA_LENGTH);
     /** Decrypt the first AES-CCM encrypted portion. */
     decryptAesCcm(decryptedData, encryptedBytes.subarray(0, WRAPPED_MII_DATA_LENGTH));
+    // Show an error message if the CRC-16 checksum does not match.
+    const isValid = verifyStoreDataCRC(decryptedData);
+    if (!isValid) {
+      storeDataWarning.style.display = 'initial';
+      storeDataWarningInner.textContent = 'CRC-16 checksum does not match. The data below is probably invalid.';
+    }
 
     hexEditorBaseOutput.loadFromArray(decryptedData);
   }
@@ -700,9 +732,10 @@ async function handleQrCode(result) {
     try {
       const decryptedExtra = await decryptAesCtr(encryptedExtra, iv);
       // If decryption succeeded, slice off the CRC-32 in the data and load that.
-      const decryptedExtraData = decryptedExtra.subarray(0, -4);
+      const CRC32_SIZE = 4;
+      const decryptedExtraData = decryptedExtra.subarray(0, -CRC32_SIZE);
 
-      const crcOffset = decryptedExtra.length - 4;
+      const crcOffset = decryptedExtra.length - CRC32_SIZE;
       /** Actual CRC-32 in the data. */
       const crcActual = new DataView(decryptedExtra.buffer).getUint32(crcOffset, true);
 
@@ -878,7 +911,7 @@ function clearExtraData() {
  * Function to load StoreData from file.
  * @param {Event} event - The upload event.
  */
-function loadStoreDataFromFile(event) {
+async function loadStoreDataFromFile(event) {
   const files = /** @type {HTMLInputElement} */ (event.target).files;
   if (!files || !files[0]) {
     return;
@@ -890,51 +923,35 @@ function loadStoreDataFromFile(event) {
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = function () {
-    if (!(reader.result instanceof ArrayBuffer)) {
-      console.warn('loadExtraDataFromFile: reader.result is not an ArrayBuffer.');
-      return;
-    }
-    let baseData = new Uint8Array(reader.result);
+  const result = await files[0].arrayBuffer();
+  let baseData = new Uint8Array(result);
 
-    // Pad StoreData to 96 bytes if the size is smaller.
-    if (baseData.length < VER3_STORE_DATA_LENGTH) {
-      const paddedBaseData = new Uint8Array(VER3_STORE_DATA_LENGTH);
-      paddedBaseData.set(baseData); // Copy original data
-      baseData = paddedBaseData; // Replace with padded data
-    }
+  // Pad StoreData to 96 bytes if the size is smaller.
+  if (baseData.length < VER3_STORE_DATA_LENGTH) {
+    const paddedBaseData = new Uint8Array(VER3_STORE_DATA_LENGTH);
+    paddedBaseData.set(baseData); // Copy original data
+    baseData = paddedBaseData; // Replace with padded data
+  }
 
-    // Load into the hex editor for base data (StoreData)
-    hexEditorBaseInput.loadFromArray(baseData);
-  };
-
-  reader.readAsArrayBuffer(files[0]);
+  // Load into the hex editor for base data (StoreData)
+  hexEditorBaseInput.loadFromArray(baseData);
 }
 
 /**
  * Function to load extra data from file.
  * @param {Event} event - The upload event.
  */
-function loadExtraDataFromFile(event) {
+async function loadExtraDataFromFile(event) {
   const files = /** @type {HTMLInputElement} */ (event.target).files;
   if (!files || !files[0]) {
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = function () {
-    if (!(reader.result instanceof ArrayBuffer)) {
-      console.warn('loadExtraDataFromFile: reader.result is not an ArrayBuffer.');
-      return;
-    }
-    const extraData = new Uint8Array(reader.result);
+  const result = await files[0].arrayBuffer();
+  const extraData = new Uint8Array(result);
 
-    // Load into the hex editor for extra data
-    hexEditorExtraInput.loadFromArray(extraData);
-  };
-
-  reader.readAsArrayBuffer(files[0]);
+  // Load into the hex editor for extra data
+  hexEditorExtraInput.loadFromArray(extraData);
 }
 
 // // ---------------------------------------------------------------------
@@ -958,7 +975,10 @@ function setupHexEditorPasteHandling(hexEditorInstance) {
       const pasteData = event.clipboardData.getData('text').trim().replace(/\s+/g, '');
 
       // If the pasted data is not valid hex, try to decode as base64
-      if (!isHex(pasteData)) {
+      if (isHex(pasteData)) {
+      // Process valid hex normally
+        hexEditorInstance.textArea.value = pasteData.replace(/(.{2})/g, '$1 ').trim();
+      } else {
         if (isBase64(pasteData)) {
         // Decode base64 and load as hex into the HexEditor
           const decodedBase64 = base64ToBytes(pasteData);
@@ -966,9 +986,6 @@ function setupHexEditorPasteHandling(hexEditorInstance) {
         } else {
           alert('Invalid hex or base64 data.');
         }
-      } else {
-      // Process valid hex normally
-        hexEditorInstance.textArea.value = pasteData.replace(/(.{2})/g, '$1 ').trim();
       }
 
       hexEditorInstance.textArea.dispatchEvent(new Event('input'));
@@ -1002,12 +1019,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Element IDs that are not constants.
     'qr-video', 'file-input', 'key-type', 'qr-modify-storedata',
     'generate-qr-code', 'download-store-data', 'download-extra-data',
-    'load-storedata-btn', 'load-extra-btn', 'clear-extra-data'
+    'load-storedata-btn', 'load-extra-btn', 'clear-extra-data',
+    'storedata-warning', 'storedata-warning-inner', 'extra-data-warning',
+    'extra-data-warning-inner'
   ]
     // @ts-ignore - it is indexable by string and we just set above
     .filter(id => !(globalThis[id] instanceof HTMLElement));
   if (missing.length) {
-    // alert(`HTML elements not found: ${missing.join(', ')}`);
+    // alert(`HTML elements not found: ${missing.join(', ')}`); // TODO
   }
 
   hexEditorBaseInput = new HexEditor(document.getElementById('hex-editor-storedata'), false);
@@ -1057,18 +1076,20 @@ document.addEventListener('DOMContentLoaded', () => {
       // Note that we can also start the scanner after listCameras, we just have it this way around in the demo to
       // start the scanner earlier.
       const existingCameras = document.getElementsByClassName('device-camera');
-      [...existingCameras].forEach((camera) => {
+      for (const camera of existingCameras) {
         // go ahead and remove all existing cameras to repopulate camera list
         camera.remove();
-      });
+      }
       /** @type {Promise<Array<{id: string, label: string}>>} */ (QrScanner.listCameras(true)).then(
-        cameras => cameras.forEach((camera) => {
-          const option = document.createElement('option');
-          option.value = camera.id;
-          option.text = camera.label;
-          option.className = 'device-camera';
-          camList.add(option);
-        }));
+        (cameras) => {
+          for (const camera of cameras) {
+            const option = document.createElement('option');
+            option.value = camera.id;
+            option.text = camera.label;
+            option.className = 'device-camera';
+            camList.add(option);
+          }
+        });
     });
   });
 
@@ -1129,3 +1150,9 @@ document.addEventListener('DOMContentLoaded', () => {
   })(jasmineStoreData);
   */
 });
+
+//exp//ort {
+//  decryptAesCcm, decryptAesCtr, encryptAesCcm, generateQrCode,
+//  encryptAesCtr, downloadStoreData, downloadExtraData,
+//  loadStoreDataFromFile, loadExtraDataFromFile
+//};

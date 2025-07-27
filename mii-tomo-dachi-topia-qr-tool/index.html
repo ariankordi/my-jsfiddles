@@ -17,6 +17,7 @@
     </script>
 -->
   <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css">
 </head>
   <body>
 
@@ -102,27 +103,30 @@
       <input type="file" id="file-input" accept="image/*" />
 
       <h4>decrypted data (StoreData, then extra data below)</h4>
-      <table id="hex-editor-decrypt-storedata" border>
-        <tr>
-          <td></td>
-          <td><pre class="table-padding"></pre></td>
-        </tr>
-        <tr>
-          <td class="line-numbers" width="80"></td>
-          <td>
-            <textarea
-              spellcheck="false"
-              class="hex-textarea"
-              cols="48"
-            ></textarea>
-          </td>
-          <td width="160" class="ascii-output">.</td>
-        </tr>
-      </table>
+      <div>
+        <div id="storedata-warning" class="warning" style="display:none;">problem with StoreData: <span id="storedata-warning-inner"></span></div>
+        <table id="hex-editor-decrypt-storedata" border>
+          <tr>
+            <td></td>
+            <td><pre class="table-padding"></pre></td>
+          </tr>
+          <tr>
+            <td class="line-numbers" width="80"></td>
+            <td>
+              <textarea
+                spellcheck="false"
+                class="hex-textarea"
+                cols="48"
+              ></textarea>
+            </td>
+            <td width="160" class="ascii-output">.</td>
+          </tr>
+        </table>
+      </div>
 
       <button id="download-store-data">download StoreData (.cfsd)</button>
       <div>
-        <div id="extra-data-warning" style="display:none;">exception while decrypting AES-CTR data, showing original as hex: <span id="extra-data-warning-inner"></span></div>
+        <div id="extra-data-warning" class="warning" style="display:none;">exception while decrypting AES-CTR data, showing original as hex: <span id="extra-data-warning-inner"></span></div>
         <table id="hex-editor-decrypt-extra" style="display:none;" border>
           <tr>
             <td></td>
@@ -160,9 +164,18 @@
                 <ul><li>ONLY change this option if you know your QR Code was not made from a typical 3DS.</li></ul>
             </li>
             <li>
-                <label for="qr-modify-storedata">modify data when making qr code, to fix scan 3ds and enable copying: </label>
                 <input id="qr-modify-storedata" name="qr-modify-storedata" type="checkbox" checked>
+                <label for="qr-modify-storedata">modify data when making qr code, to fix scan 3ds and enable copying</label>
             </li>
+            <!--
+            <li>
+            	<input id="qr-enable-logo" name="qr-enable-logo" type="checkbox" checked>
+                <label for="qr-enable-logo">show mii logo on qr code</label>
+                <ul><li>this will not show on miitomo/tomodachi life/miitopia, etc. qr codes</li>
+                    <li>disabling this may slightly improve scanning</li></ul>
+            </li>
+            -->
+
         </ul>
     </form>
 
@@ -545,5 +558,6 @@
     }
     </script>
   <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>

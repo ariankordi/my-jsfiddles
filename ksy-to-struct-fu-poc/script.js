@@ -251,6 +251,162 @@ const obj = FFLStoreData.unpack(buf);
 console.log('obj:', obj)
 */
 
+/**
+ * Render a concise field table for a struct-fu struct.
+ * The table shows Name, Start, End, Size, and Kind, similar to ImHex.
+ * @param {import('./lib').StructInstance<any>} structDef - The top-level struct-fu struct.
+ * @param {string|HTMLElement} mount - A CSS selector or element where the table will be inserted.
+ */
+function renderStructTable(structDef, mount) {
+  const container = typeof mount === 'string' ? document.querySelector(mount) : mount;
+  if (!container) return;
+
+  // Remove any previous table render for a fresh view.
+  const old = container.querySelector('.ksy-field-table');
+  if (old) old.remove();
+
+  /** Build the table shell with header. */
+  const table = document.createElement('table');
+  table.className = 'ksy-field-table';
+  table.style.borderCollapse = 'collapse';
+  table.style.fontFamily = 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+  table.style.fontSize = '13px';
+  table.style.marginTop = '12px';
+  table.style.width = '100%';
+
+  const thead = document.createElement('thead');
+  thead.innerHTML = `
+    <tr>
+      <th style="text-align:left; padding:6px; border-bottom:1px solid #ccc;">Name</th>
+      <th style="text-align:right; padding:6px; border-bottom:1px solid #ccc;">Start</th>
+      <th style="text-align:right; padding:6px; border-bottom:1px solid #ccc;">End</th>
+      <th style="text-align:right; padding:6px; border-bottom:1px solid #ccc;">Size</th>
+      <th style="text-align:left; padding:6px; border-bottom:1px solid #ccc;">Kind</th>
+    </tr>`;
+  const tbody = document.createElement('tbody');
+
+  table.appendChild(thead);
+  table.appendChild(tbody);
+
+  /**
+   * Convert a struct-fu offset into byte.bit coordinates.
+   * struct-fu uses either a number (bytes) or {bytes,bits}.
+   *
+   * @param {number|{bytes:number,bits?:number}} off
+   * @returns {{byte:number, bit:number}}
+   */
+  function toByteBit(off) {
+    if (typeof off === 'number') return { byte: off, bit: 0 };
+    const bits = Number(off.bits || 0);
+    return { byte: Number(off.bytes || 0), bit: bits };
+  }
+
+  /**
+   * Format a Start/End as "0x00000002.4".
+   * @param {{byte:number, bit:number}} bb
+   * @returns {string}
+   */
+  function fmtBB(bb) {
+    const b = `0x${bb.byte.toString(16).padStart(8, '0')}`;
+    return `${b}.${bb.bit}`;
+  }
+
+  /**
+   * Compute Start/End for a field.
+   * For bitfields (size === 0 and width present) we use bit precision.
+   * For byte-sized entries we use byte precision.
+   *
+   * @param {any} f - struct-fu field object.
+   */
+  function computeSpan(f) {
+    // Bitfield
+    if (f && f.size === 0 && Number.isFinite(f.width)) {
+      const start = toByteBit(f.offset);
+      const startBitIndex = start.byte * 8 + start.bit;
+      const endBitIndex = startBitIndex + (f.width || 0) - 1;
+      const end = { byte: Math.floor(endBitIndex / 8), bit: endBitIndex % 8 };
+      const sizeStr = `${f.width} bits`;
+      return { start, end, sizeStr, kind: 'bitfield' };
+    }
+
+    // Nested struct instance has .fields and a total .size in bytes.
+    if (f && typeof f.size === 'number' && f.fields) {
+      const startByte = /** number */ (f.offset || 0);
+      const endByte = startByte + f.size - 1;
+      return {
+        start: { byte: startByte, bit: 0 },
+        end:   { byte: Math.max(endByte, startByte), bit: 7 },
+        sizeStr: `${f.size} bytes`,
+        kind: 'struct'
+      };
+    }
+
+    // Plain byte-oriented field.
+    if (typeof f.size === 'number') {
+      const startByte = /** number */ (f.offset || 0);
+      const endByte = startByte + Math.max(0, f.size - 1);
+      return {
+        start: { byte: startByte, bit: 0 },
+        end:   { byte: Math.max(endByte, startByte), bit: 7 },
+        sizeStr: `${f.size} bytes`,
+        kind: f.size === 1 ? 'byte' : 'bytes'
+      };
+    }
+
+    // Fallback when unknown.
+    return {
+      start: { byte: Number(f?.offset?.bytes || f?.offset || 0), bit: Number(f?.offset?.bits || 0) },
+      end:   { byte: Number(f?.offset?.bytes || f?.offset || 0), bit: Number(f?.offset?.bits || 0) },
+      sizeStr: '',
+      kind: 'unknown'
+    };
+  }
+
+  /**
+   * Add a row to the table for a field.
+   * @param {string} name
+   * @param {any} f
+   */
+  function addRow(name, f) {
+    const { start, end, sizeStr, kind } = computeSpan(f);
+    const tr = document.createElement('tr');
+
+    const tdName  = document.createElement('td');
+    const tdStart = document.createElement('td');
+    const tdEnd   = document.createElement('td');
+    const tdSize  = document.createElement('td');
+    const tdKind  = document.createElement('td');
+
+    tdName.textContent = name;
+    tdStart.textContent = fmtBB(start);
+    tdEnd.textContent = fmtBB(end);
+    tdSize.textContent = sizeStr;
+    tdKind.textContent = kind;
+
+    for (const td of [tdName, tdStart, tdEnd, tdSize, tdKind]) {
+      td.style.padding = '4px 6px';
+      td.style.borderBottom = '1px solid #eee';
+    }
+    tdStart.style.textAlign = 'right';
+    tdEnd.style.textAlign = 'right';
+    tdSize.style.textAlign = 'right';
+
+    tbody.appendChild(tr);
+    tr.appendChild(tdName);
+    tr.appendChild(tdStart);
+    tr.appendChild(tdEnd);
+    tr.appendChild(tdSize);
+    tr.appendChild(tdKind);
+  }
+
+  // structDef.fields is an object keyed by field name in layout order.
+  const entries = Object.entries(structDef.fields || {});
+  for (const [name, f] of entries) addRow(name, f);
+
+  container.appendChild(table);
+}
+
+
 const ksyText = document.querySelector("[name=ksy-text]");
 const ksyButton = document.querySelector("#ksy-button");
 
@@ -263,6 +419,9 @@ function handleKsyParse(event) {
   const struct = buildStructFromKsy(text);
   console.info("final struct:", struct);
   console.info("look at the fields:", struct.fields);
+
+  // Render the field list right under the form.
+  renderStructTable(struct, '#ksy-form');
 }
 
 ksyButton.addEventListener("click", handleKsyParse);

@@ -8,7 +8,7 @@
  */
 const AES_CCM_KEYSLOT_0x31_KEY = sjcl.codec.hex.toBits('59FC817E6446EA6190347B20E9BDCE52');
 
-const AES_CCM_KEYSLOT_0x31_KEY_DEV = sjcl.codec.hex.toBits('12DF92B6FFD438AB291C4FD4D7CE256D');
+// const AES_CCM_KEYSLOT_0x31_KEY_DEV = sjcl.codec.hex.toBits('12DF92B6FFD438AB291C4FD4D7CE256D');
 
 /** Size of encrypted Mii data found in QR codes (CFLiWrappedMiiData, FFLiWrappedStoreData) */
 const WRAPPED_MII_DATA_LENGTH = 112; // 0x70
@@ -30,10 +30,6 @@ const WRAPPED_ID_OFFSET = 12;
  * @type {number}
  */
 const WRAPPED_ID_LENGTH = 8; // (10) & ~3
-
-/** Length of an IV for AES-CTR used in {@link encryptAesCtr}. */
-const AES_IV_LENGTH = 16;
-const AES_IV_LENGTH_BITS = AES_IV_LENGTH * 8; // 128
 
 /**
  * Calculates the CRC-16/CCITT/XMODEM checksum for the specified input data.
@@ -163,7 +159,6 @@ function encryptAesCcm(dst, storeData, key = AES_CCM_KEYSLOT_0x31_KEY) {
 function extractUTF16LEText(data, startOffset, byteLength = 20) {
   let endPosition = startOffset;
 
-  // Determine the byte order based on the isBigEndian flag
   const decoder = new TextDecoder('utf-16le');
 
   // Find the position of the null terminator (0x00 0x00)
@@ -183,114 +178,49 @@ function extractUTF16LEText(data, startOffset, byteLength = 20) {
  * @param {Uint8Array} data - The Ver3StoreData data.
  * @returns {string} The name from the data.
  */
-const getNameFromCFSD = data => extractUTF16LEText(data, 0x1A);
+const getNameFromStoreData = data => extractUTF16LEText(data, 0x1A);
+
+// Codec utilities.
 
 /**
- * @param {Uint8Array} a - First buffer to compare.
- * @param {Uint8Array} b - Second buffer to compare.
- * @returns {boolean} Whether the buffers' content matches.
+ * Base64 -> U8 / https://stackoverflow.com/a/41106346
+ * @param {string} base64 - Input Base64 data to decode.
+ * @returns {Uint8Array} Decoded input data.
  */
-function uint8ArrayCmp(a, b) {
-  if (a.length !== b.length) {
-    return false;
-  }
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) {
-      return false;
-    }
-  }
-  return true;
-}
+const base64ToBytes = base64 => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+/**
+ * Hex -> U8
+ * @param {string} hex - Input hex data to decode.
+ * @returns {Uint8Array} Decoded input data.
+ */
+const hexToBytes = hex => Uint8Array.from({ length: hex.length >>> 1 }, (_, i) =>
+  parseInt(hex.slice(i << 1, (i << 1) + 2), 16));
+/**
+ * U8 -> Hex / https://www.xaymar.com/articles/2020/12/08/fastest-uint8array-to-hex-string-conversion-in-javascript/
+ * @param {Array<number>|Uint8Array} bytes - Input data to encode.
+ * @returns {string} Hexadecimal representation of `buffer`.
+ */
+const bytesToHex = bytes => Array.prototype.map.call(bytes,
+  (/** @type {{ toString: (arg0: number) => string; }} */ x) =>
+    x.toString(16).padStart(2, '0')).join(''); // padStart: ES2017
+/**
+ * Parses either hex or Base64 -> U8.
+ * Additionally strips spaces from the input.
+ * @param {string} text
+ * @returns {Uint8Array}
+ */
+const parseHexOrBase64ToBytes = (text) => {
+  text = text.replace(/\s+/g, ''); // Strip spaces.
+  // Check if it is hex, otherwise assume it is Base64.
+  return /^[0-9a-fA-F]+$/.test(text)
+    ? hexToBytes(text)
+    : base64ToBytes(text);
+};
 
-/** Tests {@link encryptAesCcm} against known good data. */
-function encryptAesCcmTest() {
-  const WRAP_TEST_DATA = new Uint8Array([
-    0x03, 0x00, 0x00, 0x30, 0xdf, 0x9a, 0x34, 0x02,
-    0x83, 0xa5, 0xea, 0xbd, 0x90, 0xf1, 0x07, 0xdc,
-    0x78, 0xa2, 0xa0, 0x35, 0xd8, 0xa4, 0x00, 0x00,
-    0x01, 0x00, 0x51, 0x30, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x40,
-    0x00, 0x00, 0x0c, 0x01, 0x04, 0x68, 0x43, 0x18,
-    0x20, 0x34, 0x46, 0x14, 0x81, 0x12, 0x17, 0x68,
-    0x0d, 0x00, 0x00, 0x29, 0x00, 0x52, 0x48, 0x50,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0xc8
-  ]);
-
-  const WRAP_EXPECTED = new Uint8Array([
-    0x90, 0xf1, 0x07, 0xdc, 0x78, 0xa2, 0xa0, 0x35,
-    0xff, 0xc5, 0x59, 0x1c, 0x2f, 0x33, 0xc0, 0x12,
-    0x05, 0x8b, 0x34, 0x56, 0xb8, 0xb9, 0xa4, 0x71,
-    0x71, 0x6d, 0x38, 0xa1, 0x06, 0x7a, 0x14, 0x91,
-    0x23, 0x17, 0x84, 0xb6, 0x52, 0x05, 0xa9, 0xff,
-    0xa9, 0x28, 0x15, 0x3b, 0x6b, 0xa8, 0x9c, 0x8b,
-    0xa3, 0xff, 0xb3, 0x3b, 0x75, 0x0b, 0xc9, 0x03,
-    0xea, 0x25, 0x63, 0xa4, 0xe4, 0x0e, 0x57, 0xa8,
-    0xa1, 0xdd, 0xd2, 0x34, 0xc2, 0xd6, 0x67, 0x1b,
-    0x85, 0x1a, 0xd0, 0x19, 0x2f, 0xc4, 0x79, 0xd5,
-    0xbb, 0x79, 0xfa, 0x45, 0xe2, 0x0c, 0x01, 0xea,
-    0x9a, 0x44, 0x36, 0x29, 0xf3, 0xcb, 0x18, 0xa3,
-    0xf8, 0x11, 0xf8, 0x8e, 0xbe, 0x5f, 0x19, 0x26,
-    0xa2, 0x67, 0xb1, 0x97, 0xf0, 0x7a, 0x0d, 0xa7
-  ]);
-
-  /**
-   * @param {Uint8Array} a - First buffer to compare.
-   * @param {Uint8Array} b - Second buffer to compare.
-   */
-  function onMismatch(a, b) {
-    console.error('mismatch:', a, b);
-    console.info('mismatch hex:', bytesToHex(a), bytesToHex(b));
-  }
-  // Expected test data is using dev key.
-  const key = AES_CCM_KEYSLOT_0x31_KEY_DEV;
-
-  // encode test
-  const wrapped = new Uint8Array(WRAPPED_MII_DATA_LENGTH);
-  encryptAesCcm(wrapped, WRAP_TEST_DATA, key);
-
-  if (!uint8ArrayCmp(WRAP_EXPECTED, wrapped)) {
-    onMismatch(WRAP_EXPECTED, wrapped);
-    return;
-  }
-
-  // decode test
-  /*
-  const storeData = new Uint8Array(VER3_STORE_DATA_LENGTH);
-  decryptAesCcm(storeData, wrapped, key);
-  if (!uint8ArrayCmp(WRAP_TEST_DATA, storeData)) {
-    onMismatch(WRAP_TEST_DATA, storeData);
-    return;
-  }
-  */
-  console.info('encryptAesCcmTest: ✅ passed encode');
-}
-
-encryptAesCcmTest();
-
-
-// Function to detect if the string is base64 or hex
-function detectAndDecodeInput(input) {
-  input = input.trim();
-  
-  // Check if it looks like a hex string (only contains valid hex characters)
-  const hexRegex = /^[0-9a-fA-F]+$/;
-  if (hexRegex.test(input)) {
-    const hexArray = input.match(/.{1,2}/g).map(byte => parseInt(byte, 16));
-    return new Uint8Array(hexArray);
-  }
-
-  // Otherwise, assume it's Base64
-  try {
-    return Uint8Array.from(atob(input), c => c.charCodeAt(0));
-  } catch (e) {
-    throw new Error("Invalid input: not a valid Base64 or Hex string.");
-  }
-}
-
-// Happens when the form is submitted
+/**
+ * Form submission handler.
+ * @param {SubmitEvent} event
+ */
 function processData(event) {
   event.preventDefault();
 
@@ -309,14 +239,14 @@ function processData(event) {
   } else if (miiDataInput.value.trim() !== '') {
     try {
       const decodedData = new Uint8Array(VER3_STORE_DATA_LENGTH);
-      decodedData.set(detectAndDecodeInput(miiDataInput.value));
+      decodedData.set(parseHexOrBase64ToBytes(miiDataInput.value));
       processAndDisplayQR(decodedData);
     } catch (error) {
       alert(error.message);
       return;
     }
   } else {
-    alert("Please provide a file or Base64/Hex Mii data.");
+    alert('Please provide a file or Base64/Hex Mii data.');
     return;
   }
 
@@ -325,6 +255,7 @@ function processData(event) {
   miiDataInput.value = '';
 }
 
+/** @param {Uint8Array} data - Unencrypted Ver3StoreData. */
 function processAndDisplayQR(data) {
   // Modify the data to allow copying and scanning on 3DS.
   modifyStoreDataCopyablePlatform(data);
@@ -342,8 +273,10 @@ function processAndDisplayQR(data) {
   const li = document.createElement('li');
 
   // Extract UTF-16 LE Mii name
-  const utf16leMiiName = getNameFromCFSD(data);
+  const utf16leMiiName = getNameFromStoreData(data);
   utf16leMiiName && (li.textContent = utf16leMiiName);
+
+  console.info(`Hex data for ${utf16leMiiName}:`, bytesToHex(data));
 
   li.appendChild(qr);
   const qrList = document.getElementById('qrList');

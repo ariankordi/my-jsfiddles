@@ -230,7 +230,7 @@ function processData(event) {
 
   reader.onload = function(e) {
     const rawData = new Uint8Array(VER3_STORE_DATA_LENGTH);
-    rawData.set(e.target.result);
+    rawData.set(new Uint8Array(e.target.result));
     processAndDisplayQR(rawData);
   };
 

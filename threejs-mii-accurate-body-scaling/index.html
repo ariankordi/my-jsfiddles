@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<style>
+		body {
+			margin: 0;
+			overflow: hidden;
+		}
+		canvas {
+			display: block;
+		}
+		.floating {
+			position: absolute;
+			top: 10px;
+			left: 10px;
+		}
+		#ui {
+			background: rgba(255, 255, 255, 0.8);
+			padding: 10px;
+			border-radius: 4px;
+			font-family: Arial, sans-serif;
+			z-index: 1;
+			resize: both;
+			overflow: hidden;
+			box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+			width: 180px;
+		}
+
+		#ui input,
+		#ui button,
+		#ui label,
+		#ui select {
+			display: block;
+			margin: 5px 0;
+			width: 100%;
+		}
+
+		.controls {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.hint {
+			font-size: 12px;
+			color: gray;
+			word-wrap: break-word;
+		}
+	</style>
+
+	<script type="importmap">
+	{
+		"imports": {
+			"three": "https://esm.sh/three@0.173.0",
+			"three/": "https://esm.sh/three@0.173.0/",
+			"./FFL.js/": "https://cdn.jsdelivr.net/gh/ariankordi/FFL.js/"
+		}
+	}
+	</script>
+	<script type="module">
+		// Export Three.js to window for shader material.
+		// This is not needed if you bundle the shader materials together with the library.
+		import * as THREE from 'three';
+		window.THREE = globalThis.THREE = THREE;
+	</script>
+	<script type="module" src="three-shaders-body-jsfiddle-sample2.js"></script>
+
+</head>
+<body>
+	<!-- UI container. -->
+	<div id="uiContainer">
+		<button id="showUiButton" class="floating" type="button" style="display: none;">Show UI</button>
+		<!-- This is the floating options box. -->
+		<div id="ui" class="floating">
+			<form id="modelForm">
+				<!-- URL and options. -->
+				<div class="controls">
+					<label for="modelUrl">Head URL:</label>
+					<select id="shaderSelector">
+						<option selected>FFLShaderMaterial</option>
+						<option>LUTShaderMaterial</option>
+						<option>SampleShaderMaterial</option>
+					</select>
+					<button id="hideUiButton" type="button">Hide UI</button>
+				</div>
+				<input type="text" id="modelUrl"
+					value="https://mii-unsecure.ariankordi.net/miis/image.glb?nnid=JasmineChlora&texResolution=256&resourceType=middle">
+				<small class="hint">
+					Hint: To find this, go to <a href="https://mii-unsecure.ariankordi.net" target="_blank">my Mii renderer site</a>, copy your Mii's image URL, then replace ".png" with ".glb" and paste above.
+				</small>
+				<button id="loadModelButton" type="submit">Load Models</button>
+				<!-- Build/height/gender. -->
+				<label for="buildSlider">Build: <span id="buildValue">64</span></label>
+				<input type="range" id="buildSlider" min="0" max="127" step="1" value="64">
+				<label for="heightSlider">Height: <span id="heightValue">64</span></label>
+				<input type="range" id="heightSlider" min="0" max="127" step="1" value="64">
+				<label for="genderSelect">Gender: <span style="font-size: 10px;"><b>(male currently broken)</b></span></label>
+				<select id="genderSelect">
+					<!-- Each of the genders have different body model URLs.
+					     The following body models are extracted from MiiBodyMiddle.bfres in Wii U Mii Maker.
+						 Body models from the Mii editor (Wii, 3DS, Wii U, Switch) should all be supported.
+					-->
+					<option value="0" data-body-url="https://cdn.jsdelivr.net/gh/ariankordi/ffl-raylib-samples@latest/models/miibodymiddle%20male%20test.glb">Male</option>
+					<option value="1" data-body-url="https://cdn.jsdelivr.net/gh/ariankordi/ffl-raylib-samples@latest/models/miibodymiddle%20female%20test.glb" selected>Female</option>
+					<!--
+					Scaling for the Miitomo (Arch) body model is mostly supported.
+					You can use kat21's SMM2 body model from here:
+					https://cdn.jsdelivr.net/gh/ariankordi/mii-creator@d603afef832771764950968e6720cf5f32cc7b97/public/assets/models/miiBodyM_miitomo.glb
+
+					TODO for this model:
+					- Head translation is wrong. (Could just be this one)
+					- The shadow's doesn't attach to a good position.
+					- The body position is slightly wrong after scaling.
+					  * Does the model move stay put in the X/Z-axis as it's scaled?
+					  * Can go below 0.0.
+					-->
+				</select>
+				<!-- Rotation controls. -->
+				<button id="pauseButton" style="display:none" type="button">Pause Rotation</button>
+				<button id="resumeButton" type="button">Resume Rotation</button>
+				<label for="rotationSpeed">Speed:</label>
+				<input type="range" id="rotationSpeed" min="2" max="30" step="0.5" value="8">
+			</form>
+		</div> <!-- id="ui" -->
+	</div> <!-- id="uiContainer" -->
+<script type="module" src="script.js"></script>
+</body>
+</html>

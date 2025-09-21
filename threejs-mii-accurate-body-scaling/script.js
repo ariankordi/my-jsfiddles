@@ -11,12 +11,13 @@
  * This was also made with the goal to hopefully be
  * flexible enough to accept Mii head models from FFL.js.
  *
- *
+ * Snippet originally published on jsfiddle.net: https://jsfiddle.net/arian_/egmvt5o9/1/
  * Code to achieve accurate Mii body scaling has been initially
  * reverse engineered/decompiled from nn::mii::VariableIconBody
  * by me, implemented in C++ here: https://github.com/ariankordi/FFL-Testing/blob/renderer-server-prototype/src/BodyModel.cpp
- * Please credit me if you use any portion of this.
- * Originally published on jsfiddle.net: https://jsfiddle.net/u/arian_/fiddles/
+ *
+ * **Please credit me if you use any portion of this.**
+ *
  * @author Arian Kordi <https://github.com/ariankordi>
  */
 
@@ -175,32 +176,32 @@ function addSkeletonScalingExtensions(Skeleton) {
 		 * @this {SkeletonWithAttachments}
 		 */
 		return function update() {
-			// For each bone, compute world matrix and then apply custom scaling.
+			// For each bone, calculate the matrixWorld and then apply custom per-bone scaling.
 			for (let i = 0; i < this.bones.length; i++) { // Flatten bone matrices to array.
 				const bone = /** @type {BoneWithScaling|undefined} */ (this.bones[i]);
-				// Compute the offset between the current and the original transform.
-				let matrix = bone ? bone.matrixWorld : _identityMatrix;
+				/** Current bone's matrixWorld. It will be re-assigned if there is scaling. */
+				let matrixWorld = bone ? bone.matrixWorld : _identityMatrix;
 
-				// If user provided bone.scalling (note spelling!), apply it to the bone:
+				// If the bone has "scalling" (note spelling!), apply it to the bone.
 				if (bone && bone.scalling) {
-					matrix = matrix.clone().scale(bone.scalling);
+					matrixWorld = _offsetMatrix.copy(matrixWorld).scale(bone.scalling);
 
 					// Adjust translation for the root (skl_root).
 					// if (bone.parent && bone.parent instanceof THREE.Bone &&
 					//	 bone.scalling && /** @type {BoneWithScaling} */ (bone.parent)
 					//	 .isScallingRoot) {
-					adjustTranslationForRoot(bone, matrix);
+					adjustTranslationForRoot(bone, matrixWorld);
 
-					// Re-position children so they follow the scaled parent.
+					// Adjust translation for children so they follow the scaled parent.
 					for (const child of bone.children) {
-						scaleMatrix.copy(matrix).multiply(child.matrix);
+						scaleMatrix.copy(matrixWorld).multiply(child.matrix);
 						posVec.setFromMatrixPosition(scaleMatrix);
 						child.matrixWorld.setPosition(posVec);
 					}
 				}
 
 				// Update boneMatrices[] (like the original update function)
-				_offsetMatrix.multiplyMatrices(matrix, this.boneInverses[i]);
+				_offsetMatrix.multiplyMatrices(matrixWorld, this.boneInverses[i]);
 				_offsetMatrix.toArray(this.boneMatrices, i * 16);
 			}
 
@@ -349,18 +350,7 @@ const archBodyScaleDesc = {
 	// Above are referenced in body scale func. (Other bones are not mentioned by strings)
 	// At the beginning of body scale func, jointRoot and Head are skipped.
 	none: ['jointRoot', 'Head', 'nw4f_root'/** < For Super Mario Maker 2 bfres */]
-	// TODO: Special handling is needed for: Shadow, Acce_Spine_*, Item_Wrist_*, Item_Spine_*
 };
-
-// Potential body models to use from games:
-// - (3DS) Tomodachi Life //<- Similar appearance to Miitomo.
-//   - all_root, head, R_ankle, L_ankle, R_hand1, L_hand1, shadow, (waist/L_hand)Item
-// - (3DS) StreetPass Mii Plaza //<- No arms/legs, floating hands, outfits.
-// - (Wii) Wii Sports, Wii Fit, Wii Party //<- Human-like hands.
-// - (Wii U) Wii Karaoke U by JOYSOUND //<- Cute outfits.
-// - (3DS, Switch) Miitopia //<- Shorter body.
-// - (3DS) AKB48+Me, Dillon's Dead-Heat Breakers //<- Outfits.
-// - (Wii U) Super Smash Bros. for Wii U, Mario Kart 8
 
 /**
  * Detects and returns the appropriate {@link ModelScaleDesc} for the body model.
@@ -386,9 +376,6 @@ function detectModelDesc(object) {
 				break;
 			case 'skl_root':
 				desc = editorBodyScaleDesc;
-				break;
-			case 'L_leg': // Unique for Tomodachi Life 3DS model
-				desc = archBodyScaleDesc; // tomodachiBodyScaleDesc;
 				break;
 		}
 	});
@@ -890,6 +877,7 @@ function loadBodyModel(gender) {
 	// Assign one animation from the glTF model.
 	const animations = gltf.animations;
 	if (animations.length) {
+		// Always replace the existing mixer.
 		mixer = new THREE.AnimationMixer(model);
 
 		// Use the animation named 'Wait' if it exists, otherwise choose the first one.
@@ -1078,45 +1066,42 @@ function updateCharModel(headModel) {
 	updateBuildHeightGenderUI();
 
 	// Load the new body.
+	const oldMixer = mixer;
 	const newBody = loadBodyModel(gender);
 
-	// Set uniforms on the body, and attach the head to it.
-	prepareBodyForCharModel(newBody.model, additionalInfo, build, height);
-	attachHeadToBody(newBody, headModel);
-	// Attach the shadow too, which should already be in the scene.
-	if (currentShadowModel) {
-		attachShadowModelToBody(newBody, currentShadowModel);
-	}
-
-	// Dispose and remove the old models.
-	if (currentBody) {
-		scene.remove(currentBody.model);
-		disposeModel(currentBody.model);
-	}
+	// Dispose and remove the old head.
 	if (currentHead) {
 		currentHead.removeFromParent(); // Remove from body group.
-		disposeModel(currentHead); // Though head is attached, dispose traverses
+		disposeModel(currentHead);
 	}
-	if (mixer && currentBody) { // Dispose the mixer.
-		mixer.uncacheRoot(currentBody.model);
-	}
-
-	// Add the body, which contains the head, to the scene.
-	scene.add(newBody.model);
 
 	currentHead = headModel;
-	currentBody = newBody;
+
+	// Ready to replace the old body model now.
+	reloadBodyModelInScene(newBody, oldMixer);
 }
 
-/** @param {BodyModel} newBody - The body model to replace in the scene. */
-function reloadBodyModel(newBody) {
-	// Prepare the new body model and attach the head.
+/**
+ * @param {BodyModel} newBody - The body model to replace in the scene.
+ * @param {THREE.AnimationMixer|null} oldMixer - A reference to the mixer for the old model.
+ */
+function reloadBodyModelInScene(newBody, oldMixer) {
+	// Set uniforms on the new body model, and attach the head to it.
 	prepareBodyForCharModel(newBody.model, additionalInfo, build, height);
 	if (currentHead) {
 		attachHeadToBody(newBody, currentHead);
 	}
+	// Attach the shadow too, which should already be in the scene.
+	if (currentShadowModel) {
+		attachShadowModelToBody(newBody, currentShadowModel);
+	}
 	// Dispose and remove the current body model from the scene.
 	if (currentBody) {
+		scene.remove(currentBody.model);
+		if (oldMixer) { // Dispose mixer resources for this.
+			oldMixer.stopAllAction();
+			oldMixer.uncacheRoot(currentBody.model);
+		}
 		disposeModel(currentBody.model);
 		// Remove all skeleton attachments.
 		currentBody.model.traverse((node) => {
@@ -1127,9 +1112,8 @@ function reloadBodyModel(newBody) {
 				}
 			}
 		});
-		scene.remove(currentBody.model);
 	}
-	// Add and set the new body in the scene.
+	// Add the body, which contains the head, to the scene.
 	scene.add(newBody.model);
 	currentBody = newBody;
 }
@@ -1149,8 +1133,9 @@ function updateBuildHeightGender(newBuild, newHeight, newGender) {
 	// Gender changed: reload body, re-attach current head.
 	if (newGender !== gender || !currentBody) {
 		gender = newGender;
+		const oldMixer = mixer;
 		const newBody = loadBodyModel(gender);
-		reloadBodyModel(newBody);
+		reloadBodyModelInScene(newBody, oldMixer);
 	} else {
 		// Otherwise, just re-apply scaling to existing body.
 		updateBodyScale(currentBody.model, build, height);
@@ -1311,6 +1296,7 @@ function applyMaterialClassToMesh(mesh, newMatClass, colorInfo) {
 	}
 
 	mesh.material = new newMatClass(params);
+	oldMat.dispose(); // Dispose the old material, keeping the map.
 
 	// HACK: For SampleShaderMaterial with glTF head models, let's not
 	// set drawType uniform to faceline. TODO: Specifically only
@@ -1510,3 +1496,5 @@ function main() {
 	requestAnimationFrame(animate); // Start animation loop.
 }
 document.addEventListener('DOMContentLoaded', main);
+
+// Thank you for reading.

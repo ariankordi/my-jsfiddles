@@ -11,6 +11,7 @@
  * This was also made with the goal to hopefully be
  * flexible enough to accept Mii head models from FFL.js.
  *
+ *
  * Snippet originally published on jsfiddle.net: https://jsfiddle.net/arian_/egmvt5o9/1/
  * Code to achieve accurate Mii body scaling has been initially
  * reverse engineered/decompiled from nn::mii::VariableIconBody
@@ -268,10 +269,10 @@ function addSkeletonScalingExtensions(Skeleton) {
 	};
 }
 
-//export { addSkeletonScalingExtensions };
+// export { addSkeletonScalingExtensions };
 //! End file: SkeletonScalingExtensions.js
 
-//! File: BodyScaleDesc.js
+//! File: ModelScaleDesc.js
 /*!
  * @file Descriptions (tables) of how to scale
  * different Mii body models and their bone names.
@@ -288,8 +289,8 @@ function addSkeletonScalingExtensions(Skeleton) {
  * @typedef {Object} ModelScaleDesc
  * @property {Array<string>|null} xyz - List of bones that should be scaled with the unmodified scale vector.
  * If null, then all bones will receive the unmodified scale vector, unless ones excluded in `none`.
- * @property {Array<string>} xyzClampY - List of bones that should be scaled with all three dimensions
- * of the scale vector, but with Y clamped to 1.0. Used for the head bone in nn::mii.
+ * @property {Array<string>} xyzYMin1 - List of bones that should be scaled with all three dimensions
+ * of the scale vector, but with Y clamped to a minimum of 1.0. Used for the head bone (cosmetic neck).
  * @property {Array<string>|null} yxz - List of bones that should be scaled using the scale vector with Y and X swapped.
  * If null, then all bones will receive the the vector with Y and X swapped, unless ones excluded in `none`.
  * @property {Array<string>} scalar - List of bones that should be scaled uniformly using X for all dimensions.
@@ -317,7 +318,7 @@ const editorBodyScaleDesc = {
 	root: 'skl_root', // Adjust translation based on skl_root.
 	head: 'head', // Head bone.
 	xyz: null, // Let all bones receive full XYZ scale by default.
-	xyzClampY: [], // Switch body clamps Y on head. Wii U does not do this.
+	xyzYMin1: ['head'], // Prevent neck from appearing too short.
 	// The arms and elbows receive YXZ scale.
 	yxz: ['arm_l1', 'arm_l2', 'arm_r1', 'arm_r2', 'elbow_l', 'elbow_r'],
 	// Wrist, Shoulder, Ankle, Knee
@@ -342,7 +343,7 @@ const archBodyScaleDesc = {
 	root: 'Skl_Root',
 	head: 'Head', // Head bone. Note that there is also "z_Head".
 	xyz: [], // No bones are receiving XYZ scale.
-	xyzClampY: [],
+	xyzYMin1: [],
 	yxz: null, // All bones receive YXZ scale by default.
 	// Wrist, Ankle (no shoulders, knees)
 	scalar: ['Ankle_R', 'Ankle_L', 'Wrist_R', 'Wrist_L'],
@@ -434,8 +435,8 @@ function applyScaleDesc(model, scaleVector, desc) {
 		} else if (desc.scalar.includes(name)) {
 			// console.debug('scalar:', name);
 			scale.setScalar(scaleVector.x);
-		} else if (desc.xyzClampY.includes(name)) {
-			scale.set(scaleVector.x, Math.min(scaleVector.y, 1.0), scaleVector.z);
+		} else if (desc.xyzYMin1.includes(name)) {
+			scale.set(scaleVector.x, Math.max(scaleVector.y, 1.0), scaleVector.z);
 		} else {
 			// Default: Either xyz, yxz, or no scale.
 			if (desc.xyz === null) {
@@ -465,25 +466,22 @@ function applyScaleDesc(model, scaleVector, desc) {
 
 	// return headBone; // @returns {THREE.Bone|null} The head bone, if specified in the descriptor.
 }
-
 /*
 export {
 	editorBodyScaleDesc,
 	archBodyScaleDesc,
 	detectModelDesc,
 	applyScaleDesc
-};
-*/
-//! End file: BodyScaleDesc.js
-
+};*/
+//! End file: ModelScaleDesc.js
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'; // Optional.
 // Dependencies for body scaling.
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
-//import { addSkeletonScalingExtensions } from './SkeletonScalingExtensions.js';
-//import { detectModelDesc, applyScaleDesc } from './ModelScaleDesc.js';
+// import { addSkeletonScalingExtensions } from './SkeletonScalingExtensions.js';
+// import { detectModelDesc, applyScaleDesc } from './ModelScaleDesc.js';
 // All UMDs below:
 import * as FFLShaderMaterialImport from './FFL.js/FFLShaderMaterial.js';
 import * as LUTShaderMaterialImport from './FFL.js/LUTShaderMaterial.js';
@@ -497,8 +495,8 @@ import * as SampleShaderMaterialImport from './FFL.js/SampleShaderMaterial.js';
  * @typedef {import('./FFL.js/SampleShaderMaterial.js')} SampleShaderMaterial
  * Imports for standalone JSDoc types:
  * @typedef {import('./FFL.js/SampleShaderMaterial.js').SampleShaderMaterialColorInfo} SampleShaderMaterialColorInfo
- * @nottypedef {import('./SkeletonScalingExtensions.js').SkeletonWithAttachments} SkeletonWithAttachments
- * @nottypedef {import('./ModelScaleDesc.js').ModelScaleDesc} ModelScaleDesc
+ * @typedef {import('./SkeletonScalingExtensions.js').SkeletonWithAttachments} SkeletonWithAttachments
+ * @typedef {import('./ModelScaleDesc.js').ModelScaleDesc} ModelScaleDesc
  */
 
 // Hack to include modules as UMD or ESM. This should be removed

@@ -31,50 +31,17 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'; //
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { addSkeletonScalingExtensions } from './FFL.js/helpers/SkeletonScalingExtensions.js';
 import { detectModelDesc, applyScaleDesc } from './FFL.js/helpers/ModelScaleDesc.js';
-// All UMDs below:
-import * as FFLShaderMaterialImport from './FFL.js/materials/FFLShaderMaterial.js';
-import * as LUTShaderMaterialImport from './FFL.js/materials/LUTShaderMaterial.js';
-import * as SampleShaderMaterialImport from './FFL.js/materials/SampleShaderMaterial.js';
+// Material classes.
+import FFLShaderMaterial from './FFL.js/materials/FFLShaderMaterial.js';
+import LUTShaderMaterial from './FFL.js/materials/LUTShaderMaterial.js';
+import SampleShaderMaterial from './FFL.js/materials/SampleShaderMaterial.js';
 
-// JSDoc include statements, needed for UMD imports.
 /**
- * @typedef {import('./FFL.js/materials/FFLShaderMaterial.js')} FFLShaderMaterial
- * @typedef {import('./FFL.js/materials/LUTShaderMaterial.js')} LUTShaderMaterial
- * @typedef {import('./FFL.js/materials/SampleShaderMaterial.js')} SampleShaderMaterial
  * Imports for standalone JSDoc types:
  * @typedef {import('./FFL.js/materials/SampleShaderMaterial.js').SampleShaderMaterialColorInfo} SampleShaderMaterialColorInfo
  * @typedef {import('./FFL.js/helpers/SkeletonScalingExtensions.js').SkeletonWithAttachments} SkeletonWithAttachments
  * @typedef {import('./FFL.js/helpers/ModelScaleDesc.js').ModelScaleDesc} ModelScaleDesc
  */
-
-// Hack to include modules as UMD or ESM. This should be removed
-// if the modules are all converted to ESM.
-
-/* eslint-disable no-self-assign -- Get TypeScript to identify global imports. */
-/** @type {FFLShaderMaterial} */
-let FFLShaderMaterial = /** @type {*} */ (globalThis).FFLShaderMaterial;
-FFLShaderMaterial = (!FFLShaderMaterial) ? FFLShaderMaterialImport : FFLShaderMaterial;
-/** @type {LUTShaderMaterial} */
-let LUTShaderMaterial = /** @type {*} */ (globalThis).LUTShaderMaterial;
-LUTShaderMaterial = (!LUTShaderMaterial) ? LUTShaderMaterialImport : LUTShaderMaterial;
-/** @type {SampleShaderMaterial} */
-let SampleShaderMaterial = /** @type {*} */ (globalThis).SampleShaderMaterial;
-SampleShaderMaterial = (!SampleShaderMaterial) ? SampleShaderMaterialImport : SampleShaderMaterial;
-
-globalThis.THREE = /** @type {THREE} */ (/** @type {*} */ (globalThis).THREE);
-/* eslint-enable no-self-assign -- Get TypeScript to identify global imports. */
-
-// Define OrbitControls and GLTFLoader even if they were loaded from UMD.
-if ('OrbitControls' in THREE) {
-	globalThis.OrbitControls =
-		// eslint-disable-next-line import/namespace -- not explicitly imported
-		/** @type {import('three/examples/jsm/controls/OrbitControls.js')} */ (THREE.OrbitControls);
-}
-if ('GLTFLoader' in THREE) {
-	globalThis.GLTFLoader =
-		// eslint-disable-next-line import/namespace -- not explicitly imported
-		/** @type {import('three/examples/jsm/loaders/GLTFLoader.js')} */ (THREE.GLTFLoader);
-}
 
 // Enable extensions to Three.js needed to enable body scaling.
 addSkeletonScalingExtensions(THREE.Skeleton); // Only call once.

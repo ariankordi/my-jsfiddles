@@ -56,15 +56,10 @@
 		"imports": {
 			"three": "https://esm.sh/three@0.173.0",
 			"three/": "https://esm.sh/three@0.173.0/",
-			"./FFL.js/": "https://cdn.jsdelivr.net/gh/ariankordi/FFL.js/"
+			"https://esm.sh/three?target=es2022": "https://esm.sh/three@0.173.0",
+			"./FFL.js/": "https://esm.sh/gh/ariankordi/FFL.js@v2.0.0/"
 		}
 	}
-	</script>
-	<script type="module">
-		// Export Three.js to window for shader material.
-		// This is not needed if you bundle the shader materials together with the library.
-		import * as THREE from 'three';
-		window.THREE = globalThis.THREE = THREE;
 	</script>
 	<script type="module" src="three-shaders-body-jsfiddle-sample2.js"></script>
 

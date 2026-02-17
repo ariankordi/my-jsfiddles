@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>wiimote eeprom</title>
+
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+
+        table, table * {
+            margin: 0;
+            padding: 0;
+            vertical-align: top;
+            font: 1em/1em monospace;
+        }
+
+        .hex-textarea {
+            height: 1.5em;
+            resize: none;
+            width: 100%;
+        }
+
+        .table-padding {
+            padding: 0 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <button onclick="init()">Connect to Wii Remote</button>
+    <br /><br />
+    Connecting a Wii Remote to Windows is tricky, try this video: <a href="https://www.youtube.com/watch?v=J-s9gZJNp8o$0" target="_blank">https://www.youtube.com/watch?v=J-s9gZJNp8o$0</a>
+    <div id="device"></div>
+    <div id="message"></div>
+
+    <h4>hex editor for eeprom contents</h4>
+    <table id="hex-editor-eeprom" border="1">
+        <tr>
+            <td></td>
+            <td><pre class="table-padding"></pre></td>
+        </tr>
+        <tr>
+            <td class="line-numbers" width="80"></td>
+            <td>
+                <textarea spellcheck="false" class="hex-textarea" cols="48"></textarea>
+            </td>
+            <td width="160" class="ascii-output">.</td>
+        </tr>
+    </table>
+
+    <script src="wiimote-eeprom.js"></script>
+
+<script src="script.js"></script>
+</body>
+</html>

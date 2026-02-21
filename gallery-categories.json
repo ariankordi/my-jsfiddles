@@ -2,25 +2,25 @@
   {
     "id": "mii-useful",
     "label": "Mii Tools",
-    "description": "Tools for working with Mii data formats, QR codes, and conversions.",
+    "description": "Various tools for converting and working with Mii data.",
     "obsolete": false
   },
   {
     "id": "misc-useful",
     "label": "Miscellaneous Tools",
-    "description": "Other utilities — struct visualizers, format parsers, etc.",
+    "description": "Other utilities I've made to help with miscellaneous tasks.",
     "obsolete": false
   },
   {
     "id": "mii-useless",
     "label": "Mii Experiments",
-    "description": "Obsolete or one-off Mii tools — superseded by newer work or never finished.",
+    "description": "Obsolete or one-off Mii tools that were superseded by newer tools.",
     "obsolete": true
   },
   {
     "id": "misc-useless",
     "label": "Miscellaneous",
-    "description": "One-time designs, mockups, and experiments.",
+    "description": "Usually one-time mockups and experiments.",
     "obsolete": true
   }
 ]

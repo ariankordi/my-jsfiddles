@@ -64,8 +64,11 @@ async function screenshotFiddle(
   try {
     await page.setViewport(VIEWPORT);
     const fileUrl = `file://${indexPath}`;
-    await page.goto(fileUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
-    // Extra delay for heavy pages (three.js, external CDN scripts).
+    // Use load event; networkidle2 can hang on pages with persistent CDN connections.
+    await page.goto(fileUrl, { waitUntil: 'load', timeout: 60_000 });
+    // Scroll to bottom and back to trigger loading="lazy" images, then wait for them to load.
+    await page.evaluate(() => { window.scrollTo(0, document.body.scrollHeight); window.scrollTo(0, 0); });
+    // Extra delay for heavy pages (three.js, external CDN scripts, ES module imports).
     await new Promise(r => setTimeout(r, EXTRA_DELAY_MS));
 
     const outputPath = path.join(SCREENSHOTS_DIR, `${entry.shortname}.jpg`);
@@ -93,8 +96,9 @@ async function run(): Promise<void> {
 
   fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 
+  const headless = !process.argv.includes('--no-headless');
   const browser = await puppeteer.launch({
-    headless: true,
+    headless,
     // patch to make ES modules actually function in file://
     // because usually they do not. what the flip man!
     args: ['--disable-web-security', '--allow-file-access-from-files']

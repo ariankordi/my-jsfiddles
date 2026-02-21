@@ -1,10 +1,10 @@
 shortname,category,title,description,created
-amiibo-mii-decoder,mii-useful,amiibo to Mii Studio converter (maboii.js browser port),"parses NFPStoreDataExtentionRaw struct within, maboii.js is inlined and included at the bottom",2024-08-18
+mii-amiibo-decoder,mii-useful,amiibo to Mii Studio converter (maboii.js browser port),"parses NFPStoreDataExtentionRaw struct within, maboii.js is inlined and included at the bottom",2024-08-18
 ariankordi-net-mockup-2018,misc-useless,ariankordi.net mockup (2018),originally made 2018-08-05,2024-04-23
 cedar2-logo-mockup-2020,misc-useless,Cedar^2 logo mockup (2020),originally made 2020-09-01,2024-04-23
 display-binary-float-matrix,misc-useful,,,2024-12-25
-effsd-poc-0,mii-useless,,,2024-11-15
-effsd-poc-1,mii-useful,store switch colors in ffsd unused space experiment,,2024-11-23
+mii-effsd-poc-0,mii-useless,,,2024-11-15
+mii-effsd-poc-1,mii-useful,store switch colors in ffsd unused space experiment,,2024-11-23
 ffl-res-parse-toy,mii-useful,ffl resource header parsing using struct-fu sample,,2025-02-12
 glsl-uniform-alignment-visualizer,misc-useful,,,2024-12-21
 ksy-to-struct-fu-poc,misc-useful,parsing kaitai ksy into struct-fu for jo,,2025-08-11

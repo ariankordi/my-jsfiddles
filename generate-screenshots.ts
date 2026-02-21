@@ -9,7 +9,7 @@ const TEST_REPO = path.join(__dirname, 'test-repo');
 const SCREENSHOTS_DIR = path.join(TEST_REPO, 'screenshots');
 const CONCURRENCY = 3;
 const VIEWPORT = { width: 1280, height: 800 };
-const EXTRA_DELAY_MS = 2000;
+const EXTRA_DELAY_MS = 2500;
 
 interface FiddleEntry {
   category: string;
@@ -93,7 +93,12 @@ async function run(): Promise<void> {
 
   fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    // patch to make ES modules actually function in file://
+    // because usually they do not. what the flip man!
+    args: ['--disable-web-security', '--allow-file-access-from-files']
+  });
   try {
     // Process in batches of CONCURRENCY.
     for (let i = 0; i < toProcess.length; i += CONCURRENCY) {

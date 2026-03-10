@@ -11,8 +11,11 @@
 </head>
 <body>
     <form id="miiForm" action="https://mii-unsecure.ariankordi.net/mii_data/">
-        <input type="text" id="nnidInput" name="nnid" placeholder="Enter NNID..." maxlength="16" pattern="[a-zA-Z0-9._-]+">
-        <label for="pretendoToggle">Enable Pretendo</label>
+        <input type="text" id="nnidInput" name="nnid"
+                placeholder="Enter NNID..." maxlength="16"
+                pattern="[a-zA-Z0-9._-]+"
+                value="JasmineChlora">
+        <label for="pretendoToggle">Search Pretendo</label>
         <input type="checkbox" id="pretendoToggle" name="api_id" value="1">
         <button type="submit">Fetch Data</button>
     </form>

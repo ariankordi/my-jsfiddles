@@ -61,7 +61,7 @@ function fetchData(apiUrl) {
 }
 
 function handleFormSubmit(event) {
-  event.preventDefault();
+  event && event.preventDefault();
   if (!nnidInput.checkValidity()) {
     showError("Invalid NNID. Please use up to 16 alphanumeric characters, '.', '_', or '-'.");
     return;
@@ -88,3 +88,5 @@ miiForm.addEventListener('submit', handleFormSubmit);
 randomFetchButton.addEventListener('click', () => {
   fetchData('https://mii-unsecure.ariankordi.net/mii_data_random');
 });
+
+handleFormSubmit();

@@ -229,3 +229,6 @@ function visualizeStruct() {
   container.innerHTML += `<div class="struct-header">Total Size: ${totalSize} bytes</div>`;
 }
 
+window.addEventListener('load', function() {
+    visualizeStruct();
+});

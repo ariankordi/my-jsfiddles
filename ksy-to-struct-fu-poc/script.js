@@ -411,7 +411,7 @@ const ksyText = document.querySelector("[name=ksy-text]");
 const ksyButton = document.querySelector("#ksy-button");
 
 function handleKsyParse(event) {
-  event.preventDefault();
+  event && event.preventDefault();
 
   const text = ksyText.value;
   console.debug("parsing", ksyText.value);
@@ -425,3 +425,5 @@ function handleKsyParse(event) {
 }
 
 ksyButton.addEventListener("click", handleKsyParse);
+
+handleKsyParse();

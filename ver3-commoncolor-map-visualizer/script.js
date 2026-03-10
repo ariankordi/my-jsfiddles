@@ -742,3 +742,14 @@ detailsContainer.appendChild(
 detailsContainer.appendChild(
   createColorDetails("Mouth Colors", mouthcolorTable, ToVer3MouthColorTable),
 )
+
+
+// Auto-expand first category and click its first color for gallery screenshot.
+window.addEventListener('load', function() {
+  const first = document.querySelector('#details-container details');
+  if (first) {
+    first.open = true;
+    const firstColor = first.querySelector('div');
+    firstColor && firstColor.click();
+  }
+});

@@ -112,3 +112,7 @@ function decodeAndDisplay(e) {
         output.textContent = "Error decoding data: " + e.message;
     }
 }
+
+window.addEventListener('load', function() {
+    document.querySelector('form').requestSubmit();
+});

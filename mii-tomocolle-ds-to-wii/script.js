@@ -459,4 +459,6 @@ document.addEventListener('DOMContentLoaded', function () {
     fileInput.addEventListener('change', function () {
         processData(new Event('submit')); // Call the existing function
     });
+
+    form.requestSubmit();
 });

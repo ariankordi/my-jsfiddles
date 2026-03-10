@@ -33,7 +33,7 @@
     <form onsubmit="addToResultListFromFormSubmit(event)">
       <br>
       <div>
-        <input type="text" name="data" id="form-data"  placeholder="your hex/b64 mii data here">
+        <input type="text" name="data" id="form-data" placeholder="your hex/b64 mii data here" value="AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAABvAHMAaQBnAG8AbgBhAGwAAAAAAJA6">
       </div>
       <input type="submit">
     </form>
@@ -823,7 +823,7 @@ var Gen2Wiiu3dsMiitomo = (function() {
     get: function() {
       if (this._m_glassesVertical !== undefined)
         return this._m_glassesVertical;
-      this._m_glassesVertical = ((this.glasses >>> 11) & 15);
+      this._m_glassesVertical = ((this.glasses >>> 11) & 31);
       return this._m_glassesVertical;
     }
   });

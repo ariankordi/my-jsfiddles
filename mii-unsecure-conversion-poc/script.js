@@ -1163,3 +1163,7 @@ function processAndDisplayQR(data) {
   const qrList = document.getElementById('qrList');
   qrList.insertBefore(li, qrList.firstChild); // Add to the top
 }
+
+window.addEventListener('load', function() {
+  document.querySelector('details').open = true;
+});

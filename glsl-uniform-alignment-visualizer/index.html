@@ -278,6 +278,10 @@ uniform MyUniformBlock {
         container.innerHTML += `<div class="block-footer">};</div>`;
         container.innerHTML += `<div class="total-size">Total Size: ${layout.totalSize} bytes</div>`;
     }
+
+    window.addEventListener('load', function() {
+        visualizeUniform();
+    });
 </script>
 
 </body>

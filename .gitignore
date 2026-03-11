@@ -3,6 +3,7 @@ node_modules
 
 # the actual contents
 fiddle_downloads
+fiddle_wget
 history-*.csv
 jsfiddle-*.json
 

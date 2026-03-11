@@ -148,11 +148,13 @@ function modifyHtml(
   return result;
 }
 
-function hasChanges(repoPath: string): boolean {
-  const status = execSync('git status', { cwd: repoPath });
-  const decoder = new TextDecoder();
-  const statusStr = decoder.decode(status);
-  return !statusStr.includes('nothing to commit');
+function hasStagedChanges(repoPath: string): boolean {
+  try {
+    execSync('git diff --cached --quiet', { cwd: repoPath });
+    return false; // exit 0 = nothing staged
+  } catch {
+    return true;  // exit 1 = something staged
+  }
 }
 
 function createCommit(
@@ -185,13 +187,15 @@ function createCommit(
     fs.writeFileSync(path.join(fiddleDir, 'index.html'), html);
   }
 
-  // Check for actual changes.
-  if (!hasChanges(repoPath)) {
-    console.log(`    ⊘ No changes, skipping commit`);
-    return;
-  }
-
   execSync(`git add "${dirName}"`, { cwd: repoPath });
+
+  // NOTE: if we don't make a commit, then next time we check
+  // then this expected commit (description) WILL NOT EXIST
+  // and thus WILL BE RECREATED NEXT TIME which IT SHOULD NOT BE
+  if (!hasStagedChanges(repoPath)) {
+    console.warn(`    ⊘ No changes, making empty commit`);
+    // return;
+  }
 
   // Commit with date.
   const env = {
@@ -201,9 +205,23 @@ function createCommit(
   };
 
   execSync(
-    `git commit -m "${dirName}: revision ${entry.revision}"`,
+    `git commit --allow-empty -m "${dirName}: revision ${entry.revision}"`,
     { cwd: repoPath, env }
   );
+}
+
+function getCommittedRevisions(repoPath: string): Set<string> {
+  const committed = new Set<string>();
+  try {
+    const log = execSync('git log --format=%s', { cwd: repoPath }).toString();
+    for (const line of log.split('\n')) {
+      const match = line.match(/^(.+): revision (\d+)$/);
+      if (match) committed.add(`${match[1]}:${match[2]}`);
+    }
+  } catch {
+    // Empty repo or no commits yet — nothing to skip.
+  }
+  return committed;
 }
 
 function resolveDate(
@@ -280,12 +298,40 @@ async function run(): Promise<void> {
   // Sort all revisions globally by date.
   allRevisions.sort((a, b) => a.date.localeCompare(b.date));
 
-  console.log(`Processing ${allRevisions.length} revisions across ${fiddles.length} fiddles...`);
+  const committed = getCommittedRevisions(gitRepo);
+  const toCommit = allRevisions.filter(
+    r => !committed.has(`${r.shortname}:${r.revision}`)
+  );
 
-  // Ensure we're on main.
-  // execSync('git checkout main', { cwd: gitRepo, stdio: 'pipe' });
+  console.log(
+    `${toCommit.length} revisions to commit, ${allRevisions.length - toCommit.length} already done`
+  );
 
-  for (const entry of allRevisions) {
+  if (toCommit.length === 0) {
+    console.log('Nothing to do.');
+    return;
+  }
+
+  // Warn if any new revision predates HEAD (would need a full rebuild to be in order).
+  try {
+    const headDate = execSync('git log -1 --format=%aI', { cwd: gitRepo })
+      .toString().trim();
+    const outOfOrder = toCommit.filter(r => r.date < headDate);
+    if (outOfOrder.length > 0) {
+      console.warn(
+        `\n⚠ ${outOfOrder.length} revision(s) predate HEAD (${headDate}) and will be appended out of order.`
+      );
+      console.warn('  Run with a clean repo to rebuild history in full date order.');
+      for (const r of outOfOrder) {
+        console.warn(`  ${r.shortname} rev ${r.revision} @ ${r.date}`);
+      }
+      console.warn('');
+    }
+  } catch {
+    // No commits yet, no HEAD to compare against.
+  }
+
+  for (const entry of toCommit) {
     const htmlContent = fs.readFileSync(entry.revisionPath, 'utf8');
 
     let extracted: ExtractedFiddle;

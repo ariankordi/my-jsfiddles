@@ -55,10 +55,16 @@ jq -r ".[] | @json" "$JSON_FILE" | tail -n +$((last_index + 1)) |
     echo "Downloading $url (index $last_index/$total)..."
 
     for rev in $(seq 0 "$latest_version"); do
+      out="$fiddle_dir/$rev.html"
+      if [ -f "$out" ]; then
+        echo "  Revision $rev/$latest_version (already exists, skipping)"
+        continue
+      fi
+
       echo "  Revision $rev/$latest_version"
       url_full="https://$url$rev/"
 
-      if ! curl -v "$url_full" > "$fiddle_dir/$rev.html"; then
+      if ! curl -v "$url_full" > "$out"; then
         echo "Error downloading $url_full"
         exit 1
       fi

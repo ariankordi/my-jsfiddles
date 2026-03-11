@@ -279,6 +279,11 @@ async function run(): Promise<void> {
     const fiddleDir = path.join(FIDDLE_DOWNLOADS, fiddleId);
     const shortname = nameMap[fiddleId] ?? fiddleId;
 
+    if (shortname.startsWith('_')) {
+      console.info(`Skipping underscore-prefixed (ignored?) fiddle: ${shortname}`)
+      continue;
+    }
+
     const revisionFiles = fs
       .readdirSync(fiddleDir)
       .filter(f => f.endsWith('.html'))

@@ -8,6 +8,7 @@ const TEST_REPO = path.join(__dirname, 'test-repo');
 const CSV_PATH = path.join(__dirname, 'gallery-metadata.csv');
 const CATEGORIES_PATH = path.join(__dirname, 'gallery-categories.json');
 const OUTPUT_PATH = path.join(TEST_REPO, 'index.html');
+const SCREENSHOTS_PREFIX = '_screenshots';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,7 +90,7 @@ function discoverFiddles(): string[] {
     const full = path.join(TEST_REPO, d);
     return fs.statSync(full).isDirectory()
       && !d.startsWith('.')
-      && !d.startsWith('DONOTINCLUDE')
+      && !d.startsWith('_')
       && d !== 'screenshots';
   });
 }
@@ -100,7 +101,7 @@ function buildFiddleList(): FiddleInfo[] {
     csvMap.set(row.shortname, row);
   }
 
-  const screenshotsDir = path.join(TEST_REPO, 'screenshots');
+  const screenshotsDir = path.join(TEST_REPO, SCREENSHOTS_PREFIX);
   const fiddles: FiddleInfo[] = [];
 
   for (const shortname of discoverFiddles()) {
@@ -146,7 +147,7 @@ function renderCard(fiddle: FiddleInfo): string {
   return `        <a class="card" href="${h(href)}" data-created="${h(fiddle.created)}">
           <div class="thumb">${
     fiddle.hasScreenshot
-      ? `<img src="screenshots/${h(fiddle.shortname)}.jpg" alt="${h(title)}" loading="lazy">`
+      ? `<img src="${SCREENSHOTS_PREFIX}/${h(fiddle.shortname)}.jpg" alt="${h(title)}" loading="lazy">`
       : `<div class="no-thumb">${h(fiddle.shortname.slice(0, 2).toUpperCase())}</div>`
   }</div>
           <div class="info">

@@ -6,7 +6,7 @@ import puppeteer from 'puppeteer';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const TEST_REPO = path.join(__dirname, 'test-repo');
-const SCREENSHOTS_DIR = path.join(TEST_REPO, 'screenshots');
+const SCREENSHOTS_DIR = path.join(TEST_REPO, '_screenshots');
 const CONCURRENCY = 3;
 const VIEWPORT = { width: 1280, height: 800 };
 const EXTRA_DELAY_MS = 2500;
@@ -21,6 +21,7 @@ function discoverFiddles(): FiddleEntry[] {
       const full = path.join(TEST_REPO, d);
       return fs.statSync(full).isDirectory()
         && !d.startsWith('.')
+        && !d.startsWith('_')
         && d !== 'screenshots';
     })
     .map(shortname => ({ shortname }));

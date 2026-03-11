@@ -18,7 +18,7 @@ bash download-fiddles-from-list.sh jsfiddle-arian_-list.json arian_
 
 4. re-commit
 ```
-bun commit-fiddles3.ts test-repo history-2024-to-2026.csv arian_ fiddle-names.csv
+bun commit-fiddles.ts test-repo history-2024-to-2026.csv arian_ fiddle-names.csv
 ```
 
 if you need to make the test-repo fresh:

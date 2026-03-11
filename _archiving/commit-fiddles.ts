@@ -27,7 +27,7 @@ const FIDDLE_DOWNLOADS = 'fiddle-downloads';
 
 if (process.argv.length < 5) {
   console.error(
-    'Usage: npx ts-node commit-fiddles3.ts <git-repo> <csv-file> <username> [names-csv]'
+    'Usage: npx ts-node commit-fiddles.ts <git-repo> <csv-file> <username> [names-csv]'
   );
   console.error('  <git-repo>   Path to git repository');
   console.error('  <csv-file>   Path to merged history CSV');

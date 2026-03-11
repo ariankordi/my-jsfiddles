@@ -386,6 +386,7 @@ function generateHtml(categories: Category[], fiddles: FiddleInfo[]): string {
 <body>
   <header>
     <h1>arian_'s JSFiddle archive</h1>
+    <div>Originally hosted at jsfiddle.net: <a target="_blank" href="https://jsfiddle.net/u/arian_/fiddles/">https://jsfiddle.net/u/arian_/fiddles/</a></div>
   </header>
 
   <div class="controls">

@@ -32,4 +32,4 @@ threejs-mii-shader,mii-useful,render mii and shader with mii-unsecure glTF and t
 ver3-commoncolor-map-visualizer,mii-useful,,,2024-11-23
 xor-decoder-for-miitomo-java-obfs,misc-useless,,,2024-08-26
 zendesk-uploader-2020,misc-useless,zendesk/consumercomplaints.fcc.gov uploader (2020),"originally made 2020-04-24?/26",2024-04-23
-mii-wiimote-eeprom-reader,mii-useful,wii remote eeprom reader from July 2025, still in WIP state,,2026-02-17
+mii-wiimote-eeprom-reader,mii-useful,wii remote eeprom reader from July 2025,still in WIP state,2026-02-17

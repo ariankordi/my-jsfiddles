@@ -31,4 +31,4 @@ mkdir test-repo && cd test-repo/ && git init . && cd ../
 bun generate-screenshots.ts && bun generate-gallery.ts
 ```
 
-6. fuck
+6. uhh

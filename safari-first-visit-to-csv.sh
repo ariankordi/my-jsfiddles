@@ -23,18 +23,24 @@ SEARCH_PATTERN="$2"
 OUTPUT_FILE="${3:-history.csv}"
 
 sqlite3 "$DB_PATH" -csv \
-  "SELECT
-     strftime(
-       '%Y-%m-%dT%H:%M:%SZ',
-       MIN(v.visit_time) + 978307200,
-       'unixepoch'
-     ) AS date,
-     i.url
-   FROM history_items i
-   JOIN history_visits v ON i.id = v.history_item
-   WHERE i.url LIKE '%$SEARCH_PATTERN%'
-   GROUP BY i.url
-   ORDER BY MIN(v.visit_time) ASC;" \
+  "WITH clean AS (
+     SELECT
+       CASE
+         WHEN instr(i.url, '?') > 0 THEN substr(i.url, 1, instr(i.url, '?') - 1)
+         WHEN instr(i.url, '#') > 0 THEN substr(i.url, 1, instr(i.url, '#') - 1)
+         ELSE i.url
+       END AS url,
+       v.visit_time
+     FROM history_items i
+     JOIN history_visits v ON i.id = v.history_item
+     WHERE i.url LIKE '%$SEARCH_PATTERN%'
+   )
+   SELECT
+     strftime('%Y-%m-%dT%H:%M:%SZ', MIN(visit_time) + 978307200, 'unixepoch') AS date,
+     url
+   FROM clean
+   GROUP BY url
+   ORDER BY MIN(visit_time) ASC;" \
   > "$OUTPUT_FILE"
 
 echo "Extracted to $OUTPUT_FILE"

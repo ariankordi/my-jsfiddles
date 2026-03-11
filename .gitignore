@@ -1,7 +1,9 @@
-test-repo
+test-repo*
 node_modules
 
 # the actual contents
 fiddle_downloads
 history-*.csv
 jsfiddle-*.json
+
+safari history old/*

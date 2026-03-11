@@ -22,13 +22,20 @@ function parseCSV(filePath: string): HistoryEntry[] {
     });
 }
 
+function normalizeUrl(url: string): string {
+  let clean = url.split(/[?#]/)[0];
+  if (!clean.endsWith('/')) clean += '/';
+  return clean;
+}
+
 function mergeAndDedup(entries: HistoryEntry[]): HistoryEntry[] {
   const urlMap = new Map<string, string>();
 
   for (const entry of entries) {
-    const existing = urlMap.get(entry.url);
+    const key = normalizeUrl(entry.url);
+    const existing = urlMap.get(key);
     if (!existing || entry.date < existing) {
-      urlMap.set(entry.url, entry.date);
+      urlMap.set(key, entry.date);
     }
   }
 
@@ -46,20 +53,21 @@ function writeCSV(filePath: string, entries: HistoryEntry[]): void {
 async function run(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.length < 3) {
-    console.error('Usage: npx ts-node merge-history.ts <csv1> <csv2> <output>');
+    console.error('Usage: npx tsx merge-history.ts <csv1> [csv2 ...] <output>');
     process.exit(1);
   }
 
-  const [csv1, csv2, output] = args;
+  const inputs = args.slice(0, -1);
+  const output = args[args.length - 1];
 
-  console.log(`Reading ${csv1}...`);
-  const entries1 = parseCSV(csv1);
-
-  console.log(`Reading ${csv2}...`);
-  const entries2 = parseCSV(csv2);
+  const allEntries: HistoryEntry[] = [];
+  for (const input of inputs) {
+    console.log(`Reading ${input}...`);
+    allEntries.push(...parseCSV(input));
+  }
 
   console.log(`Merging and deduplicating...`);
-  const merged = mergeAndDedup([...entries1, ...entries2]);
+  const merged = mergeAndDedup(allEntries);
 
   console.log(`Writing ${output}...`);
   writeCSV(output, merged);
@@ -67,4 +75,7 @@ async function run(): Promise<void> {
   console.log(`Done! Merged ${merged.length} unique URLs.`);
 }
 
-await run();
+run().catch(error => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});

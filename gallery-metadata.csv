@@ -8,7 +8,7 @@ mii-effsd-poc-1,mii-useful,store switch colors in ffsd unused space experiment,,
 ffl-res-parse-toy,mii-useful,ffl resource header parsing using struct-fu sample,,2025-02-12
 glsl-uniform-alignment-visualizer,misc-useful,,,2024-12-21
 ksy-to-struct-fu-poc,misc-useful,parsing kaitai ksy into struct-fu for jo,,2025-08-11
-mii-color-tables-studio,mii-useful,mii colors extracted from mii studio js,ripped straight from its JS. includes the switch common colors.......,2025-02-11
+mii-color-tables-studio,mii-useful,mii colors extracted from mii studio js,ripped straight from its JS. includes the switch common colors.......,2024-06-24
 mii-db-ffl-cfl-parser,mii-useful,terrible ffl_odb.dat reader for david,,2024-12-11
 mii-ffsd-struct-fu,mii-useful,,,2025-02-01
 mii-id-ffsd-to-date,mii-useful,,,2025-01-04

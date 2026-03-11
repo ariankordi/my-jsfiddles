@@ -12,37 +12,25 @@ const VIEWPORT = { width: 1280, height: 800 };
 const EXTRA_DELAY_MS = 2500;
 
 interface FiddleEntry {
-  category: string;
   shortname: string;
 }
 
 function discoverFiddles(): FiddleEntry[] {
-  const entries: FiddleEntry[] = [];
-  const categories = fs.readdirSync(TEST_REPO).filter(d => {
-    const full = path.join(TEST_REPO, d);
-    return fs.statSync(full).isDirectory()
-      && !d.startsWith('.')
-      && !d.startsWith('DONOTINCLUDE');
-  });
-
-  for (const category of categories) {
-    const catPath = path.join(TEST_REPO, category);
-    const fiddles = fs.readdirSync(catPath).filter(d =>
-      fs.statSync(path.join(catPath, d)).isDirectory()
-    );
-    for (const shortname of fiddles) {
-      entries.push({ category, shortname });
-    }
-  }
-
-  return entries;
+  return fs.readdirSync(TEST_REPO)
+    .filter(d => {
+      const full = path.join(TEST_REPO, d);
+      return fs.statSync(full).isDirectory()
+        && !d.startsWith('.')
+        && d !== 'screenshots';
+    })
+    .map(shortname => ({ shortname }));
 }
 
 function shouldSkip(entry: FiddleEntry): boolean {
   const screenshotPath = path.join(SCREENSHOTS_DIR, `${entry.shortname}.jpg`);
   if (!fs.existsSync(screenshotPath)) return false;
 
-  const indexPath = path.join(TEST_REPO, entry.category, entry.shortname, 'index.html');
+  const indexPath = path.join(TEST_REPO, entry.shortname, 'index.html');
   if (!fs.existsSync(indexPath)) return true;
 
   const screenshotMtime = fs.statSync(screenshotPath).mtimeMs;
@@ -54,7 +42,7 @@ async function screenshotFiddle(
   browser: puppeteer.Browser,
   entry: FiddleEntry
 ): Promise<void> {
-  const indexPath = path.join(TEST_REPO, entry.category, entry.shortname, 'index.html');
+  const indexPath = path.join(TEST_REPO, entry.shortname, 'index.html');
   if (!fs.existsSync(indexPath)) {
     console.warn(`  ⚠ ${entry.shortname}: no index.html, skipping`);
     return;

@@ -84,26 +84,14 @@ function parseCsv(csvPath: string): CsvRow[] {
   return rows;
 }
 
-function discoverFiddles(): Array<{ category: string; shortname: string }> {
-  const entries: Array<{ category: string; shortname: string }> = [];
-  const items = fs.readdirSync(TEST_REPO).filter(d => {
+function discoverFiddles(): string[] {
+  return fs.readdirSync(TEST_REPO).filter(d => {
     const full = path.join(TEST_REPO, d);
     return fs.statSync(full).isDirectory()
       && !d.startsWith('.')
       && !d.startsWith('DONOTINCLUDE')
       && d !== 'screenshots';
   });
-
-  for (const category of items) {
-    const catPath = path.join(TEST_REPO, category);
-    const fiddles = fs.readdirSync(catPath).filter(d =>
-      fs.statSync(path.join(catPath, d)).isDirectory()
-    );
-    for (const shortname of fiddles) {
-      entries.push({ category, shortname });
-    }
-  }
-  return entries;
 }
 
 function buildFiddleList(): FiddleInfo[] {
@@ -115,11 +103,11 @@ function buildFiddleList(): FiddleInfo[] {
   const screenshotsDir = path.join(TEST_REPO, 'screenshots');
   const fiddles: FiddleInfo[] = [];
 
-  for (const { category, shortname } of discoverFiddles()) {
+  for (const shortname of discoverFiddles()) {
     const csv = csvMap.get(shortname);
     fiddles.push({
       shortname,
-      category: csv?.category || category,
+      category: csv?.category || 'uncategorized',
       title: csv?.title || '',
       description: csv?.description || '',
       created: csv?.created || '',
@@ -152,7 +140,7 @@ function renderCard(fiddle: FiddleInfo): string {
   const desc = fiddle.description.length > 150
     ? fiddle.description.slice(0, 147) + '...'
     : fiddle.description;
-  const href = `${fiddle.category}/${fiddle.shortname}/index.html`;
+  const href = `${fiddle.shortname}/index.html`;
   const dateStr = formatDate(fiddle.created);
 
   return `        <a class="card" href="${h(href)}" data-created="${h(fiddle.created)}">

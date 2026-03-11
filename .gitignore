@@ -2,8 +2,8 @@ test-repo*
 node_modules
 
 # the actual contents
-fiddle_downloads
-fiddle_wget
+fiddle-wget
+fiddle-downloads
 history-*.csv
 jsfiddle-*.json
 

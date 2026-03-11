@@ -7,7 +7,7 @@
 #set -euo pipefail
 
 JSFIDDLE_HOST="jsfiddle.net"
-OUTPUT_DIR="fiddle_downloads"
+OUTPUT_DIR="fiddle-wget"
 PROGRESS_FILE="download_progress.json"
 
 if [ $# -lt 2 ]; then

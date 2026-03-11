@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { extractFiddleContent } from "./extract-jsfiddle";
 
-const testFile = process.argv[2] || "fiddle_downloads/za32o6dc/0.html";
+const testFile = process.argv[2] || "fiddle-downloads/za32o6dc/0.html";
 const html = fs.readFileSync(testFile, "utf8");
 
 try {

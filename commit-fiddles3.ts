@@ -23,7 +23,7 @@ interface RevisionEntry {
 }
 
 const JSFIDDLE_HOST = 'jsfiddle.net';
-const FIDDLE_DOWNLOADS = 'fiddle_downloads';
+const FIDDLE_DOWNLOADS = 'fiddle-downloads';
 
 if (process.argv.length < 5) {
   console.error(

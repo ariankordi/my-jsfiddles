@@ -1,0 +1,35 @@
+shortname,category,title,description,created
+mii-amiibo-decoder,mii-useful,amiibo to Mii Studio converter (maboii.js browser port),"parses NFPStoreDataExtentionRaw struct within, maboii.js is inlined and included at the bottom",2024-08-18
+ariankordi-net-mockup-2018,misc-useless,ariankordi.net mockup (2018),originally made 2018-08-05,2024-04-23
+cedar2-logo-mockup-2020,misc-useless,Cedar^2 logo mockup (2020),originally made 2020-09-01,2024-04-23
+display-binary-float-matrix,misc-useful,,,2024-12-25
+mii-effsd-poc-0,mii-useless,,,2024-11-15
+mii-effsd-poc-1,mii-useful,store switch colors in ffsd unused space experiment,,2024-11-23
+ffl-res-parse-toy,mii-useful,ffl resource header parsing using struct-fu sample,,2025-02-12
+glsl-uniform-alignment-visualizer,misc-useful,,,2024-12-21
+ksy-to-struct-fu-poc,misc-useful,parsing kaitai ksy into struct-fu for jo,,2025-08-11
+mii-color-tables-studio,mii-useful,mii colors extracted from mii studio js,ripped straight from its JS. includes the switch common colors.......,2024-06-24
+mii-db-ffl-cfl-parser,mii-useful,terrible ffl_odb.dat reader for david,,2024-12-11
+mii-ffsd-struct-fu,mii-useful,,,2025-02-01
+mii-id-ffsd-to-date,mii-useful,,,2025-01-04
+mii-qr-encoder,mii-useless,Mii to QR Code converter,"using sjcl and qrjs, should be much more lightweight than the asmcrypto + qrcode.js combination everyone else uses",2024-04-23
+mii-qr-scanner,mii-useless,Mii QR Code scanner,"using sjcl + qr-scanner, although it is a fork that allows binary data. beware it uses a private method of sjcl due to difficulties I experienced with the library.",2024-04-23
+mii-tomo-dachi-topia-qr-tool,mii-useful,miitomo tomodachi miitopia qr decrypt experiment,,2024-09-08
+mii-tomocolle-ds-to-wii,mii-useful,,,2025-01-16
+mii-unsecure-conversion-poc,mii-useless,wip potential mii2studio integration with mii-unsecure,"started writing BY HAND too, separated the part that wasn't",2024-08-09
+mii-unsecure-mockup-feb-2024,mii-useless,,,2024-04-23
+mii-unsecure-nnid-studio-display,mii-useful,,,2024-05-15
+mii2studio-js-tool,mii-useful,mii2studio in js ai slop attempt 1,only wii (RFLCharData) and 3ds/wii u store data are supported,2024-08-07
+miitomo-mii-data-decoder,mii-useful,,,2024-12-26
+miiverse-ban-kys-fade-dream,misc-useless,this appeared in my dream (2023),originally made 2023-08-02,2024-04-23
+neet-host-mockup-2019,misc-useless,neet.host uploader mockup (2019),originally made 2019-01-14,2024-04-23
+nnid-password-hasher,misc-useful,NNID password hasher (2023),originally made 2023-12-14,2024-04-23
+old-mii2studio-attempt-2019,mii-useless,NNID Mii to Mii Studio format converter (2018),originally made 2018-12-10,2024-04-23
+struct-alignment-visualizer,misc-useful,,,2024-09-22
+studio2mii,mii-useless,Mii Studio URL to Base64 Mii data converter,"Decodes a Mii Studio URL to plain studio data, then encodes to 3DS/Wii U/FFLStoreData from the Kaitai struct.",2024-04-29
+threejs-mii-accurate-body-scaling,mii-useful,"Mii body, accurate scaling, shaders, shadow, head from glTF",,2025-09-20
+threejs-mii-shader,mii-useful,render mii and shader with mii-unsecure glTF and three.js,,2024-10-01
+ver3-commoncolor-map-visualizer,mii-useful,,,2024-11-23
+xor-decoder-for-miitomo-java-obfs,misc-useless,,,2024-08-26
+zendesk-uploader-2020,misc-useless,zendesk/consumercomplaints.fcc.gov uploader (2020),"originally made 2020-04-24?/26",2024-04-23
+mii-wiimote-eeprom-reader,mii-useful,wii remote eeprom reader from July 2025,still in WIP state,2026-02-17

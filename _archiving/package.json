@@ -1,0 +1,12 @@
+{
+  "devDependencies": {
+    "@types/node": "^25.1.0",
+    "html-entities": "^2.6.0",
+    "puppeteer": "^24.0.0"
+  },
+  "scripts": {
+    "gallery:screenshots": "npx tsx generate-screenshots.ts",
+    "gallery:html": "npx tsx generate-gallery.ts",
+    "gallery": "npm run gallery:screenshots && npm run gallery:html"
+  }
+}

@@ -1,0 +1,10 @@
+test-repo*
+node_modules
+
+# the actual contents
+fiddle-wget
+fiddle-downloads
+history-*.csv
+jsfiddle-*.json
+
+safari history old/*

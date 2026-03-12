@@ -17,6 +17,7 @@ bash download-fiddles-from-list.sh jsfiddle-arian_-list.json arian_
     - potentially merge: `bun merge-history.ts history-asof-2025-03.csv history-asof-2026-01.csv history-asof-2026-03-10.csv history-2024-to-2026.csv`
 
 4. re-commit
+this is the first ts tool so make sure to install packages
 ```
 bun commit-fiddles.ts test-repo history-2024-to-2026.csv arian_ fiddle-names.csv
 ```

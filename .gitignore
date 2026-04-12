@@ -1,5 +1,7 @@
 test-repo*
 node_modules
+# this is an npm family.
+bun.lock
 
 # the actual contents
 fiddle-wget

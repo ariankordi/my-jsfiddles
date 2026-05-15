@@ -214,19 +214,20 @@ function createCommit(
 function getCommittedRevisions(repoPath: string): Set<string> {
   const committed = new Set<string>();
   try {
-    // Use NUL-delimited format to get subject + trailers in one pass.
-    // Format per commit: <subject> NUL <Fiddle-Id trailer or empty> NUL <Fiddle-Revision trailer or empty> NUL
+    // One line per commit: subject NUL Fiddle-Id NUL Fiddle-Revision.
+    // No trailing NUL — git's line terminator would otherwise merge into the
+    // next entry if we split on NUL first.
+    // Single-quoted format prevents the shell from misreading %(trailers:...).
+    // Tab (%x09) as field separator — safe since fiddle IDs and revisions never contain tabs.
     const log = execSync(
-      'git log --format=%s%x00%(trailers:key=Fiddle-Id,valueonly,separator=)%x00%(trailers:key=Fiddle-Revision,valueonly,separator=)%x00',
+      "git log '--format=%s%x09%(trailers:key=Fiddle-Id,valueonly,separator=)%x09%(trailers:key=Fiddle-Revision,valueonly,separator=)'",
       { cwd: repoPath }
     ).toString();
 
-    const entries = log.split('\0').map(s => s.trim());
-    // Entries come in groups of 3: subject, fiddleId, fiddleRevision.
-    for (let i = 0; i + 2 < entries.length; i += 3) {
-      const subject = entries[i];
-      const fiddleId = entries[i + 1];
-      const fiddleRevision = entries[i + 2];
+    for (const line of log.split('\n')) {
+      const parts = line.split('\t');
+      if (parts.length < 3) continue;
+      const [subject, fiddleId, fiddleRevision] = parts;
 
       if (fiddleId && fiddleRevision) {
         committed.add(`${fiddleId}:${fiddleRevision}`);

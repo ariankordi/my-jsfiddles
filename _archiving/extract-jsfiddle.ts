@@ -24,8 +24,7 @@ function extractTextareaContent(
 }
 
 function detectEsModule(jsCode: string): boolean {
-  const importRegex = /^\s*import\s+/m;
-  return importRegex.test(jsCode);
+  return /^\s*import\s+/m.test(jsCode) || /^\s*export\s+/m.test(jsCode);
 }
 
 export function extractFiddleContent(

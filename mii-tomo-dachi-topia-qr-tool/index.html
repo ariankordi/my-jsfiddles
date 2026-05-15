@@ -12,7 +12,6 @@
       }
     }
   </script>
-  <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="style.css">
 </head>
   <body>
@@ -163,14 +162,12 @@
                 <input id="qr-modify-storedata" name="qr-modify-storedata" type="checkbox" checked>
                 <label for="qr-modify-storedata">modify data when making qr code, to fix scan 3ds and enable copying</label>
             </li>
-            <!--
             <li>
             	<input id="qr-enable-logo" name="qr-enable-logo" type="checkbox" checked>
                 <label for="qr-enable-logo">show mii logo on qr code</label>
                 <ul><li>this will not show on miitomo/tomodachi life/miitopia, etc. qr codes</li>
                     <li>disabling this may slightly improve scanning</li></ul>
             </li>
-            -->
 
         </ul>
     </form>
@@ -229,6 +226,9 @@
         });
       })();
     </script>
+
+    <!-- preload font with this element, w/o this the font will just not appear Thanks -->
+    <div style="font-family: nintendo_NTLG; font-size: 3px;">.</div>
 <script type="module" src="script.js"></script>
 </body>
 </html>

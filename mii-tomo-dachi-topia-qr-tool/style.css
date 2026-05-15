@@ -2,6 +2,11 @@ body {
   font-family: sans-serif;
 }
 
+@font-face {
+    font-family: nintendo_NTLG;
+    src: url(nintendo_NTLG.woff2);
+}
+
 .tab-content {
   display: none;
 }
@@ -41,6 +46,6 @@ table, table * {
 .ascii-output {
   overflow: hidden;
 }
-#extra-data-warning {
+.warning {
     color: red;
 }

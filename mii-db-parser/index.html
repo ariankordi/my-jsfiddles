@@ -38,8 +38,8 @@ async function loadEmbeddedDB() {
   }
 
   var array = getCharDataArrayFromDatabase(out);
-  displayCharDataArray(array);
+  displayCharDataArray(array, document.getElementById('miiList'));
 }
 
 window.addEventListener('load', function() { loadEmbeddedDB(); });
-</script><script src="script.js"></script>
+</script><script type="module" src="script.js"></script>

@@ -204,8 +204,9 @@ function createCommit(
     GIT_COMMITTER_DATE: entry.date
   };
 
+  const commitMsg = `${dirName}: revision ${entry.revision}\n\nFiddle-Id: ${entry.fiddleId}\nFiddle-Revision: ${entry.revision}`;
   execSync(
-    `git commit --allow-empty -m "${dirName}: revision ${entry.revision}"`,
+    `git commit --allow-empty -m "${commitMsg}"`,
     { cwd: repoPath, env }
   );
 }
@@ -213,10 +214,28 @@ function createCommit(
 function getCommittedRevisions(repoPath: string): Set<string> {
   const committed = new Set<string>();
   try {
-    const log = execSync('git log --format=%s', { cwd: repoPath }).toString();
-    for (const line of log.split('\n')) {
-      const match = line.match(/^(.+): revision (\d+)$/);
-      if (match) committed.add(`${match[1]}:${match[2]}`);
+    // Use NUL-delimited format to get subject + trailers in one pass.
+    // Format per commit: <subject> NUL <Fiddle-Id trailer or empty> NUL <Fiddle-Revision trailer or empty> NUL
+    const log = execSync(
+      'git log --format=%s%x00%(trailers:key=Fiddle-Id,valueonly,separator=)%x00%(trailers:key=Fiddle-Revision,valueonly,separator=)%x00',
+      { cwd: repoPath }
+    ).toString();
+
+    const entries = log.split('\0').map(s => s.trim());
+    // Entries come in groups of 3: subject, fiddleId, fiddleRevision.
+    for (let i = 0; i + 2 < entries.length; i += 3) {
+      const subject = entries[i];
+      const fiddleId = entries[i + 1];
+      const fiddleRevision = entries[i + 2];
+
+      if (fiddleId && fiddleRevision) {
+        committed.add(`${fiddleId}:${fiddleRevision}`);
+        continue;
+      }
+
+      // Legacy fallback for commits predating trailers.
+      const subjectMatch = subject.match(/^(.+): revision (\d+)$/);
+      if (subjectMatch) committed.add(`${subjectMatch[1]}:${subjectMatch[2]}`);
     }
   } catch {
     // Empty repo or no commits yet — nothing to skip.
@@ -305,7 +324,7 @@ async function run(): Promise<void> {
 
   const committed = getCommittedRevisions(gitRepo);
   const toCommit = allRevisions.filter(
-    r => !committed.has(`${r.shortname}:${r.revision}`)
+    r => !committed.has(`${r.fiddleId}:${r.revision}`)
   );
 
   console.log(

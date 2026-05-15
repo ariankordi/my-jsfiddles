@@ -1,11 +1,10 @@
-<h3>parser for CFL_DB.dat (3DS), FFL_ODB.dat (Wii U) mii databases</h3>
+<h3 style="margin: 5px 0 5px 0">simple display for mii databases</h3>
+<div>supported: RFL_DB.dat (Wii, no Parade), CFL_DB.dat (3DS), FFL_ODB.dat (Wii U), MiiDatabase.dat (Switch)</div>
 <input type="file" id="fileInput" accept=".dat" />
 <h2>Data List:</h2>
 <ul id="miiList">
     <!-- Mii images with Base64 strings will be appended here -->
 </ul>
-
-<script src="cfl-ffl-db-reader.js"></script>
 
 <script>
 // embedded version of chayton's gzipped FFL_ODB.dat
@@ -38,8 +37,8 @@ async function loadEmbeddedDB() {
     offset += chunks[i].length;
   }
 
-  var array = getStoreDataArrayFromDB(out.buffer);
-  displayStoreDataArray(array);
+  var array = getCharDataArrayFromDatabase(out);
+  displayCharDataArray(array);
 }
 
 window.addEventListener('load', function() { loadEmbeddedDB(); });

@@ -1,58 +1,47 @@
+'use strict';
 // @ts-check
 
 /* eslint @stylistic/indent: ['error', 2] -- Define indent rules. */
-/* eslint no-var: "off", prefer-const: 'off', -- Configure for ES5 environment. */
 
+/* eslint unicorn/prefer-module: 'off' -- Do not care. */
 /* eslint class-methods-use-this: 'off' -- Intentional. */
 /* eslint unicorn/prefer-dom-node-append: 'off' -- Incompatible with ES5 browsers.  */
 /* eslint unicorn/prefer-blob-reading-methods: 'off' -- Incompatible with ES5 browsers. */
 /* eslint unicorn/prefer-add-event-listener: 'off' -- Not sure */
 
-// read the bottom of the file for official CFL structs!
-var CFL_DB_IDENTIFIER = 'CFOG';
-var FFL_ODB_IDENTIFIER = 'FFOC';
+function swap16All(/** @type {Uint8Array} */ data,
+  /** @type {number} */ offset, /** @type {number} */ count = 1) {
+  for (let i = 0; i < count; i++) {
+    const idx = i * 2;
+    const b0 = data[offset + idx];
+    const b1 = data[offset + idx + 1];
+    data[offset + idx] = b1;
+    data[offset + idx + 1] = b0;
+  }
+}
 
-/** Starting offset of the name in FFLiMiiDataCore/Ver3StoreData. */
-var NAME_OFFSET = 0x1A;
-/** Length for Mii names as UTF-16 characters. */
-var MAX_NAME_LENGTH = 10;
-
-function swap16(/** @type {Uint8Array} */ data, /** @type {number} */ offset) {
+function swap32(/** @type {Uint8Array} */ data, /** @type {number} */ offset) {
   const b0 = data[offset];
   const b1 = data[offset + 1];
-  data[offset] = b1;
-  data[offset + 1] = b0;
-}
-function swap32(/** @type {Uint8Array} */ data, /** @type {number} */ offset) {
-  var b0 = data[offset];
-  var b1 = data[offset + 1];
-  var b2 = data[offset + 2];
-  var b3 = data[offset + 3];
+  const b2 = data[offset + 2];
+  const b3 = data[offset + 3];
   data[offset] = b3;
   data[offset + 1] = b2;
   data[offset + 2] = b1;
   data[offset + 3] = b0;
 }
 
-/**
- * Perform endian swapping on FFLiMiiDataOfficial.
- * @param {Uint8Array} data - The 92-byte FFLiMiiDataOfficial data.
- */
-function swapFFLiMiiDataOfficial(data) {
+function swapEndianVer3MiiData(/** @type {Uint8Array} */ data,
+  /** @type {boolean} */ hasCreator) {
   // Reference: https://github.com/aboood40091/ffl/blob/73fe9fc70c0f96ebea373122e50f6d3acc443180/src/FFLiMiiDataCore.cpp#L6-L14
   swap32(data, 0);
   // authorID (8) + createID (10) + reserved (2) = 20 byte skip
-  var i;
-  for (i = 0; i < 22; i += 2) {
-    // gender, birthDate, favoriteColor, name
-    swap16(data, 24 + i);
-  }
+  // gender, birthDate, favoriteColor, name
+  swap16All(data, 24, 11);
   // reserved (2) + (11 * 2) = 24 byte skip
-  for (i = 0; i < 24; i += 2) {
-    swap16(data, 48 + i); // uh
-  }
-  for (i = 0; i < 20; i += 2) {
-    swap16(data, 72 + i); // creatorName
+  swap16All(data, 48, 12); // uh
+  if (hasCreator) { // not for core data
+    swap16All(data, 72, 10); // creatorName
   }
 }
 
@@ -64,19 +53,18 @@ function swapFFLiMiiDataOfficial(data) {
  * @returns {number} The calculated CRC-16/CCITT checksum as a number.
  */
 function crc16(input, length) {
-  /** Starting CRC value. */
-  var crc = 0x0000;
+  /** Starting CRC value. */ const crc = 0;
 
   /** The most significant byte (MSB) from the initial CRC. Obtained by shifting right 8 bits. */
-  var msb = crc >> 8;
+  let msb = crc >> 8;
   /** The least significant byte (LSB) from the initial CRC. Mask with 0xFF to get only the lower 8 bits. */
-  var lsb = crc & 0xFF;
+  let lsb = crc & 0xFF;
 
   // Process each byte in the input.
-  for (var i = 0; i < length; i++) {
+  for (let i = 0; i < length; i++) {
     // XOR the byte value with the current MSB.
     // This step introduces the data into the checksum calculation.
-    var x = input[i] ^ msb;
+    let x = input[i] ^ msb;
     // Combine bits within x to further scramble the bits.
     x ^= (x >> 4); // XOR with its right-shifted value by 4 bits.
 
@@ -98,18 +86,13 @@ function crc16(input, length) {
   return (msb << 8) | lsb;
 }
 
-/**
- * Converts and optionally swaps FFLiMiiDataOfficial data to StoreData.
- * Adds a CRC-16/CCITT/XMODEM using {@link crc16}.
- * @param {Uint8Array} dst - Destination buffer for StoreData. Must be 96 bytes.
- * @param {Uint8Array} src - The source FFLiMiiDataOfficial data.
- */
-function convOfficialToStore(dst, src) {
+function ver3OfficialToStore(/** @type {Uint8Array} */ dst, /** @type {Uint8Array} */ src) {
+  console.assert(dst.length === 96, 'expected destination array to be Ver3StoreData length');
   dst.set(src);
-
-  var crc = crc16(dst, 94);
-  var dv = new DataView(dst.buffer);
+  const crc = crc16(dst, 94);
+  const dv = new DataView(dst.buffer);
   dv.setUint16(94, crc, false);
+  return dst;
 }
 
 /**
@@ -118,43 +101,51 @@ function convOfficialToStore(dst, src) {
  * @returns {string} The Base64 encoded string.
  */
 function bytesToBase64(bytes) {
-  var binary = '';
-  for (var i = 0; i < bytes.length; i++) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
 }
 
-/**
- * Convert a UTF-16 encoded name to a string.
- * @param {Uint8Array} data - The byte array containing the UTF-16 name.
- * @param {number} offset - The offset where the name starts.
- * @param {number} maxLength - The maximum length of the name in characters.
- * @returns {string} The decoded UTF-16 name as a string.
- */
-function decodeUtf16Le(data, offset, maxLength) {
-  var name = '';
-  for (var i = 0; i < maxLength; i++) {
-    var charCode = (data[offset + 1] << 8) | data[offset];
-
-    // Stop if null terminator is encountered
-    if (charCode === 0) {
-      break;
-    }
-
-    name += String.fromCharCode(charCode);
-    offset += 2;
+/** Convert a wide string (UTF-16) to a string. */
+function decodeChar16(/** @type {Uint8Array} */ data, /** @type {number} */ offset,
+  /** @type {number} */ length, /** @type {boolean} */ le = true) {
+  // const data16 = new Uint16Array(data.buffer, data.byteOffset, data.byteLength).subarray(offset / 2);
+  const view = new DataView(data.buffer, data.byteOffset + offset, length * 2);
+  let name = '';
+  let char;
+  for (let i = 0; i < length &&
+    (char = view.getUint16(i * 2, le)) !== 0; i++) {
+    name += String.fromCharCode(char);
   }
   return name;
 }
 
 function areAllZeros(/** @type {ArrayLike<number>} */ arr) {
-  for (var i = 0; i < arr.length; i++) {
+  for (let i = 0; i < arr.length; i++) {
     if (arr[i] !== 0) {
       return false;
     }
   }
   return true;
+}
+
+function nameFromCharData(/** @type {Uint8Array} */ data, /** @type {number} */ size) {
+  switch (size) {
+    case 76:
+    case 74: // RFLCharData
+      return decodeChar16(data, 2, 10, /* littleEndian= */ false);
+    case 72:
+    case 96:
+    case 92: // FFLiMiiDataOfficial
+      return decodeChar16(data, 0x1A, 10, /* littleEndian= */ true);
+    case 48:
+    case 68: // nn::mii::detail::StoreDataRaw
+      return decodeChar16(data, 28, 10, /* littleEndian= */ true);
+    default:
+      throw new Error('unexpected character data length');
+  }
 }
 
 /**
@@ -289,10 +280,94 @@ class MiiDatabaseOfficialRfl {
   }
 }
 
+class MiiDatabaseNx {
+  static getFileSize() {
+    return 6808;
+  }
+
+  static getDataSize() {
+    return 68;
+  }
+
+  static getDataNum() {
+    return 100;
+  }
+
+  static isLittleEndian() {
+    return true;
+  }
+
+  /** gets the index of the character data */
+  static getOffset(/** @type {number} */ index) {
+    return 4 + (index * 68);
+  }
+
+  /** gets the character data entry at the index */
+  static getCharData(/** @type {Uint8Array} */ data, /** @type {number} */ index) {
+    const begin = MiiDatabaseNx.getOffset(index);
+    const end = MiiDatabaseNx.getOffset(index + 1);
+    const charData = data.subarray(begin, end);
+    return charData;
+  }
+
+  /** checks if the character data entry is empty/invalid */
+  static isDataEmpty(/** @type {Uint8Array} */ data) {
+    const createId = data.subarray(0x30, 0x40);
+    return areAllZeros(createId);
+  }
+}
+
 class MiiDatabaseAccessor {
   constructor(/** @type {MiiDatabaseOfficial} */ db, /** @type {Uint8Array} */ dataArray) {
     /** @private */ this._db = db;
     /** @private */ this._dataArray = dataArray;
+
+    if (dataArray.length !== db.getFileSize()) {
+      throw new Error('MiiDatabaseAccessor.construct: wrong file size');
+    }
+  }
+
+  /**
+   * determines type of database file
+   * @param {Uint8Array} bytes - database file contents
+   * @returns {MiiDatabaseOfficial} database header class
+   * @throws {Error} throws if the input is invalid or magic is not recognized
+   */
+  static getType(bytes) {
+    // Ensure we can safely read the first 4 bytes.
+    if (!(bytes instanceof Uint8Array) || bytes.length < 4) {
+      throw new Error('expected Uint8Array with at least 4 bytes');
+    }
+
+    // Extract first four bytes as constants.
+    const a = bytes[0], b = bytes[1], c = bytes[2], d = bytes[3];
+
+    // RNOD: RVL Nigaoe Official Database
+    if (a === 0x52 && b === 0x4E && c === 0x4F && d === 0x44) {
+      return MiiDatabaseOfficialRfl;
+    }
+    // CFOF: CTR Face O(f)ficial (prototype)
+    if (a === 0x43 && b === 0x46 && c === 0x4F && d === 0x46) {
+      throw new Error('does not support mid-2010 CFL_DB.dat sorry');
+    }
+    // CFOG: CTR Face Official but they changed F -> G
+    if (a === 0x43 && b === 0x46 && c === 0x4F && d === 0x47) {
+      return MiiDatabaseOfficialCtr;
+    }
+    // FFOC: Ca(f)e Face Official... Cafe???
+    if (a === 0x46 && b === 0x46 && c === 0x4F && d === 0x43) {
+      return MiiDatabaseOfficialCafe;
+    }
+    // NFDB: NintendoSDK Face Library Database
+    if (a === 0x4E && b === 0x46 && c === 0x44 && d === 0x42) {
+      return MiiDatabaseNx;
+    }
+    // NFIF: NintendoSDK Face Library Import File
+    if (a === 0x4E && b === 0x46 && c === 0x49 && d === 0x46) {
+      throw new Error('nx NFIF file is not supported at this time');
+    }
+
+    throw new Error('unknown magic for db');
   }
 
   getCharData(/** @type {number} */ index) {
@@ -326,73 +401,42 @@ class MiiDatabaseAccessor {
 }
 
 /**
- * @typedef {{storeDataArray: Array<Uint8Array>,
- * characterNames: Array<string|null>, nonEmptyNum: number}} StoreDataArray
+ * Array of character data.
+ * @typedef {{dataArray: Array<Uint8Array>,
+ * characterNames: Array<string|null>,
+ * nonEmptyNum: number}} CharDataArray
  */
 
 /**
- * Process the uploaded FFL_ODB.dat file and display valid Mii data.
+ * Process the uploaded database file and display Mii data.
  * @param {Uint8Array} uint8Array - The file data.
- * @returns {StoreDataArray} An array of data from the FFL_ODB.
+ * @returns {CharDataArray} An array of data from the FFL_ODB.
  * @throws {Error}
  */
-function getStoreDataArrayFromDB2(uint8Array) {
-  // Verify the identifier, which is the first 4 bytes.
-  var magic = '';
-  var i;
-  for (i = 0; i < 4; i++) {
-    magic += String.fromCharCode(uint8Array[i]);
-  }
-
-  var db;
-  switch (magic) {
-    case 'CFOG':
-      db = MiiDatabaseOfficialCtr;
-      break;
-    case 'FFOC':
-      db = MiiDatabaseOfficialCafe;
-      break;
-    case 'RNOD':
-      db = MiiDatabaseOfficialRfl;
-      break;
-    case 'CFOF':
-      throw new Error('does not support mid-2010 CFL_DB.dat sorry');
-    default:
-      throw new Error('unknown magic');
-  }
-
+function getCharDataArrayFromDatabase(uint8Array) {
+  // Get the database type and create the accessor.
+  const db = MiiDatabaseAccessor.getType(uint8Array);
   const database = new MiiDatabaseAccessor(db, uint8Array);
 
-  if (uint8Array.length !== db.getFileSize()) {
-    throw new Error('getStoreDataArrayFromDB: wrong file size. Actual size: ' + uint8Array.length);
-  }
-
   const nonEmptyNum = database.getNonEmptyNum();
-  const storeDataArray = database.getCharDataAll();
+  const dataArray = database.getCharDataAll();
   const characterNames = Array.from({ length: nonEmptyNum });
 
-  const dataSz = db.getDataSize();
-  const swapEndian = dataSz === 92 && !db.isLittleEndian();
-  for (/* var */i = 0; i < nonEmptyNum; i++) {
+  const dataSize = db.getDataSize();
+  const swapEndian = dataSize === 92 && !db.isLittleEndian();
+  for (let i = 0; i < nonEmptyNum; i++) {
     if (swapEndian) { // Perform endian swapping.
-      swapFFLiMiiDataOfficial(storeDataArray[i]);
+      swapEndianVer3MiiData(dataArray[i], /* hasCreator = */ true);
     }
-    convOfficialToStore(storeDataArray[i], storeDataArray[i]);
+    if (dataSize === 92) { // Specifically convert 3DS/Wii U Mii data to StoreData.
+      dataArray[i] = ver3OfficialToStore(new Uint8Array(96), dataArray[i]);
+    }
     // Decode UTF-16 name.
-    if (dataSz === 74) {
-      const leName = storeDataArray[i].slice(2, 22);
-      const dv = new DataView(leName.buffer);
-      for (var j = 0; j < 10; j++) {
-        dv.setUint16(j, dv.getUint16(j, false), true);
-      }
-      characterNames[i] = decodeUtf16Le(leName, 0, 10);
-    } else if (dataSz === 92) {
-      characterNames[i] = decodeUtf16Le(storeDataArray[i], 0x1A, 10);
-    }
+    characterNames[i] = nameFromCharData(dataArray[i], dataSize);
   }
 
   return {
-    storeDataArray,
+    dataArray,
     characterNames,
     nonEmptyNum
   };
@@ -400,44 +444,36 @@ function getStoreDataArrayFromDB2(uint8Array) {
 
 /**
  * Display the list of valid Mii Base64 strings in the HTML.
- * @param {StoreDataArray} miis - Array of Mii objects containing name,
+ * @param {CharDataArray} miis - Array of Mii objects containing name,
  * roomIndex, positionInRoom, and Base64 data.
  */
-function displayStoreDataArray(miis) {
-  var ul = document.getElementById('miiList');
+function displayCharDataArray(miis) {
+  const ul = document.getElementById('miiList');
   if (!ul) {
     alert('displayMiis: Element with ID "miiList" does not exist.');
     return;
   }
   ul.innerHTML = ''; // Clear any existing content
 
-  // Add text format description
-  /*
-            var formatDesc = document.createElement('li');
-            formatDesc.textContent = 'Format: Name (Room Index/Position In Room): Base64 Data';
-            ul.appendChild(formatDesc);
-     */
+  for (let i = 0; i < miis.nonEmptyNum; i++) {
+    const name = miis.characterNames[i];
+    const data = miis.dataArray[i];
 
-  for (var i = 0; i < miis.nonEmptyNum; i++) {
-    var name = miis.characterNames[i];
-    var data = miis.storeDataArray[i];
-
-    var li = document.createElement('li');
-
-    // Prefix with Name and Room Info
-    li.textContent = name + '\n'; // `${miis[i].name} (${miis[i].roomIndex}/${miis[i].positionInRoom}): `;
+    const li = document.createElement('li');
+    li.textContent = name + '\n';
 
     // Encode data to Base64
-    var base64Data = bytesToBase64(data);
+    const base64Data = bytesToBase64(data);
     // Add Base64 in a code block
-    var codeBlock = document.createElement('code');
+    const codeBlock = document.createElement('code');
     codeBlock.textContent = base64Data;
     li.appendChild(codeBlock);
 
     // Add inner bullet with image
-    var innerUl = document.createElement('ul');
-    var innerLi = document.createElement('li');
-    innerLi.innerHTML = '<img loading="lazy" src="https://mii-unsecure.ariankordi.net/miis/image.png?width=96&data=' + encodeURIComponent(base64Data) + '"><br>';
+    const innerUl = document.createElement('ul');
+    const innerLi = document.createElement('li');
+    const imgWidth = 96;
+    innerLi.innerHTML = '<img src="https://mii-unsecure.ariankordi.net/miis/image.png?width=' + imgWidth + '&data=' + encodeURIComponent(base64Data) + '" loading="lazy" width="' + imgWidth + '" height="' + imgWidth + '"><br>';
     innerUl.appendChild(innerLi);
     li.appendChild(innerUl);
 
@@ -446,9 +482,9 @@ function displayStoreDataArray(miis) {
 
   // Inform the user if no valid Miis were found
   if (miis.nonEmptyNum <= 0) {
-    li = document.createElement('li');
-    li.textContent = 'No valid Mii data found.';
-    ul.appendChild(li);
+    const notFound = document.createElement('li');
+    notFound.textContent = 'No valid Mii data found.';
+    ul.appendChild(notFound);
   }
 }
 
@@ -457,30 +493,31 @@ function displayStoreDataArray(miis) {
  * @param {Event} event - The change event.
  */
 function handleFileSelect(event) {
-  var target = /** @type {HTMLInputElement} */ (event.target);
+  const target = /** @type {HTMLInputElement} */ (event.target);
   if (!target || !target.files || !target.files[0]) {
     alert('No file selected.');
     return;
   }
 
-  var file = target.files[0];
+  const file = target.files[0];
 
-  var reader = new FileReader();
+  const reader = new FileReader();
 
   reader.onload = function (e) {
-    var arrayBuffer = /** @type {FileReader} */ (e.target).result;
+    const arrayBuffer = /** @type {FileReader} */ (e.target).result;
     if (!(arrayBuffer instanceof ArrayBuffer)) {
       console.error('handleFileSelect / reader.onload: FileReader.result is not ArrayBuffer.');
       return;
     }
 
+    let storeData;
     try {
-      var array = getStoreDataArrayFromDB2(new Uint8Array(arrayBuffer));
+      storeData = getCharDataArrayFromDatabase(new Uint8Array(arrayBuffer));
     } catch (e) {
       alert(e);
       throw e;
     }
-    displayStoreDataArray(array);
+    displayCharDataArray(storeData);
   };
 
   reader.onerror = function () {
@@ -505,8 +542,8 @@ function onFFLODBRead(evt) {
   }
 
   /** Define the Blob from the event. */
-  var blob = evt.data;
-  var reader = new FileReader();
+  const blob = evt.data;
+  const reader = new FileReader();
 
   reader.onloadend = function () {
     if (!reader.result) {
@@ -515,12 +552,12 @@ function onFFLODBRead(evt) {
     }
     // Convert text content to an ArrayBuffer
     /** Result of the reader, which is expected to be a string. */
-    var textData = reader.result;
+    const textData = reader.result;
     if (typeof textData !== 'string') {
       alert('onFFLODBRead / reader.onloadend: FileReader.result type is unexpectedly not string');
       return;
     }
-    var bytes = new Uint8Array(textData.split('').map(
+    const bytes = new Uint8Array(textData.split('').map(
       /**
        * @param {string} char - The character as a string.
        * @returns {number} The byte index of the character.
@@ -529,13 +566,14 @@ function onFFLODBRead(evt) {
         return char.charCodeAt(0);
       }));
 
+    let storeData;
     try {
-      var array = getStoreDataArrayFromDB2(bytes);
+      storeData = getCharDataArrayFromDatabase(bytes);
     } catch (e) {
       alert(e);
       throw e;
     }
-    displayStoreDataArray(array);
+    displayCharDataArray(storeData);
   };
 
   reader.onerror = function () {
@@ -545,6 +583,8 @@ function onFFLODBRead(evt) {
   // Read the Blob as text
   reader.readAsBinaryString(blob); // Use binary string to match expected content format
 }
+
+// TODO from 2026-05: NWF was probably broken from ES6 conversion
 
 /*
 function onFFLODBReadFail() {
@@ -575,16 +615,17 @@ document.addEventListener('DOMContentLoaded', function () {
 // https://github.com/MaxArt2501/base64-js/blob/master/base64.js
 if (!window.btoa) {
   // base64 character set, plus padding character (=)
-  var b64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+  const b64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
   window.btoa = function (string) {
     string = String(string);
-    var bitmap;
-    var a;
-    var b;
-    var c;
-    var result = '';
-    var i = 0;
-    var rest = string.length % 3; // To determine the final padding
+    let bitmap;
+    let a;
+    let b;
+    let c;
+    let result = '';
+    let i = 0;
+    /** Amount of final padding. */
+    const rest = string.length % 3;
 
     for (; i < string.length;) {
       if ((a = string.charCodeAt(i++)) > 255 ||
@@ -598,14 +639,15 @@ if (!window.btoa) {
         b64.charAt(bitmap >> 6 & 63) + b64.charAt(bitmap & 63);
     }
 
-    // If there's need of padding, replace the last 'A's with equal signs
+    // If there's need of padding, replace the last 'A's with equal signs.
+    // eslint-disable-next-line unicorn/prefer-string-slice -- for safari 5
     return rest ? result.slice(0, rest - 3) + '==='.substring(rest) : result;
   };
 }
 
 // Ensure the DOM is loaded before attaching event listeners
 document.addEventListener('DOMContentLoaded', function () {
-  var fileInput = document.getElementById('fileInput');
+  const fileInput = document.getElementById('fileInput');
   if (fileInput && fileInput.addEventListener) {
     fileInput.addEventListener('change', handleFileSelect, false);
   } else {
@@ -613,33 +655,4 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
-// NOTE that CFL_DB.dat contains more interesting data!!!!
-/*
-
-struct CFLiCharDatabase {
-    u32 identifier; // magic: CFOG (0x474f4643)
-    u32 myMiiIndex:8;
-    u32 isolation:1;
-    u32 padding_0:23;
-    struct CFLiPackedMiiDataOfficial rawdata[100]; // 92 bytes
-    struct CFLiHiddenHeader hidden;
-    u8 padding_1[14];
-    u16 crc;
-};
-
-// For reference, from FFL decomp (https://github.com/aboood40091/ffl/blob/73fe9fc70c0f96ebea373122e50f6d3acc443180/include/nn/ffl/FFLiDatabaseFileOfficial.h#L42)
-class FFLiDatabaseFileOfficial
-{
-...
-private:
-    u32                 m_Magic; // magic: FFOC (0x46464f43)
-    u32                 m_SaveCount;
-    FFLiMiiDataOfficial m_MiiDataOfficial[3000]; // 92 bytes
-    FFLCreateID         m_CreateID[50]; // 10 bytes
-    // Not written to by Mii Maker(?):
-    u16                 _4381c[34 / sizeof(u16)];
-    u16                 m_Crc;
-}
-*/
-
-// export { processFFLODB };
+// export { getCharDataArrayFromDatabase };

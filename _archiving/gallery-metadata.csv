@@ -22,7 +22,7 @@ threejs-mii-shader,mii-useful,render mii and shader with mii-unsecure glTF and t
 mii-effsd-poc-0,mii-useless,OLDER eFFSD experiment (see one made on nov 22),,2024-11-15
 mii-effsd-poc-1,mii-useful,store switch colors in ffsd unused space experiment,"also known as ""eFFSD"" - replaced in sep. 2025 with c++ impl in ffl_mii_patcher_plugin",2024-11-23
 ver3-commoncolor-map-visualizer,mii-useful,Ver3 to (Switch) Common Color Reverse Mapping,helps visualize how eFFSD extra color mapping works,2024-11-23
-mii-db-ffl-cfl-parser,mii-useful,reader for FFL_ODB.dat/CFL_DB.dat (wii u/3ds mii db),made for david to use in nwf (hence javascript ES5),2024-12-11
+mii-db-parser,mii-useful,reader for mii db files,originally ES5 for david to use in nwf,2024-12-11
 glsl-uniform-alignment-visualizer,misc-useful,GLSL std140 Uniform Block Visualizer,,2024-12-21
 display-binary-float-matrix,misc-useful,float 4x3 matrix array parser,initially used to help with mii body scaling reversing,2024-12-25
 miitomo-mii-data-decoder,mii-useful,"miitomo ""mii_data"" decode toy","note that this is NOT the same data included in qr codes, read the fiddle for more",2024-12-26

@@ -1,45 +1,66 @@
-<h3 style="margin: 5px 0 5px 0">simple display for mii databases</h3>
-<div>supported: RFL_DB.dat (Wii, no Parade), CFL_DB.dat (3DS), FFL_ODB.dat (Wii U), MiiDatabase.dat (Switch)</div>
+<h3 style="margin: 5px 0">simple display for mii databases</h3>
+<div>
+  supported: RFL_DB.dat (Wii, no Parade),
+  CFL_DB.dat (3DS), Wii Remote (752-byte "RNCD"),
+  FFL_ODB.dat (Wii U), MiiDatabase.dat (Switch)
+</div>
 <input type="file" id="fileInput" accept=".dat" />
-<h2>Data List:</h2>
-<ul id="miiList">
+<h2>Mii Data List:</h2>
+<ul id="dataList">
     <!-- Mii images with Base64 strings will be appended here -->
 </ul>
 
-<script>
-// embedded version of chayton's gzipped FFL_ODB.dat
-// source (private): https://discord.com/channels/360173962862395392/485919503369371648/1244505755844087809
-var FFL_ODB_GZ_B64 = 'H4sICMUKVGYCA0ZGTF9PREIuZGF0AO3We2zV93UA8ON7DfYCwcZxjEM7aptHA4SUYBoc2hSDzTuAMRErLFGwsc11eHiFNCRNJgPmkUeXkjZqm3aLKCWJuk1tRto0U9U2pSlNtqzNOmlNUqOGaelemtJ1VaNMabfvvXCNrZhqm/Ln53NlgeXzOzr3fM/3+/0tW7auJSKur4zIPvz6V9YdeuyLf3D402XVH3jk+7/85V9FlEd0Rnf69ERd+l9f7EmfiP4tq0um9LZPGmhqmDKm/ECuLBpKn2uPthUxisp9kf3S7i9++Q/fuvvJB6/69fQTz5wteW1HxJURbSnzbelnd8q+PK7OR6/uj22ZxtwtE0rnzambVfvojoqYHk312RU/HC13c5RkV3305Nnj05/IDF77rTl3XNfU2DQxou/N2Jz+XBdrY3GsiaXnovv7v/FUWd8PbyvZN39B9dKSir+ti2OZ67MvZSZGS+SiI+5M1fTFrmLuGJa7Zk8x94dL4oYU1Zs6MVR1xLaWyGSzuT1VUy+bc/mKCd+ZURsTZsbMcz3piK2xfWTdw3N/60gx9/a2WJK60Zue2HUh+xXvKy8vrc/tqWnJ3VO2b/zxsZNifPOL62Px/6Lu1zcVc68+GRsK3d6b8ncPZV8YVSVTcmW1rWNmVS+r2rnsPTF+ZhTWcpTclQORbZ//J395MvNfAw/O+tyTLzwS/7n9cxG/e03qcndsG96RiAXLYmu2ITe7dmtT+6X7K8/mSqNiZqwauMic7BmR+5vF3NVRqGT3yI6v6SgbV/bBrtmXZOYvuGRxrOqpyOeuvEjuEXOy4GM3F3uyoyRujI0pYMScRGyJGHusurphWv2EqBy7ZUxMuyJ7sZ7k+93SVvLPM46sPz5Y+dDPv39q5bfPpLpvzO+d3YWV7LoQHf0RJY25TG3r/Bmp3/tzE+PSmbFhf8o9SnQ+98JvvzF1YOm8eYMTNy/63un1j/79j9JAzUszeCG2Lu2ktSm6+WiMqe/N566r7k65L8vnvti+zOe+tfWVQ83PtjW/8ta2zzz/4psNFY+lGXygsJZ703fcm7IXy15cXl0y5UvTa1u3HSy7v6Hz1KSoOpc7+3zsyJ6afjp2Rnf2+dIl6fe+ETO465Z7i/2+5erU552Fb5o/S/JTuCSu3jw51f2h3HtrW7rqaqZXHc5tKtY9Y2z6Xn3ppyOfPf12vu7NX//R/iWHfn5ycOcPTv54bcfHb10VaWEKq9Nb2GvdQx1M4Wm+s1ccbPr42HHTvvNca7Hui83Juz54+s/Klv/dqcFVr3310LO5SY+9L+3AjdGaarg9Ze9KNW8oVN+xd2U6N5cU1nJsYS2vOF/38hRVjL41xXbER87V/bHTn1+6r3Tu3MH7Tv/OiR+s/ez6d0WkQtpTx1vS9M2Na4Yqyde9clfV5OmVh6esGJPZ8cDQvhy97lh4/a+2Dnzvk8cH391YfdcnujbNyE/EUylzR1rJ2/Jb5sI5GFdFw7QD41obxo8/Uf5iriYm1I+57vGU+0L06GfVo+MeL67lpo2p9HVpzOuG9Sb2ruyM2PhCddUz82uql1fdk1s81JNhK5l2cW96Ytfc1O+tJzvKDx+Z2P75D/37wNNf3vWn31yU5vvpwjnYkTIOrWShJ5mS+p4DtV3XNFadqFzcVTE036NE53N31t1R+kxrWzzUX/Fkunf+4emXI9ZXvVr36p5Ymeroyz/16p5XG9KNMTvlvm7YvqzJ5554+OJ750JPxg+dJ6nuYk+GVdQfPanuHQ/VHsxdW3ZPZXlXybB9+fZvOTL3E8Xc66uGcg/Vnq+7M9W9q7r2YKHue9JdPOG31V2S3X7z6fsPP7YhzcmZW37z9JV/U7Mw/aEkVbAjVqeMe9NPb+blzEuZlyfV11Vl7sqVTmtpWlp2ZHJ0ludzz37vpnvTmdlx/p7qTM91p1vk9vw7RGPTtFXbjnzq+KFZz963YMGMhx9OXybzi3Q65aO3F2764fO9LFcx1O/Lh3oyWvSInly6v9iT5pLzPRlRff/CnurMXbuqp51o2pjqLs9Njoo5MfvKVHe8ve58Tz7wT/evOTj2mrmDv7/wxtcbP/GVs8feqX05vO4J5cW6V8TQWq5J1WwvnIR3ns+dnTwjzcm9l0bl0ny/W/ZdfM+/dPevBr67tLPzJ5d/Yeb4Je9f/cQbETfdH6tSvp3pk+ajuOdv3xKZcd2tz9UMNHRUdU/o6Ul3w/TalQ/mOkZED+2dyP705gW/PvDUz37zx4/c+Y93f+O+FwZrIra+mc6zc+8mN8RH07+FZ26YWpkpWZQrrW1J986yoXunPtU9SvSIM3bhv44pnrGbRp6xq86dm52b01zNG+WM3Zair04ncQw/kUecsQ98df47e8ZG9uyB3j9vnfGFozdde+bGM/Vzf9y+JOKqkvTN+lLdHcOj10+ObPTmrkw9uaxqadX+nkLdmzMpd+78++C59976Yu5LWl95bUtX276XjzV/9z+OHt3/kbRyN/0szcjuQnz3hbW8YW3+HBw6qw4Pu+dvGxY92gz+4qd/UZzB//OdFqPfaUcr59ad6o4DP/mXNQ/Mefz4lD3jIjZ8LX4vxfSlqbozPTcvGuP9saB/eXrX7N5R/u6WxrrqnuqOY5fl5/vWrxXeqzoK71R7R9QdxbrPLFpXW6x79PlOLjbf8fb5bh5275yZ+m9//Vb7rP9+Y+I7c++MmO/BP3rjt893W1t61+zufU9t67Sx+Tk5vCHfk/apbb2jRQcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMD/05lF62rvuK6psWmiXlD0yeb/ARLpqeNAOAQA';
+<script type="module">
+// @ts-check
 
-async function loadEmbeddedDB() {
-  var b64 = FFL_ODB_GZ_B64;
-  var binary = atob(b64);
-  var bytes = new Uint8Array(binary.length);
-  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+window.addEventListener('load', () =>
+  decompressFile(base64ToUint8Array(FFL_ODB_GZ_B64)).then((fileBuffer) => {
+    spoofFileUpload(fileBuffer, 'FFL_ODB preset from chayton.dat');
+  })
+);
 
-  var ds = new DecompressionStream('gzip');
-  var writer = ds.writable.getWriter();
-  writer.write(bytes);
-  writer.close();
-
-  var chunks = [];
-  var reader = ds.readable.getReader();
-  while (true) {
-    var res = await reader.read();
-    if (res.done) break;
-    chunks.push(res.value);
+/** Decodes a Base64 string into a Uint8Array. */
+function base64ToUint8Array(/** @type {string} */ base64) {
+  const binary = atob(base64);
+  const output = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    output[i] = binary.charCodeAt(i);
   }
-  var totalLen = chunks.reduce(function(s, c) { return s + c.length; }, 0);
-  var out = new Uint8Array(totalLen);
-  var offset = 0;
-  for (var i = 0; i < chunks.length; i++) {
-    out.set(chunks[i], offset);
-    offset += chunks[i].length;
-  }
-
-  var array = getCharDataArrayFromDatabase(out);
-  displayCharDataArray(array, document.getElementById('miiList'));
+  return output;
 }
 
-window.addEventListener('load', function() { loadEmbeddedDB(); });
-</script><script type="module" src="script.js"></script>
+/** Decompresses the data directly into a pre-allocated output buffer. */
+const decompressFile = async (/** @type {Uint8Array<ArrayBuffer>} */
+  compressedBytes, /** @type {CompressionFormat} */ format = 'gzip') =>
+  new Uint8Array(
+    await new Response(new Response(compressedBytes).body
+      .pipeThrough(new DecompressionStream(format))).arrayBuffer()
+  );
+
+/**
+ * Creates a synthetic File object from the embedded database
+ * and injects it into the file input element.
+ */
+function spoofFileUpload(/** @type {Uint8Array<ArrayBuffer>} */ data,
+  /** @type {string} */ fname = 'file.dat') {
+  const fakeFile = new File(
+    [data], fname, {
+      type: 'application/octet-stream',
+      lastModified: Date.now()
+    });
+
+  const dataTransfer = new DataTransfer();
+  dataTransfer.items.add(fakeFile);
+
+  const fileInput = document.getElementById('fileInput');
+
+  fileInput.files = dataTransfer.files;
+  // Trigger the normal upload handler.
+  fileInput.dispatchEvent(new Event('change'));
+}
+
+// embedded version of chayton's gzipped FFL_ODB.dat
+// source (private): https://discord.com/channels/360173962862395392/485919503369371648/1244505755844087809
+const FFL_ODB_GZ_B64 = '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';
+</script>
+<script type="module" src="script.js"></script>

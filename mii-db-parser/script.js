@@ -1,24 +1,24 @@
 /**
  * @file mii-db-parser.js
  * Obtained from: https://github.com/ariankordi/my-jsfiddles/blob/main/mii-db-parser/script.js
- * Reads Wii, 3DS, Wii U, and Switch Mii databases,
+ * Reads Wii, Wii Remote, 3DS, Wii U, and Switch Mii databases,
  * displaying icons and names of every character within.
  *
  * TODO: Does NOT read hidden databases ("Mii Parade").
  * This was originally made to read FFL_ODB.dat in NWF,
- * and TODO that functionality was broken during conversion to ES6.
+ * for which instructions are included later in the file.
  * @author Arian Kordi <https://github.com/ariankordi>
  */
 // @ts-check
 
 /* eslint @stylistic/indent: ['error', 2] -- Define indent rules. */
-
-/* eslint unicorn/prefer-dom-node-append: 'off' -- Incompatible with ES5 browsers.  */
-/* eslint unicorn/prefer-blob-reading-methods: 'off' -- Incompatible with ES5 browsers. */
-/* eslint unicorn/prefer-add-event-listener: 'off' -- Not sure */
-
 /* eslint jsdoc/require-param: 'off' -- do not care. */
 /* eslint jsdoc/require-returns: 'off' -- do not care. */
+
+/* eslint unicorn/no-new-array: 'off' -- not supported in safari 5.1 */
+/* eslint unicorn/prefer-blob-reading-methods: 'off' -- not supported in safari 5.1 */
+/* eslint unicorn/prefer-dom-node-append: 'off' -- not supported in safari 5.1 */
+/* globals nwf -- nintendo web framework */
 
 // // ---------------------------------------------------------------------
 // //  Utilities: CRC-16/CCITT, Base64, UTF-16, "is all zeroes"
@@ -104,7 +104,7 @@ class EndianSwapUtility {
     data[offset + 3] = b0;
   }
 
-  static swapVer3MiiData(/** @type {Uint8Array} */ data,
+  static swapVer3Data(/** @type {Uint8Array} */ data,
     /** @type {boolean} */ hasCreator) {
     // Reference: https://github.com/aboood40091/ffl/blob/73fe9fc70c0f96ebea373122e50f6d3acc443180/src/FFLiMiiDataCore.cpp#L6-L14
     EndianSwapUtility.swap32(data, 0);
@@ -163,7 +163,7 @@ class CharDataUtility {
 // // ---------------------------------------------------------------------
 
 /**
- * @typedef {Object} MiiDatabaseOfficial
+ * @typedef {Object} CharDatabase
  * @property {function(): number} getFileSize
  * @property {function(): number} getDataSize
  * @property {function(): number} getDataNum
@@ -177,7 +177,7 @@ class CharDataUtility {
  * Database header for Wii (RFL_DB.dat).
  * @todo Also contains hidden DB.
  */
-class MiiDatabaseOfficialRfl {
+class CharDatabaseRfl {
   static getFileSize() {
     return 779968;
   }
@@ -210,11 +210,45 @@ class MiiDatabaseOfficialRfl {
   }
 }
 
+/** Database header for Wii controller storage. */
+class CharDatabaseRflCtrl {
+  static getFileSize() {
+    return 752; // TODO: confirm
+  }
+
+  static getDataSize() {
+    return 0x4A;
+  }
+
+  static getDataNum() {
+    return 10;
+  }
+
+  static getCrcOffset() {
+    return 0x2ee;
+  }
+
+  static isLittleEndian() {
+    return false;
+  }
+
+  /** gets the index of the character data */
+  static getOffset(/** @type {number} */ index) {
+    return 8 + (index * 0x4A);
+  }
+
+  /** checks if the character data entry is empty/invalid */
+  static isDataEmpty(/** @type {Uint8Array} */ data) {
+    const createId = data.subarray(24, 32);
+    return areAllZeros(createId);
+  }
+}
+
 /**
  * Database header for 3DS (CFL_DB.dat).
  * @todo Also contains hidden DB.
  */
-class MiiDatabaseOfficialCtr {
+class CharDatabaseCtr {
   static getFileSize() {
     return 310560;
   }
@@ -252,7 +286,7 @@ class MiiDatabaseOfficialCtr {
  * Database header for Wii U (FFL_ODB.dat).
  * @todo Hidden DB is in separate file (FFL_HDB.dat).
  */
-class MiiDatabaseOfficialCafe {
+class CharDatabaseCafe {
   static getFileSize() {
     return 276544;
   }
@@ -287,7 +321,7 @@ class MiiDatabaseOfficialCafe {
 }
 
 /** Database header for Switch (MiiDatabase.dat) */
-class MiiDatabaseNx {
+class CharDatabaseNx {
   static getFileSize() {
     return 6808;
   }
@@ -320,20 +354,20 @@ class MiiDatabaseNx {
   }
 }
 
-class MiiDatabaseAccessor {
-  constructor(/** @type {MiiDatabaseOfficial} */ db, /** @type {Uint8Array} */ dataArray) {
+class CharDatabaseAccessor {
+  constructor(/** @type {CharDatabase} */ db, /** @type {Uint8Array} */ dataArray) {
     /** @private */ this._db = db;
     /** @private */ this._dataArray = dataArray;
 
     if (dataArray.length !== db.getFileSize()) {
-      throw new Error('MiiDatabaseAccessor: wrong file size');
+      throw new Error('wrong db file size');
     }
   }
 
   /**
    * determines type of database file
    * @param {Uint8Array} bytes - database file contents
-   * @returns {MiiDatabaseOfficial} database header class
+   * @returns {CharDatabase} database header class
    * @throws {Error} throws if the input is invalid or magic is not recognized
    */
   static getType(bytes) {
@@ -347,7 +381,11 @@ class MiiDatabaseAccessor {
 
     // RNOD: RVL Nigaoe Official Database
     if (a === 0x52 && b === 0x4E && c === 0x4F && d === 0x44) {
-      return MiiDatabaseOfficialRfl;
+      return CharDatabaseRfl;
+    }
+    // RNCD: RVL Nigaoe Controller Database
+    if (a === 0x52 && b === 0x4E && c === 0x43 && d === 0x44) {
+      return CharDatabaseRflCtrl;
     }
     // CFOF: CTR Face Official (prototype)
     if (a === 0x43 && b === 0x46 && c === 0x4F && d === 0x46) {
@@ -355,15 +393,15 @@ class MiiDatabaseAccessor {
     }
     // CFOG: CTR Face Official but they changed F -> G
     if (a === 0x43 && b === 0x46 && c === 0x4F && d === 0x47) {
-      return MiiDatabaseOfficialCtr;
+      return CharDatabaseCtr;
     }
     // FFOC: Ca(f)e Face Official... Cafe???
     if (a === 0x46 && b === 0x46 && c === 0x4F && d === 0x43) {
-      return MiiDatabaseOfficialCafe;
+      return CharDatabaseCafe;
     }
     // NFDB: NintendoSDK Face (Library) Database
     if (a === 0x4E && b === 0x46 && c === 0x44 && d === 0x42) {
-      return MiiDatabaseNx;
+      return CharDatabaseNx;
     }
     // NFIF: NintendoSDK Face (Library) Import File
     if (a === 0x4E && b === 0x46 && c === 0x49 && d === 0x46) {
@@ -401,12 +439,12 @@ class MiiDatabaseAccessor {
   getCharDataAll() {
     const num = this._db.getDataNum();
     /** @type {Array<Uint8Array>} */
-    const out = Array.from({ length: num });
-    let current = 0;
-    for (let i = 0; i < num; i++) {
-      const data = this.getCharData(current);
+    const out = new Array(num);
+    let outIndex = 0;
+    for (let i = 0; i <= num; i++) {
+      const data = this.getCharData(i);
       if (!this._db.isDataEmpty(data)) {
-        out[current++] = data;
+        out[outIndex++] = data;
       }
     }
     return out;
@@ -428,8 +466,8 @@ class MiiDatabaseAccessor {
  */
 function getCharDataArrayFromDatabase(uint8Array) {
   // Get the database type and create the accessor.
-  const db = MiiDatabaseAccessor.getType(uint8Array);
-  const database = new MiiDatabaseAccessor(db, uint8Array);
+  const db = CharDatabaseAccessor.getType(uint8Array);
+  const database = new CharDatabaseAccessor(db, uint8Array);
 
   if (!database.isValid()) {
     throw new Error('Database CRC-16 is invalid.');
@@ -437,14 +475,16 @@ function getCharDataArrayFromDatabase(uint8Array) {
 
   const nonEmptyNum = database.getNonEmptyNum();
   const dataArray = database.getCharDataAll();
-  const characterNames = Array.from({ length: nonEmptyNum });
+  const characterNames = new Array(nonEmptyNum);
 
   const dataSize = db.getDataSize();
-  const sizeVer3 = MiiDatabaseOfficialCafe.getDataSize();
+  const sizeVer3 = CharDatabaseCafe.getDataSize();
   const shouldSwapVer3 = dataSize === sizeVer3 && !db.isLittleEndian();
   for (let i = 0; i < nonEmptyNum; i++) {
+    console.assert(dataArray[i] && dataArray[i].length > 0);
+
     if (shouldSwapVer3) { // Perform endian swapping.
-      EndianSwapUtility.swapVer3MiiData(dataArray[i], /* hasCreator = */ true);
+      EndianSwapUtility.swapVer3Data(dataArray[i], /* hasCreator = */ true);
     }
     if (dataSize === sizeVer3) { // Specifically convert 3DS/Wii U Mii data to StoreData.
       dataArray[i] = CharDataUtility.ver3OfficialToStore(new Uint8Array(96), dataArray[i]);
@@ -463,7 +503,8 @@ function getCharDataArrayFromDatabase(uint8Array) {
 /** Gets the text of the image element to be used in {@link displayCharDataArray}. */
 function getImgElement(/** @type {string} */ b64Data, /** @type {string} */ width) {
   const d = encodeURIComponent(b64Data);
-  return '<img src="https://mii-unsecure.ariankordi.net/miis/image.png?width=' + width + '&data=' + d + '" loading="lazy" width="' + width + '" height="' + width + '"><br>';
+  const url = `https://mii-unsecure.ariankordi.net/miis/image.png?width=${width}&data=${d}`;
+  return `<img src="${url}" loading="lazy" width="${width}" height="${width}"><br>`;
 }
 
 /**
@@ -523,7 +564,7 @@ function handleFileSelect(event) {
 
   const reader = new FileReader();
 
-  reader.onload = function (e) {
+  reader.addEventListener('load', function (e) {
     const arrayBuffer = /** @type {FileReader} */ (e.target).result;
     if (!(arrayBuffer instanceof ArrayBuffer)) {
       console.error('handleFileSelect / reader.onload: FileReader.result is not ArrayBuffer.');
@@ -534,20 +575,20 @@ function handleFileSelect(event) {
     let ul;
     try {
       storeData = getCharDataArrayFromDatabase(new Uint8Array(arrayBuffer));
-      ul = document.getElementById('miiList');
+      ul = document.getElementById('dataList');
       if (!ul) {
-        throw new Error('miiList element is missing.');
+        throw new Error('dataList element is missing.');
       }
     } catch (e) {
       alert(e);
       throw e;
     }
     displayCharDataArray(storeData, ul);
-  };
+  });
 
-  reader.onerror = function () {
+  reader.addEventListener('error', function () {
     alert('handleFileSelect / reader.onerror: Error reading file.');
-  };
+  });
 
   // Read the file as ArrayBuffer for binary processing
   reader.readAsArrayBuffer(file);
@@ -563,6 +604,12 @@ function handleFileSelect(event) {
  * However, FFL_ODB is meant to be read by any other title, and
  * by patching jsextension_ext-fileio.rpl and, IIRC, replacing
  * a prefix like "/vol/aoc/" to just "/vol/", this bypasses its filter.
+ */
+
+/**
+ * To compile this code to work with NWF in the first place,
+ * run Babel like: `npx babel mii-db-parser.js --out-file mii-db-parser.old.js --presets=@babel/preset-env --no-babelrc`
+ * You will then need to define a fake exports object for it to use: `window.exports = {};`
  */
 
 // eslint-disable-next-line unicorn/prefer-global-this -- only works in nwf
@@ -604,9 +651,9 @@ if ('nwf' in window) {
       let ul;
       try {
         storeData = getCharDataArrayFromDatabase(bytes);
-        ul = document.getElementById('miiList');
+        ul = document.getElementById('dataList');
         if (!ul) {
-          throw new Error('miiList element is missing.');
+          throw new Error('dataList element is missing.');
         }
       } catch (e) {
         alert(e);
@@ -615,6 +662,7 @@ if ('nwf' in window) {
       displayCharDataArray(storeData, ul);
     };
 
+    // eslint-disable-next-line unicorn/prefer-add-event-listener -- not sure if nwf supports
     reader.onerror = function () {
       alert('onDatabaseRead / reader.onerror: Could not read Blob.');
     };
@@ -644,7 +692,8 @@ if ('nwf' in window) {
         }
       }
     } catch (error) {
-      alert('An error occurred while accessing the directory: ' + error.message);
+      const e = error instanceof Error ? error.message : error;
+      alert(`An error occurred while accessing the directory: ${  e}`);
     }
   });
 }
@@ -682,19 +731,14 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
-// Export for the inline HTML in the jsfiddle that. is supposed to load a file.
-if (typeof globalThis !== 'undefined') {
-  globalThis['getCharDataArrayFromDatabase'] = getCharDataArrayFromDatabase;
-  globalThis['displayCharDataArray'] = displayCharDataArray;
-}
-
 export {
   getCharDataArrayFromDatabase,
-  MiiDatabaseAccessor,
-  MiiDatabaseOfficialRfl,
-  MiiDatabaseOfficialCtr,
-  MiiDatabaseOfficialCafe,
-  MiiDatabaseNx,
+  CharDatabaseAccessor,
+  CharDatabaseRfl,
+  CharDatabaseRflCtrl,
+  CharDatabaseCtr,
+  CharDatabaseCafe,
+  CharDatabaseNx,
   // misc.
   decodeChar16,
   crc16,
